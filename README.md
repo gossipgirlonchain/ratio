@@ -13,9 +13,11 @@ handle is unregistered — `BOT_HANDLE` in `@ratio/config` drives it everywhere.
   path), market creation, 24h settlement on absolute like counts, tie to
   side A, mid-window health check, ZeroClaimableSupply void guard. All
   against mocks: `npm run sim`.
-- **R2 — next.** Void/forfeit hardening; hide-detection experiment (does
-  `conversation_id:` search exclude hidden replies?) needs real API access.
-- **R3 — unblocked.** Prediction migrator confirmed as the settlement path;
+- **R2 — done.** Mid-window health check, transient-vs-gone distinction
+  (API failures defer and retry; only definitive unreadability voids). Hide
+  detection and forfeit are OUT of v1 (decided 2026-07-31); `forfeited`
+  stays reserved in the schema.
+- **R3 — next.** Prediction migrator confirmed as the settlement path;
   five feeBeneficiaries per curve (hard cap), weights immutable at creation:
   Doppler 7.5 / treasury 45 / side A 18 / side B 18 / tagger 11.5. Port
   cue-wire `packages/doppler` behind `MarketChain`.

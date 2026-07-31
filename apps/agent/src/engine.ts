@@ -279,13 +279,22 @@ export class RatioEngine {
       now,
     );
     for (const record of due) {
-      await this.store.updateMarket(record.id, { healthCheckedAtMs: now });
-      const [a, b] = await Promise.all([
-        this.x.getTweet(record.tweetAId),
-        this.x.getTweet(record.tweetBId),
-      ]);
-      if (!a || !b)
-        await this.voidMarket(record, "a side went unreadable mid market");
+      try {
+        const [a, b] = await Promise.all([
+          this.x.getTweet(record.tweetAId),
+          this.x.getTweet(record.tweetBId),
+        ]);
+        // Mark checked only after a successful read: a transient API failure
+        // leaves the flag unset so the next tick retries the check.
+        await this.store.updateMarket(record.id, { healthCheckedAtMs: now });
+        if (!a || !b)
+          await this.voidMarket(record, "a side went unreadable mid market");
+      } catch (err) {
+        console.error(
+          `  health check ${record.id} deferred:`,
+          (err as Error).message,
+        );
+      }
     }
   }
 
@@ -293,54 +302,65 @@ export class RatioEngine {
   async resolveDueMarkets(): Promise<void> {
     const due = await this.store.listOpenMarketsDue(this.config.now());
     for (const record of due) {
-      const [a, b] = await Promise.all([
-        this.x.getTweet(record.tweetAId),
-        this.x.getTweet(record.tweetBId),
-      ]);
-      if (!a || !b) {
-        await this.voidMarket(record, "a side went unreadable before settlement");
-        continue;
+      try {
+        await this.resolveMarket(record);
+      } catch (err) {
+        // Transient failure (X API, RPC): the market stays open and the next
+        // cron tick retries. Voids happen only on definitive unreadability.
+        console.error(
+          `  settlement ${record.id} deferred:`,
+          (err as Error).message,
+        );
       }
-
-      // Absolute counts, no age normalisation. Exact tie: side A held the line.
-      const winner: "a" | "b" = b.likeCount > a.likeCount ? "b" : "a";
-      const winnerSide: 0 | 1 = winner === "a" ? 0 : 1;
-
-      // Snapshot BEFORE settle: vaults drain at migration, and the recap is
-      // the distribution loop — without this it has nothing to say.
-      const odds = await this.chain.getOdds(record.chainRefs);
-      const snapshot = {
-        likesAFinal: a.likeCount,
-        likesBFinal: b.likeCount,
-        finalImpliedA: odds.impliedA,
-        finalPotUsd: odds.raisedUsd[0] + odds.raisedUsd[1],
-      };
-
-      // Ported ZeroClaimableSupply guard: nobody holds the winning side ->
-      // on-chain migration throws. Void; bettors exit on the open curve.
-      if (odds.raisedUsd[winnerSide] === 0) {
-        await this.store.updateMarket(record.id, snapshot);
-        await this.voidMarket(record, "the winning side had no money on it");
-        continue;
-      }
-
-      await this.chain.settle({ refs: record.chainRefs, winner: winnerSide });
-      await this.store.updateMarket(record.id, {
-        status: "settled",
-        winner,
-        ...snapshot,
-      });
-      await this.x.postReply({
-        inReplyTo: record.tweetBId,
-        text: recap({
-          winner,
-          likesA: a.likeCount,
-          likesB: b.likeCount,
-          moneyImpliedAPct: Math.round(odds.impliedA * 100),
-          tie: a.likeCount === b.likeCount,
-        }),
-      });
     }
+  }
+
+  private async resolveMarket(record: MarketRecord): Promise<void> {
+    const [a, b] = await Promise.all([
+      this.x.getTweet(record.tweetAId),
+      this.x.getTweet(record.tweetBId),
+    ]);
+    if (!a || !b) {
+      return this.voidMarket(record, "a side went unreadable before settlement");
+    }
+
+    // Absolute counts, no age normalisation. Exact tie: side A held the line.
+    const winner: "a" | "b" = b.likeCount > a.likeCount ? "b" : "a";
+    const winnerSide: 0 | 1 = winner === "a" ? 0 : 1;
+
+    // Snapshot BEFORE settle: vaults drain at migration, and the recap is
+    // the distribution loop — without this it has nothing to say.
+    const odds = await this.chain.getOdds(record.chainRefs);
+    const snapshot = {
+      likesAFinal: a.likeCount,
+      likesBFinal: b.likeCount,
+      finalImpliedA: odds.impliedA,
+      finalPotUsd: odds.raisedUsd[0] + odds.raisedUsd[1],
+    };
+
+    // Ported ZeroClaimableSupply guard: nobody holds the winning side ->
+    // on-chain migration throws. Void; bettors exit on the open curve.
+    if (odds.raisedUsd[winnerSide] === 0) {
+      await this.store.updateMarket(record.id, snapshot);
+      return this.voidMarket(record, "the winning side had no money on it");
+    }
+
+    await this.chain.settle({ refs: record.chainRefs, winner: winnerSide });
+    await this.store.updateMarket(record.id, {
+      status: "settled",
+      winner,
+      ...snapshot,
+    });
+    await this.x.postReply({
+      inReplyTo: record.tweetBId,
+      text: recap({
+        winner,
+        likesA: a.likeCount,
+        likesB: b.likeCount,
+        moneyImpliedAPct: Math.round(odds.impliedA * 100),
+        tie: a.likeCount === b.likeCount,
+      }),
+    });
   }
 
   private async voidMarket(record: MarketRecord, reason: string): Promise<void> {

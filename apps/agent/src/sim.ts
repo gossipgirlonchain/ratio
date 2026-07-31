@@ -255,6 +255,42 @@ rec = await store.getMarketByPair(orig.tweetId, authorQt.tweetId);
 assert.ok(rec, "author-path market created");
 assert.equal(rec.taggerXId, "u:uma");
 assert.equal(rec.authorBXId, "u:uma", "tagger is also side B");
+// clear the board: run scenario 9's market to its (moneyless) void so
+// scenario 10's failure injection targets exactly one open market
+advance(MARKET_DURATION_MS + 1);
+await engine.resolveDueMarkets();
+
+// ---------------------------------------------------------------------------
+// 10. Transient X API failure -> defer and retry, never void (R2)
+// ---------------------------------------------------------------------------
+scenario("10. transient API failure retries, does not void");
+const m10 = seedPair({ type: "quoted", a: "vera", b: "walt", likesA: 5, likesB: 9 });
+tagOn(m10.sideB.tweetId, "scout");
+await engine.tick();
+betOn(m10.sideB.tweetId, "carol", "$25 B");
+await engine.tick();
+
+// health check hits a flaky API: check must re-arm, not mark done
+advance(MARKET_DURATION_MS * 0.6);
+x.failNextGets = 2;
+await engine.healthCheckDueMarkets();
+rec = await store.getMarketByTweet(m10.sideB.tweetId);
+assert.equal(rec!.status, "open");
+assert.equal(rec!.healthCheckedAtMs, undefined, "failed check re-arms");
+await engine.healthCheckDueMarkets();
+rec = await store.getMarketByTweet(m10.sideB.tweetId);
+assert.ok(rec!.healthCheckedAtMs, "retry completed the check");
+
+// settlement hits a flaky API: market stays open, next tick settles it
+advance(MARKET_DURATION_MS);
+x.failNextGets = 2;
+await engine.resolveDueMarkets();
+rec = await store.getMarketByTweet(m10.sideB.tweetId);
+assert.equal(rec!.status, "open", "transient failure deferred settlement");
+await engine.resolveDueMarkets();
+rec = await store.getMarketByTweet(m10.sideB.tweetId);
+assert.equal(rec!.status, "settled");
+assert.equal(rec!.winner, "b");
 
 // ---------------------------------------------------------------------------
 scenario("instrumentation: void rate by side-B age bucket (3h)");
@@ -263,4 +299,4 @@ for (const [bucket, row] of await store.voidRateByAgeBucket(3 * HOUR))
     `   ${bucket * 3}-${bucket * 3 + 3}h: ${row.voided}/${row.total} voided`,
   );
 
-console.log("\n✅ all R1 scenarios passed");
+console.log("\n✅ all R1+R2 scenarios passed");

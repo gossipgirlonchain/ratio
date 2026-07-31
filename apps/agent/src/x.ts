@@ -35,9 +35,11 @@ export interface XClient {
   /** Poll own mentions since a cursor (pay-per-use read). */
   fetchMentions(sinceId?: string): Promise<XMention[]>;
   /**
-   * Tweet lookup with public_metrics. Returns undefined when the tweet is
-   * deleted, the author is suspended/deactivated/private, or a block makes
-   * it unreadable — the engine treats all of those identically (void).
+   * Tweet lookup with public_metrics. Returns undefined ONLY when the tweet
+   * is definitively unreadable: deleted, author suspended/deactivated/
+   * private, or blocked out of view — the engine voids on that. Transient
+   * failures (rate limit, 5xx, network) must THROW instead; the engine
+   * retries those on the next cron tick and never voids on them.
    */
   getTweet(tweetId: string): Promise<XTweet | undefined>;
   /** Reply in-thread. `link` = the one $0.20 market card per market. */
@@ -86,6 +88,7 @@ export class MockXClient implements XClient {
   }
 
   /** Sim controls. */
+  failNextGets = 0; // simulate transient API failures (throw, not undefined)
   setLikes(tweetId: string, likes: number): void {
     const t = this.tweets.get(tweetId);
     if (!t) throw new Error(`no tweet ${tweetId}`);
@@ -102,6 +105,10 @@ export class MockXClient implements XClient {
   }
 
   async getTweet(tweetId: string): Promise<XTweet | undefined> {
+    if (this.failNextGets > 0) {
+      this.failNextGets -= 1;
+      throw new Error("x api transient failure (simulated)");
+    }
     return this.tweets.get(tweetId);
   }
 

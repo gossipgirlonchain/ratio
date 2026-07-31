@@ -10,6 +10,7 @@
  */
 
 export type PairType = "quote" | "reply";
+/** `forfeited` is reserved in the schema; nothing sets it in v1 (no hide detection). */
 export type MarketStatus = "open" | "settled" | "voided" | "forfeited";
 
 export interface MarketRecord {

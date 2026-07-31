@@ -41,11 +41,9 @@ export const SWAP_FEE_BPS = 200;
 
 /**
  * Share of the swap fee per party, in bps of the fee (sums to 10_000).
- * Forfeit rule (R2): side A's share redistributes evenly across tagger,
- * side B, and protocol; Doppler's cut is untouched. Because on-chain weights
- * are IMMUTABLE after creation, forfeit redistribution is enforced at the
- * claim layer (side A's accrued share swept on forfeit), never as a
- * re-weight. Irreversible once flagged.
+ * Forfeit (side A hides side B's reply) is NOT policed in v1 — decided
+ * 2026-07-31: no hide detection ships. `forfeited` stays reserved in the
+ * schema; QT markets cannot be hidden at all.
  */
 export const FEE_SHARE_BPS = {
   doppler: 750, // 7.5%

@@ -1,0 +1,19 @@
+{
+  "name": "@ratio/agent",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "ratio agent: X mentions -> two-tweet like markets on Doppler -> 24h settlement.",
+  "scripts": {
+    "sim": "tsx src/sim.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@ratio/config": "*"
+  },
+  "devDependencies": {
+    "typescript": "5.5.3",
+    "tsx": "^4.23.1",
+    "@types/node": "^22"
+  }
+}

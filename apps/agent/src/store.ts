@@ -38,6 +38,16 @@ export interface MarketRecord {
   finalImpliedA?: number;
   finalPotUsd?: number;
   healthCheckedAtMs?: number;
+  /**
+   * Hidden-reply badge (display only, NEVER settlement input). Reports come
+   * from extension clients; the flag goes live at the corroboration
+   * threshold. Reporter ids dedupe so one client can't fake independence —
+   * real independence enforcement (authed extension identity) lands with R5.
+   */
+  hiddenReporterIds: string[];
+  hiddenReportCount: number;
+  /** Set once, when corroboration crossed the threshold and the badge went live. */
+  hiddenReportedAtMs?: number;
   cardTweetId?: string;
   chainRefs: { marketId: string };
   dopplerPoolId?: string;

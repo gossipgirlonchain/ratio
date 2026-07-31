@@ -17,6 +17,7 @@
 
 import {
   betConfirm,
+  hiddenNotice,
   marketCard,
   recap,
   rejection,
@@ -37,6 +38,8 @@ export interface EngineConfig {
   healthCheckAtFraction: number; // 0.5 = midpoint
   minStakeUsd: number;
   maxStakeUsd: number;
+  /** Independent reporters required before the hidden badge goes live. */
+  hiddenReportThreshold: number;
   protocolWallet: string;
   /** Five-party split of the swap fee; values pend Doppler answers (R3). */
   feeShareBps: {
@@ -206,6 +209,8 @@ export class RatioEngine {
       likesBAtCreate: sideB.likeCount,
       status: "open",
       winner: null,
+      hiddenReporterIds: [],
+      hiddenReportCount: 0,
       chainRefs,
       authorAHandle: sideA.authorHandle,
       authorBHandle: sideB.authorHandle,
@@ -263,6 +268,49 @@ export class RatioEngine {
         impliedAPct: Math.round(odds.impliedA * 100),
       }),
     });
+  }
+
+  // -------------------------------------------------------------------------
+  // Hidden-reply badge — extension-sourced, display only
+  // -------------------------------------------------------------------------
+
+  /**
+   * An extension client reports side B missing from its thread. This is a
+   * DISPLAY FLAG, never an input to settlement: markets resolve purely on
+   * absolute like counts whether or not the badge is live. A false positive
+   * costs a wrong label, not a wrong payout — which is exactly why
+   * client-sourced data is acceptable here and nowhere else.
+   *
+   * The badge goes live once `hiddenReportThreshold` INDEPENDENT reporters
+   * corroborate; the bot then posts the notice once. QTs cannot be hidden,
+   * so only reply markets accept reports.
+   */
+  async reportHidden(marketId: string, reporterId: string): Promise<void> {
+    const record = await this.store.getMarketByTweet(marketId);
+    if (!record || record.status !== "open") return;
+    if (record.pairType !== "reply") return;
+    if (record.hiddenReporterIds.includes(reporterId)) return; // dedupe
+
+    const hiddenReporterIds = [...record.hiddenReporterIds, reporterId];
+    const patch: Partial<MarketRecord> = {
+      hiddenReporterIds,
+      hiddenReportCount: hiddenReporterIds.length,
+    };
+    const crossedThreshold =
+      record.hiddenReportedAtMs === undefined &&
+      hiddenReporterIds.length >= this.config.hiddenReportThreshold;
+    if (crossedThreshold) patch.hiddenReportedAtMs = this.config.now();
+    await this.store.updateMarket(record.id, patch);
+
+    if (crossedThreshold) {
+      // The recap the collaborators wanted: observation-worded, once, in our
+      // own thread (the hidden reply's thread placement is exactly what is
+      // in question, so the card is the anchor).
+      await this.x.postReply({
+        inReplyTo: record.cardTweetId ?? record.tweetBId,
+        text: hiddenNotice(),
+      });
+    }
   }
 
   // -------------------------------------------------------------------------

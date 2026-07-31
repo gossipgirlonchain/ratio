@@ -69,3 +69,12 @@ export const recap = (opts: {
 
 export const voidNotice = (reason: string): string =>
   `market voided: ${reason}. everyone exits at the curve, sell your tokens back to get out.`;
+
+/**
+ * Posted once when the hidden badge goes live. Guardrail: OBSERVATION, not
+ * accusation — replies also vanish from threads through blocks and
+ * deletions, so we state what we can see and let the audience draw the
+ * conclusion. Never name the account that did the hiding.
+ */
+export const hiddenNotice = (): string =>
+  `this reply is no longer showing in the thread. the market is still open.`;

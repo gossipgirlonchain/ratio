@@ -9,6 +9,7 @@ import {
   FEE_SHARE_BPS,
   FRESHNESS_WINDOW_MS,
   HEALTH_CHECK_AT_FRACTION,
+  HIDDEN_REPORT_THRESHOLD,
   MARKET_DURATION_MS,
   MAX_STAKE_USD,
   MIN_STAKE_USD,
@@ -40,6 +41,7 @@ const engine = new RatioEngine(x, store, wallets, chain, {
   healthCheckAtFraction: HEALTH_CHECK_AT_FRACTION,
   minStakeUsd: MIN_STAKE_USD,
   maxStakeUsd: MAX_STAKE_USD,
+  hiddenReportThreshold: HIDDEN_REPORT_THRESHOLD,
   protocolWallet: "wallet:ratio-treasury",
   dopplerWallet: "wallet:doppler",
   feeShareBps: FEE_SHARE_BPS,
@@ -291,6 +293,61 @@ await engine.resolveDueMarkets();
 rec = await store.getMarketByTweet(m10.sideB.tweetId);
 assert.equal(rec!.status, "settled");
 assert.equal(rec!.winner, "b");
+
+// ---------------------------------------------------------------------------
+// 11. Hidden-reply badge: display flag only, never touches settlement
+// ---------------------------------------------------------------------------
+scenario("11. hidden badge — corroborated flag, settlement untouched");
+const m11 = seedPair({ type: "replied_to", a: "xena", b: "yuri", likesA: 100, likesB: 90 });
+tagOn(m11.sideB.tweetId, "scout");
+await engine.tick();
+betOn(m11.sideB.tweetId, "carol", "$30 B");
+await engine.tick();
+const m11id = (await store.getMarketByTweet(m11.sideB.tweetId))!.id;
+
+// one client reporting many times is one report
+await engine.reportHidden(m11id, "ext:client-1");
+await engine.reportHidden(m11id, "ext:client-1");
+await engine.reportHidden(m11id, "ext:client-1");
+rec = await store.getMarketByTweet(m11.sideB.tweetId);
+assert.equal(rec!.hiddenReportCount, 1, "duplicate reporter deduped");
+assert.equal(rec!.hiddenReportedAtMs, undefined, "one browser is not a fact");
+
+// independent corroboration crosses the threshold: badge + one bot post
+await engine.reportHidden(m11id, "ext:client-2");
+const postsBefore = x.posted.length;
+await engine.reportHidden(m11id, "ext:client-3");
+rec = await store.getMarketByTweet(m11.sideB.tweetId);
+assert.ok(rec!.hiddenReportedAtMs, "badge live at threshold");
+assert.equal(x.posted.length, postsBefore + 1);
+assert.match(x.posted.at(-1)!.text, /no longer showing in the thread/);
+assert.doesNotMatch(
+  x.posted.at(-1)!.text,
+  /@xena|hid/,
+  "observation, not accusation",
+);
+await engine.reportHidden(m11id, "ext:client-4"); // past threshold: no re-post
+assert.equal(x.posted.length, postsBefore + 1, "notice posts exactly once");
+
+// QT markets cannot be hidden: reports on them are dropped
+const m11q = seedPair({ type: "quoted", a: "zach", b: "abby" });
+tagOn(m11q.sideB.tweetId, "scout");
+await engine.tick();
+const qtId = (await store.getMarketByTweet(m11q.sideB.tweetId))!.id;
+for (const r of ["ext:client-1", "ext:client-2", "ext:client-3"])
+  await engine.reportHidden(qtId, r);
+rec = await store.getMarketByTweet(m11q.sideB.tweetId);
+assert.equal(rec!.hiddenReportCount, 0, "QT market ignores hide reports");
+
+// settlement is pure likes: the hidden reply out-likes the OP and WINS —
+// the badge routed attention to it, it never routed the payout
+advance(MARKET_DURATION_MS + 1);
+x.setLikes(m11.sideB.tweetId, 150);
+await engine.resolveDueMarkets();
+rec = await store.getMarketByTweet(m11.sideB.tweetId);
+assert.equal(rec!.status, "settled");
+assert.equal(rec!.winner, "b", "hidden reply won on likes alone");
+assert.ok(rec!.hiddenReportedAtMs, "badge survives settlement for the recap");
 
 // ---------------------------------------------------------------------------
 scenario("instrumentation: void rate by side-B age bucket (3h)");

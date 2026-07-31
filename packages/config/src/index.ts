@@ -31,6 +31,15 @@ export const HEALTH_CHECK_AT_FRACTION = 0.5;
 export const MIN_STAKE_USD = 5;
 export const MAX_STAKE_USD = 250;
 
+/**
+ * Hidden-reply badge (decided 2026-07-31): the browser extension reports a
+ * reply missing from its thread. DISPLAY FLAG ONLY — never an input to
+ * settlement, no forfeit, no redistribution. One report is one browser,
+ * possibly lying or glitching; the flag goes live only after this many
+ * INDEPENDENT reporters corroborate. Tunable.
+ */
+export const HIDDEN_REPORT_THRESHOLD = 3;
+
 // ---------------------------------------------------------------------------
 // Fees — confirmed 2026-07-31. Five beneficiaries, weights immutable once the
 // market's curves launch.

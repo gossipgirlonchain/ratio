@@ -371,8 +371,9 @@ export class RatioMarketClient {
     const swap = await curveSwapExactIn({
       deployment: {
         ...this.deployment,
-        // These launches run the prediction hook, not the default CPMM hook.
-        cpmmHookProgram: initializer.PREDICTION_HOOK_PROGRAM_ID,
+        // These launches run the prediction hook, not the default launch hook
+        // (SDK ≥1.0.30 renamed cpmmHookProgram -> dopplerLaunchHookV1Program).
+        dopplerLaunchHookV1Program: initializer.PREDICTION_HOOK_PROGRAM_ID,
       },
       launch: side.launch,
       launchAuthority: side.launchAuthority,

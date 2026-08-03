@@ -16,7 +16,7 @@
     "@solana-program/token": "^0.12.0",
     "@solana/kit": "^6.10.0",
     "@solana/sysvars": "^6.10.0",
-    "@whetstone-research/doppler-sdk": "1.0.29"
+    "@whetstone-research/doppler-sdk": "1.0.34"
   },
   "devDependencies": {
     "@types/node": "^22",

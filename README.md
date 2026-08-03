@@ -35,7 +35,7 @@ handle is unregistered — `BOT_HANDLE` in `@ratio/config` drives it everywhere.
   count. Odds displays derive from pot shares (no continuous curve price in
   a parimutuel market).
 - **R3 — devnet lifecycle PROVEN (2026-07-31).** `@ratio/doppler`
-  (`RatioMarketClient`, SDK pinned 1.0.29): oracle + A/B curves with FIVE
+  (`RatioMarketClient`, doppler-sdk 1.0.34): oracle + A/B curves with FIVE
   fee beneficiaries at the locked split → stakes both sides → finalize(A)
   → migrate → claim. Pot = staked − 1.25% exactly (0.1086 of 0.11 SOL),
   winner multiple 1.358x. Remaining R3: wire `RatioMarketClient` behind the

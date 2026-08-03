@@ -34,10 +34,13 @@ handle is unregistered — `BOT_HANDLE` in `@ratio/config` drives it everywhere.
   count, never a score); trending ranks on staked volume, never market
   count. Odds displays derive from pot shares (no continuous curve price in
   a parimutuel market).
-- **R3 — next.** Prediction migrator confirmed as the settlement path;
-  five feeBeneficiaries per curve (hard cap), weights immutable at creation:
-  Doppler 7.5 / treasury 45 / side A 18 / side B 18 / tagger 11.5. Port
-  cue-wire `packages/doppler` behind `MarketChain`.
+- **R3 — devnet lifecycle PROVEN (2026-07-31).** `@ratio/doppler`
+  (`RatioMarketClient`, SDK pinned 1.0.29): oracle + A/B curves with FIVE
+  fee beneficiaries at the locked split → stakes both sides → finalize(A)
+  → migrate → claim. Pot = staked − 1.25% exactly (0.1086 of 0.11 SOL),
+  winner multiple 1.358x. Remaining R3: wire `RatioMarketClient` behind the
+  agent's `MarketChain` interface for a devnet sim (needs real signer
+  wallets, so it lands with R4's Privy provisioning).
 - **R4.** Privy server wallets keyed on numeric X id, ATA creation in the
   sponsored-gas path, unclaimed-fee notifications.
 - **R5.** PWA -> extension -> Telegram.
@@ -46,6 +49,8 @@ handle is unregistered — `BOT_HANDLE` in `@ratio/config` drives it everywhere.
 
 - `apps/agent` — mention loop, engine, settlement + health-check crons, sim
 - `packages/config` — every knob and every copy template (handle-parameterized)
+- `packages/doppler` — `RatioMarketClient` on doppler-sol (prediction
+  migrator); `npm run e2e -w @ratio/doppler` runs the devnet lifecycle
 
 Seams (all swappable, engine never knows): `XClient`, `WalletProvider`,
 `Store`, `MarketChain`.

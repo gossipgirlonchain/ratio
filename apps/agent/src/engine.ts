@@ -17,6 +17,7 @@
 
 import {
   betConfirm,
+  duplicatePointer,
   hiddenNotice,
   marketCard,
   recap,
@@ -41,7 +42,7 @@ export interface EngineConfig {
   /** Independent reporters required before the hidden badge goes live. */
   hiddenReportThreshold: number;
   protocolWallet: string;
-  /** Five-party split of the swap fee; values pend Doppler answers (R3). */
+  /** Five-party split of the swap fee — confirmed, immutable once curves launch. */
   feeShareBps: {
     doppler: number;
     tagger: number;
@@ -166,10 +167,22 @@ export class RatioEngine {
 
     // Eligibility gate — all required.
     if (sideA.authorId === sideB.authorId) return reject("same_author");
+    // No markets on your own post: the tagger cannot be side A's author.
+    // Tagger = side B's author IS allowed ("my reply beats your tweet") and
+    // legitimately stacks the tagger and side B fee slices.
+    if (mention.authorId === sideA.authorId) return reject("own_post");
     const age = now - sideB.createdAtMs;
     if (age >= this.config.freshnessWindowMs) return reject("too_old");
-    if (await this.store.getMarketByPair(sideA.tweetId, sideB.tweetId))
-      return reject("already_exists");
+    const existing = await this.store.getMarketByPair(sideA.tweetId, sideB.tweetId);
+    if (existing) {
+      // Convert, don't reject: link straight to the live market.
+      await this.x.postReply({
+        inReplyTo: mention.mentionTweetId,
+        text: duplicatePointer(),
+        link: this.config.marketUrl(existing.id),
+      });
+      return;
+    }
 
     // Every fee recipient gets a wallet at creation, used-the-product or not
     // (unclaimed balances are the acquisition hook — R4 wires notifications).

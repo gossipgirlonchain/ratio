@@ -12,8 +12,8 @@ const fmtUtc = (ms: number): string =>
 export type RejectionReason =
   | "not_reply_or_quote"
   | "too_old"
-  | "already_exists"
   | "same_author"
+  | "own_post"
   | "unreadable";
 
 export const rejection = (reason: RejectionReason, botHandle: string): string => {
@@ -22,14 +22,23 @@ export const rejection = (reason: RejectionReason, botHandle: string): string =>
       return `tag @${botHandle} on a reply or quote tweet. that tweet becomes side B, the tweet it answers is side A, most likes in 24h wins.`;
     case "too_old":
       return `too late. side B has to be under 12 hours old when you tag me.`;
-    case "already_exists":
-      return `there is already a market on this pair.`;
     case "same_author":
       return `both sides are the same account. no self ratios.`;
+    case "own_post":
+      return `no markets on your own post. if a reply is coming for you, someone else has to call it.`;
     case "unreadable":
       return `i cannot read both tweets, so no market. both sides have to be public.`;
   }
 };
+
+/**
+ * Duplicate pair = an interested user one step from a market they already
+ * want. Convert, don't just reject: this reply carries the market link, a
+ * deliberate exception to the one-linked-post-per-market cost policy
+ * (a $0.20 post that lands on someone already reaching for the product).
+ */
+export const duplicatePointer = (): string =>
+  `someone beat you to this one. the market is already live, bet on it here:`;
 
 export const marketCard = (opts: {
   settlesAtMs: number;

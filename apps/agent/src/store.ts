@@ -57,6 +57,12 @@ export interface MarketRecord {
   taggerHandle: string;
 }
 
+export interface PostView {
+  tweetAId: string;
+  marketCount: number; // display only — never a score
+  stakedVolumeUsd: number; // the ranking key
+}
+
 export interface BetRecord {
   marketId: string;
   xUserId: string;
@@ -80,6 +86,24 @@ export interface Store {
   listBets(marketId: string): Promise<BetRecord[]>;
   listOpenMarketsDue(nowMs: number): Promise<MarketRecord[]>;
   listOpenMarketsNeedingHealthCheck(cutoffFractionMs: (m: MarketRecord) => number, nowMs: number): Promise<MarketRecord[]>;
+  /**
+   * Post view: every market sharing this side A. A primary read path —
+   * `tweet_a_id` is INDEXED in every implementation (Supabase: btree).
+   *
+   * HARD RULE — no cross-market aggregation, ever. Callers may count these
+   * markets ("this post contains 6 markets") and nothing else: no combined
+   * score, no "side A is winning", no aggregate pot, no per-post
+   * leaderboard. Each market card is fully self-contained (own pot, own
+   * clock, own outcome); a post-level winning state read as "I won" is a
+   * payout dispute. The count is a count, never a score.
+   */
+  listMarketsByPost(tweetAId: string): Promise<MarketRecord[]>;
+  /**
+   * Trending: posts RANKED BY STAKED VOLUME, never by market count —
+   * tagging is free and counts are inflatable; volume cannot be faked
+   * without spending. `marketCount` rides along for display only.
+   */
+  trendingPosts(limit: number): Promise<PostView[]>;
   /** Instrumentation for the freshness-window decision (9-12h keep or cut). */
   voidRateByAgeBucket(bucketMs: number): Promise<Map<number, { total: number; voided: number }>>;
 }
@@ -88,6 +112,8 @@ export class InMemoryStore implements Store {
   private mentions = new Set<string>();
   private markets = new Map<string, MarketRecord>();
   private bets: BetRecord[] = [];
+  /** The in-memory analogue of the tweet_a_id index. */
+  private byPost = new Map<string, string[]>();
 
   async markMentionProcessed(id: string): Promise<boolean> {
     if (this.mentions.has(id)) return false;
@@ -111,6 +137,9 @@ export class InMemoryStore implements Store {
   }
   async saveMarket(market: MarketRecord) {
     this.markets.set(market.id, market);
+    const ids = this.byPost.get(market.tweetAId) ?? [];
+    if (!ids.includes(market.id)) ids.push(market.id);
+    this.byPost.set(market.tweetAId, ids);
   }
   async updateMarket(id: string, patch: Partial<MarketRecord>) {
     const m = this.markets.get(id);
@@ -138,6 +167,22 @@ export class InMemoryStore implements Store {
         nowMs >= cutoff(m) &&
         nowMs < m.settlesAtMs,
     );
+  }
+  async listMarketsByPost(tweetAId: string) {
+    return (this.byPost.get(tweetAId) ?? []).map((id) => this.markets.get(id)!);
+  }
+  async trendingPosts(limit: number) {
+    const volumeByMarket = new Map<string, number>();
+    for (const b of this.bets)
+      volumeByMarket.set(b.marketId, (volumeByMarket.get(b.marketId) ?? 0) + b.amountUsd);
+    const views: PostView[] = [...this.byPost.entries()].map(([tweetAId, ids]) => ({
+      tweetAId,
+      marketCount: ids.length,
+      stakedVolumeUsd: ids.reduce((s, id) => s + (volumeByMarket.get(id) ?? 0), 0),
+    }));
+    return views
+      .sort((x, y) => y.stakedVolumeUsd - x.stakedVolumeUsd)
+      .slice(0, limit);
   }
   async voidRateByAgeBucket(bucketMs: number) {
     const out = new Map<number, { total: number; voided: number }>();

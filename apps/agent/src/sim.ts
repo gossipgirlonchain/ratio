@@ -150,7 +150,10 @@ await engine.tick();
 assert.equal(x.posted.length, postedBefore, "duplicate delivery is a no-op");
 tagOn(m3.sideB.tweetId, "otherscout"); // new mention, same pair
 await engine.tick();
-assert.match(x.posted.at(-1)!.text, /already a market/);
+// duplicate converts: apologetic pointer WITH a direct link to the market
+const dupReply = x.posted.at(-1)!;
+assert.match(dupReply.text, /already live/);
+assert.equal(dupReply.link, marketUrl(m3.sideB.tweetId), "links the existing market");
 
 // ---------------------------------------------------------------------------
 // 4. Late stake skipped after close
@@ -348,6 +351,65 @@ rec = await store.getMarketByTweet(m11.sideB.tweetId);
 assert.equal(rec!.status, "settled");
 assert.equal(rec!.winner, "b", "hidden reply won on likes alone");
 assert.ok(rec!.hiddenReportedAtMs, "badge survives settlement for the recap");
+
+// ---------------------------------------------------------------------------
+// 12. No markets on your own post (tagger == side A author)
+// ---------------------------------------------------------------------------
+scenario("12. own-post rejection");
+const m12 = seedPair({ type: "replied_to", a: "aaron", b: "beth" });
+tagOn(m12.sideB.tweetId, "aaron"); // side A's author tags the reply to them
+await engine.tick();
+assert.match(x.posted.at(-1)!.text, /no markets on your own post/);
+assert.equal(
+  await store.getMarketByTweet(m12.sideB.tweetId),
+  undefined,
+  "own-post tag opens nothing",
+);
+tagOn(m12.sideB.tweetId, "beth"); // side B's author self-tagging IS allowed
+await engine.tick();
+rec = await store.getMarketByTweet(m12.sideB.tweetId);
+assert.ok(rec, "side B author can call their own reply");
+assert.equal(rec!.taggerXId, "u:beth", "stacks tagger + side B slices");
+
+// ---------------------------------------------------------------------------
+// 13. Post view + trending: count displayed, volume ranks
+// ---------------------------------------------------------------------------
+scenario("13. post aggregation (count is a count) + volume trending");
+// post P: three markets, small money; post Q: one market, big money
+const postP = x.seedTweet({ authorId: "u:pat", authorHandle: "pat", text: "hot take", likeCount: 40, createdAtMs: clock() });
+const postQ = x.seedTweet({ authorId: "u:quinn", authorHandle: "quinn", text: "hotter take", likeCount: 40, createdAtMs: clock() });
+const repliesP = ["r1", "r2", "r3"].map((h) =>
+  x.seedTweet({
+    authorId: `u:${h}`, authorHandle: h, text: "nah", likeCount: 1,
+    createdAtMs: clock(),
+    referencedTweet: { type: "replied_to", tweetId: postP.tweetId },
+  }),
+);
+const replyQ = x.seedTweet({
+  authorId: "u:rq", authorHandle: "rq", text: "nah", likeCount: 1,
+  createdAtMs: clock(),
+  referencedTweet: { type: "replied_to", tweetId: postQ.tweetId },
+});
+for (const r of repliesP) tagOn(r.tweetId, "scout");
+tagOn(replyQ.tweetId, "scout");
+await engine.tick();
+for (const r of repliesP) betOn(r.tweetId, "carol", "$10 B");
+betOn(replyQ.tweetId, "dave", "$200 B");
+await engine.tick();
+
+const postView = await store.listMarketsByPost(postP.tweetId);
+assert.equal(postView.length, 3, "post view: all markets sharing side A");
+assert.ok(
+  postView.every((m) => m.status === "open" && m.tweetAId === postP.tweetId),
+  "each market self-contained, keyed to the post",
+);
+const trending = await store.trendingPosts(10);
+assert.equal(trending[0]!.tweetAId, postQ.tweetId, "volume outranks count");
+assert.equal(trending[0]!.marketCount, 1);
+assert.equal(trending[0]!.stakedVolumeUsd, 200);
+const pRow = trending.find((t) => t.tweetAId === postP.tweetId)!;
+assert.equal(pRow.marketCount, 3, "count surfaces for display");
+assert.equal(pRow.stakedVolumeUsd, 30, "three cheap markets rank below one big one");
 
 // ---------------------------------------------------------------------------
 scenario("instrumentation: void rate by side-B age bucket (3h)");

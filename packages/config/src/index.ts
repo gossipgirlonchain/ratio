@@ -45,14 +45,16 @@ export const HIDDEN_REPORT_THRESHOLD = 3;
 // market's curves launch.
 // ---------------------------------------------------------------------------
 
-/** TODO(fees): swap fee itself still undecided; 200 = cue-wire precedent. */
-export const SWAP_FEE_BPS = 200;
+/** Total swap fee — locked 2026-07-31. */
+export const SWAP_FEE_BPS = 125; // 1.25%
 
 /**
  * Share of the swap fee per party, in bps of the fee (sums to 10_000).
- * Forfeit (side A hides side B's reply) is NOT policed in v1 — decided
- * 2026-07-31: no hide detection ships. `forfeited` stays reserved in the
- * schema; QT markets cannot be hidden at all.
+ * Effective rates on volume: doppler 0.094%, treasury 0.52%, sides 0.21%
+ * each, tagger 0.13%. Doppler hard-limits beneficiaries to FIVE per curve
+ * (Solana tx size) and weights are IMMUTABLE once the market's curves
+ * launch — no redistribution of any kind is possible after creation.
+ * Parimutuel = no LPs, so there is no LP slice and the split stays at five.
  */
 export const FEE_SHARE_BPS = {
   doppler: 750, // 7.5%

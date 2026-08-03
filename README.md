@@ -25,6 +25,15 @@ handle is unregistered — `BOT_HANDLE` in `@ratio/config` drives it everywhere.
   extension surface hidden markets prominently (R5), routing likes to the
   suppressed reply. It is also the extension's install driver — the
   extension is the only thing that can see a hide.
+- **Folded ahead of R3 (2026-07-31):** fees locked (1.25% swap fee, five
+  immutable beneficiaries: doppler 7.5 / treasury 45 / A 18 / B 18 / tagger
+  11.5); own-post rule (tagger can never be side A's author; tagger as side
+  B's author is allowed and stacks slices); duplicate pairs convert with a
+  direct market link instead of a bare rejection; post view indexed on
+  `tweet_a_id` with a HARD no-cross-market-aggregation rule (count is a
+  count, never a score); trending ranks on staked volume, never market
+  count. Odds displays derive from pot shares (no continuous curve price in
+  a parimutuel market).
 - **R3 — next.** Prediction migrator confirmed as the settlement path;
   five feeBeneficiaries per curve (hard cap), weights immutable at creation:
   Doppler 7.5 / treasury 45 / side A 18 / side B 18 / tagger 11.5. Port

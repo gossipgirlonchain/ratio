@@ -46,7 +46,7 @@ import {
   sendInstructions,
   withRetry429,
   type Clients,
-} from "./tx";
+} from "./tx.js";
 
 import { address } from "@solana/kit";
 

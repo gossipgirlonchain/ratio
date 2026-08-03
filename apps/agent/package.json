@@ -6,10 +6,14 @@
   "description": "ratio agent: X mentions -> two-tweet like markets on Doppler -> 24h settlement.",
   "scripts": {
     "sim": "tsx src/sim.ts",
+    "sim:devnet": "tsx src/sim-devnet.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ratio/config": "*"
+    "@ratio/config": "*",
+    "@ratio/doppler": "*",
+    "@solana-program/system": "^0.12.2",
+    "@solana/kit": "^6.10.0"
   },
   "devDependencies": {
     "typescript": "5.5.3",

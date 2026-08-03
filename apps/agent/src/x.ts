@@ -54,7 +54,16 @@ export interface XClient {
 // Mock — scripted world for the sim and tests
 // ---------------------------------------------------------------------------
 
+/**
+ * Mock ids double as on-chain oracle nonces in the devnet sim, and PDAs
+ * derived from a reused nonce collide with prior runs' accounts. Default
+ * stays deterministic (stable mock-sim output); the devnet sim reseeds
+ * from wall-clock.
+ */
 let mockId = 1_000;
+export const seedMockIds = (seed: number): void => {
+  mockId = seed;
+};
 const nextId = () => String(++mockId);
 
 export class MockXClient implements XClient {

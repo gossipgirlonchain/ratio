@@ -38,9 +38,17 @@ handle is unregistered — `BOT_HANDLE` in `@ratio/config` drives it everywhere.
   (`RatioMarketClient`, doppler-sdk 1.0.34): oracle + A/B curves with FIVE
   fee beneficiaries at the locked split → stakes both sides → finalize(A)
   → migrate → claim. Pot = staked − 1.25% exactly (0.1086 of 0.11 SOL),
-  winner multiple 1.358x. Remaining R3: wire `RatioMarketClient` behind the
-  agent's `MarketChain` interface for a devnet sim (needs real signer
-  wallets, so it lands with R4's Privy provisioning).
+  winner multiple 1.358x.
+- **R3 tail — engine on the real chain (2026-08-03).** `sim:devnet` runs
+  the actual `RatioEngine` (fake X) against `DopplerMarketChain` +
+  `LocalWalletProvider` (Privy stand-in behind the same seam): mention →
+  five-beneficiary launch → two real reply-stake swaps → finalize →
+  migrate, all through the engine's own code path. Accounting fact learned:
+  the pre-migration odds snapshot (quote vaults) is GROSS staked volume;
+  the fee is realized at migration, so claimable pot = snapshot − 1.25%.
+  Display and fee-card code must not conflate the two. Mock tweet ids are
+  wall-clock-seeded in the devnet sim (ids become oracle nonces; reused
+  nonces collide with prior runs' PDAs).
 - **R4.** Privy server wallets keyed on numeric X id, ATA creation in the
   sponsored-gas path, unclaimed-fee notifications.
 - **R5.** PWA -> extension -> Telegram.

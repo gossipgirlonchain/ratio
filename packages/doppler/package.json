@@ -2,6 +2,7 @@
   "name": "@ratio/doppler",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "description": "Typed client for ratio's pair markets on Doppler (doppler-sol, prediction migrator).",
   "exports": {
     "./pair-market": "./src/pairMarket.ts",

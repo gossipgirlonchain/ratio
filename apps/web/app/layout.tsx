@@ -1,5 +1,6 @@
 import "./globals.css";
 import "@ratio/ui/strip.css";
+import "./skin.css";
 
 export const metadata = {
   title: "ratio",

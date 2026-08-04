@@ -82,9 +82,22 @@ const markets: Array<{ note: string; data: MarketStripData }> = [
   },
 ];
 
+const TICKER =
+  "the likes are the referee · every reply is a market · tag it and find out · ";
+
 export default function Page() {
   return (
-    <main className="timeline">
+    <>
+      <div className="ticker" aria-hidden>
+        <div className="ticker-track">{TICKER.repeat(6)}</div>
+      </div>
+      <header className="masthead">
+        <span className="wordmark">
+          get <em>ratio&apos;d</em>
+        </span>
+        <span className="tag">the likes are the referee</span>
+      </header>
+      <main className="timeline">
       <h1>ratio · strip states</h1>
       <div className="host-tweet">
         <span className="h">@bigaccount</span>
@@ -105,6 +118,7 @@ export default function Page() {
           />
         </div>
       ))}
-    </main>
+      </main>
+    </>
   );
 }

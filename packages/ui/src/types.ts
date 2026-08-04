@@ -7,18 +7,20 @@
 export type StripStatus = "open" | "settled" | "voided";
 
 export interface StripSide {
-  handle: string; // shown on the button — users see people, not letters
+  handle: string;
+  /** The tweet's text. Both sides carry it: the OP is a competitor row,
+   * not context — the matchup must be legible in one glance. */
+  text: string;
   likes: number;
   potUsd: number;
 }
 
 export interface MarketStripData {
   marketId: string;
-  /** The original post's author. */
+  /** The original post: row one. */
   a: StripSide;
-  /** The reply/QT author (their text renders in the strip, clamped). */
+  /** The reply/QT: row two. */
   b: StripSide;
-  replyText: string;
   settlesAtMs: number;
   status: StripStatus;
   winner?: "a" | "b";

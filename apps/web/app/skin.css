@@ -22,6 +22,8 @@
   --host-muted: var(--gunmetal);
   --host-border: var(--carbon);
   --host-radius: 12px;
+  /* the leader's shading — the one differentiator between the rows */
+  --host-shade: color-mix(in srgb, var(--lime) 45%, transparent);
 }
 
 body {
@@ -36,7 +38,7 @@ body {
   background: var(--lime);
   color: var(--carbon);
   font-weight: 800;
-  font-size: 12.5px;
+  font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -44,7 +46,7 @@ body {
 }
 .ticker-track {
   display: inline-block;
-  padding: 7px 0;
+  padding: 6px 0;
   animation: ticker 22s linear infinite;
 }
 @keyframes ticker {
@@ -54,16 +56,16 @@ body {
 
 .masthead {
   max-width: 560px;
-  margin: 26px auto 0;
+  margin: 22px auto 0;
   padding: 0 16px;
   display: flex;
   align-items: baseline;
-  gap: 12px;
+  gap: 10px;
 }
 .masthead .wordmark {
-  font-size: 44px;
+  font-size: 26px;
   font-weight: 900;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.03em;
   color: var(--paper);
   line-height: 1;
 }
@@ -71,97 +73,54 @@ body {
   font-style: normal;
   background: var(--lime);
   color: var(--carbon);
-  padding: 0 8px 2px;
-  border-radius: 10px;
+  padding: 0 6px 1px;
+  border-radius: 8px;
   display: inline-block;
   transform: rotate(-1.2deg);
 }
 .masthead .tag {
   color: var(--mint);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
 }
 
 .timeline h1 { display: none; }
 .timeline .section {
-  color: var(--lime);
-  font-weight: 800;
-  font-size: 11.5px;
+  color: var(--gunmetal);
+  font-weight: 700;
+  font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  margin: 10px 0 8px;
+  margin: 8px 0 6px;
 }
-
-.host-tweet {
-  background: var(--gunmetal);
-  border: 2px solid var(--carbon);
-  border-radius: 12px;
-  box-shadow: 4px 4px 0 var(--lime);
-  color: var(--paper);
-}
-.host-tweet .t { color: var(--mint); }
 
 /* -- the strip, in costume ------------------------------------------------ */
 .rs-strip {
   border-width: 2px;
-  box-shadow: 5px 5px 0 var(--lime);
+  box-shadow: 4px 4px 0 var(--lime);
   transition: transform 120ms ease, box-shadow 120ms ease;
 }
 .rs-strip:hover {
   transform: translate(-2px, -2px);
-  box-shadow: 7px 7px 0 var(--lime);
+  box-shadow: 6px 6px 0 var(--lime);
 }
-.rs-strip[data-status="settled"] { box-shadow: 5px 5px 0 var(--mint); }
-.rs-strip[data-status="settled"]:hover { box-shadow: 7px 7px 0 var(--mint); }
-.rs-strip[data-status="voided"] { box-shadow: 5px 5px 0 var(--gunmetal); }
-.rs-strip[data-status="voided"]:hover { box-shadow: 7px 7px 0 var(--gunmetal); }
+.rs-strip[data-status="settled"] { box-shadow: 4px 4px 0 var(--mint); }
+.rs-strip[data-status="settled"]:hover { box-shadow: 6px 6px 0 var(--mint); }
+.rs-strip[data-status="voided"] { box-shadow: 4px 4px 0 var(--gunmetal); }
+.rs-strip[data-status="voided"]:hover { box-shadow: 6px 6px 0 var(--gunmetal); }
 
-/* leading like-count gets the highlighter swipe */
-.rs-leading .rs-like-count {
-  background: var(--lime);
-  padding: 0 10px 2px;
-  border-radius: 10px;
-  display: inline-block;
-  transform: rotate(-1deg);
-}
-
-.rs-hint { border-width: 1.5px; font-weight: 800; }
-.rs-hint:hover::after, .rs-hint:focus::after {
-  background: var(--carbon);
-  color: var(--lime);
-  border-radius: 10px;
-}
-
-/* username buttons: chunky pills that mean business */
-.rs-back {
-  border-width: 2px;
-  box-shadow: 3px 3px 0 var(--carbon);
-  transition: transform 90ms ease, box-shadow 90ms ease, background 90ms ease;
-}
-.rs-back:hover {
-  background: var(--lime);
-  transform: translate(-1px, -1px);
-  box-shadow: 4px 4px 0 var(--carbon);
-}
-.rs-back:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--carbon); }
+/* rows: the leader is lime-shaded; a picked row gets the carbon ring */
+.rs-row { transition: background 90ms ease; }
+.rs-row-tap:hover { outline: none; background: color-mix(in srgb, var(--lime) 20%, transparent); }
+.rs-row-lead.rs-row-tap:hover { background: color-mix(in srgb, var(--lime) 60%, transparent); }
 
 .rs-divider { border-top-width: 2px; }
 
-/* money stays demoted: greens, but quiet ones. The swap cell reserves the
-   amount step's height; spread the money view through it instead of
-   leaving dead space under the timer. */
-.rs-view { display: flex; flex-direction: column; }
-.rs-money {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-evenly;
-  gap: 2px;
-}
-.rs-bar { background: var(--mint); height: 8px; border: 1.5px solid var(--carbon); }
+/* money stays demoted: greens, but quiet ones */
+.rs-bar { background: var(--mint); height: 6px; border: 1.5px solid var(--carbon); }
 .rs-bar-a { background: var(--gunmetal); }
 
-/* amount step */
+/* amount grid */
 .rs-preset {
   border-width: 2px;
   box-shadow: 2px 2px 0 var(--carbon);
@@ -198,13 +157,5 @@ body {
   border-radius: 10px;
   font-weight: 700;
   transform: rotate(-0.6deg);
-  box-shadow: 3px 3px 0 var(--carbon);
-}
-
-/* settled verdict reads like a stamp */
-.rs-strip[data-status="settled"] .rs-meta {
-  color: var(--carbon);
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  box-shadow: 2px 2px 0 var(--carbon);
 }

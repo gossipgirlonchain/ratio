@@ -47,7 +47,8 @@ body {
 /**
  * Strip skin. Everything inherits from the host through custom properties
  * (the extension sets these from X's computed styles; the app sets its own).
- * The strip adds a thin border and the two-sided bar, nothing louder.
+ * Nothing is big: 12-13px, X body-text scale — timeline furniture, not a
+ * banner. The only differentiator between the two rows is the shading.
  */
 .rs-strip {
   --rs-radius: var(--host-radius, 16px);
@@ -55,16 +56,16 @@ body {
   --rs-fg: var(--host-fg, #e7e9ea);
   --rs-muted: var(--host-muted, #71767b);
   --rs-bg: var(--host-bg, #000);
-  --rs-accent: var(--host-fg, #e7e9ea);
+  --rs-shade: var(--host-shade, color-mix(in srgb, var(--rs-fg) 8%, transparent));
 
   font-family: var(--host-font, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
   border: 1px solid var(--rs-border);
   border-radius: var(--rs-radius);
   background: var(--rs-bg);
   color: var(--rs-fg);
-  padding: 12px 14px;
+  padding: 10px 12px;
   max-width: 520px;
-  font-size: 14px;
+  font-size: 13px;
   line-height: 1.35;
 }
 
@@ -72,107 +73,105 @@ body {
 .rs-hidden-beat {
   border: 1px solid var(--rs-border);
   border-radius: calc(var(--rs-radius) / 2);
-  padding: 6px 10px;
-  margin-bottom: 10px;
-  font-size: 12.5px;
+  padding: 5px 9px;
+  margin-bottom: 8px;
+  font-size: 12px;
   color: var(--rs-fg);
-  background: color-mix(in srgb, var(--rs-fg) 7%, transparent);
+  background: var(--rs-shade);
 }
 
-/* -- quoted reply, clamped ------------------------------------------------ */
-.rs-reply { color: var(--rs-muted); font-size: 13px; margin-bottom: 10px; }
-.rs-reply-handle { color: var(--rs-fg); font-weight: 600; margin-right: 6px; }
+/* -- the two rows: siblings, identical treatment -------------------------- */
+.rs-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 7px 8px;
+  border-radius: calc(var(--rs-radius) / 2);
+  margin: 0 -2px;
+}
+.rs-row-lead { background: var(--rs-shade); }
+.rs-row-lead .rs-row-likes { font-weight: 800; color: var(--rs-fg); }
+.rs-row-tap { cursor: pointer; }
+.rs-row-tap:hover { outline: 1px solid var(--rs-border); }
+
+.rs-row-main { flex: 1 1; min-width: 0; }
+.rs-row-handle { font-weight: 700; margin-right: 6px; }
+.rs-row-text { color: var(--rs-muted); }
 .rs-clamp {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
-.rs-reply-text { display: inline; }
-.rs-clamp.rs-reply-text { display: -webkit-box; }
+.rs-row-text { display: inline; }
+.rs-clamp.rs-row-text { display: -webkit-box; }
 .rs-expand {
-  background: none; border: none; padding: 0;
-  color: var(--rs-muted); font-size: 12px; cursor: pointer;
+  color: var(--rs-muted);
+  font-size: 12px;
+  cursor: pointer;
   text-decoration: underline;
+  margin-left: 4px;
+}
+.rs-row-likes {
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
+  color: var(--rs-muted);
+  font-size: 13px;
+  white-space: nowrap;
+  padding-top: 1px;
 }
 
-/* -- likes: the hero ------------------------------------------------------ */
-.rs-likes {
-  display: flex; align-items: baseline; justify-content: center;
-  gap: 14px; margin: 2px 0 10px;
+/* -- the one line of copy -------------------------------------------------- */
+.rs-rule {
+  color: var(--rs-muted);
+  font-size: 12px;
+  padding: 6px 8px 8px;
 }
-.rs-like-count { font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
-.rs-leading .rs-like-count { font-size: 30px; font-weight: 800; color: var(--rs-fg); }
-.rs-trailing .rs-like-count { font-size: 20px; font-weight: 600; color: var(--rs-muted); }
+.rs-strip[data-status="settled"] .rs-rule { color: var(--rs-fg); font-weight: 700; }
 
-.rs-hint {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 16px; height: 16px; border-radius: 50%;
-  border: 1px solid var(--rs-muted); color: var(--rs-muted);
-  font-size: 10px; cursor: default; position: relative; align-self: center;
-  margin: 0 2px;
-}
-.rs-hint:hover::after, .rs-hint:focus::after {
-  content: attr(data-tip);
-  position: absolute; bottom: 130%; left: 50%; transform: translateX(-50%);
-  width: 220px; padding: 8px 10px; border-radius: 8px;
-  background: var(--rs-fg); color: var(--rs-bg);
-  font-size: 12px; line-height: 1.3; z-index: 10; text-align: left;
-}
+.rs-divider { border-top: 1px solid var(--rs-border); margin: 0 -12px 8px; }
 
-/* -- username buttons ----------------------------------------------------- */
-.rs-buttons { display: flex; gap: 8px; margin-bottom: 10px; }
-.rs-back {
-  flex: 1 1; padding: 7px 0; cursor: pointer;
-  border: 1px solid var(--rs-border); border-radius: 999px;
-  background: none; color: var(--rs-fg); font-weight: 700; font-size: 13.5px;
-}
-.rs-back:hover { background: color-mix(in srgb, var(--rs-fg) 8%, transparent); }
-.rs-back-on { background: var(--rs-fg); color: var(--rs-bg); border-color: var(--rs-fg); }
-.rs-back-on:hover { background: var(--rs-fg); }
-
-.rs-divider { border-top: 1px solid var(--rs-border); margin: 0 -14px 10px; }
-
-/* -- in-place swap: both views share one grid cell (§5) ------------------- */
-/* Height = max(money view, amount step) from first paint; tapping a
-   username toggles visibility only, so the strip NEVER changes height. */
+/* -- in-place swap: both views share one grid cell ------------------------ */
+/* Height = max(pot view, amount grid) from first paint; picking a row
+   toggles visibility only, so the strip NEVER changes height. */
 .rs-swap { display: grid; }
-.rs-view { grid-area: 1 / 1; min-width: 0; }
+.rs-view { grid-area: 1 / 1; min-width: 0; display: flex; flex-direction: column; }
 .rs-view-off { visibility: hidden; pointer-events: none; }
+/* The amount view is the shorter one: center it in the body's height. */
+.rs-view-amount { justify-content: center; }
+.rs-view-amount .rs-quote-row { margin: 0 0 8px; }
 
-/* money (visually secondary) */
+/* money, resting */
+.rs-money { flex: 1 1; display: flex; flex-direction: column; justify-content: space-evenly; gap: 4px; }
 .rs-bar {
-  height: 6px; border-radius: 999px; overflow: hidden;
+  height: 5px; border-radius: 999px; overflow: hidden;
   background: color-mix(in srgb, var(--rs-muted) 35%, transparent);
 }
 .rs-bar-a { height: 100%; background: var(--rs-muted); border-radius: 999px 0 0 999px; }
 .rs-pot-row {
   display: flex; justify-content: space-between; align-items: center;
-  color: var(--rs-muted); font-size: 12.5px; margin-top: 6px;
+  color: var(--rs-muted); font-size: 12px;
   font-feature-settings: "tnum";
   font-variant-numeric: tabular-nums;
 }
-.rs-pot-mid { display: inline-flex; align-items: center; gap: 4px; }
-.rs-meta { color: var(--rs-muted); font-size: 12.5px; margin-top: 8px; text-align: center; }
-.rs-strip[data-status="settled"] .rs-meta { color: var(--rs-fg); font-weight: 600; }
 
-/* amount step */
-.rs-presets { display: grid; grid-template-columns: repeat(3, 1fr); grid-gap: 6px; gap: 6px; }
+/* amount grid — appears only after a row is picked */
+.rs-presets { display: grid; grid-template-columns: repeat(3, 1fr); grid-gap: 5px; gap: 5px; }
 .rs-preset {
-  padding: 6px 0; border: 1px solid var(--rs-border); border-radius: 8px;
-  background: none; color: var(--rs-fg); font-size: 13px; font-weight: 600;
+  padding: 5px 0; border: 1px solid var(--rs-border); border-radius: 8px;
+  background: none; color: var(--rs-fg); font-size: 12.5px; font-weight: 600;
   cursor: pointer; font-feature-settings: "tnum"; font-variant-numeric: tabular-nums;
 }
 .rs-preset-on { background: var(--rs-fg); color: var(--rs-bg); border-color: var(--rs-fg); }
 
-.rs-custom { display: flex; gap: 8px; align-items: center; height: 66px; }
+.rs-custom { display: flex; gap: 6px; align-items: center; height: 57px; }
 .rs-back-arrow {
   background: none; border: 1px solid var(--rs-border); border-radius: 8px;
-  color: var(--rs-fg); width: 34px; height: 34px; cursor: pointer;
+  color: var(--rs-fg); width: 30px; height: 30px; cursor: pointer;
 }
 .rs-custom-input {
   flex: 1 1; background: none; border: 1px solid var(--rs-border); border-radius: 8px;
-  color: var(--rs-fg); font-size: 16px; padding: 6px 10px; outline: none;
+  color: var(--rs-fg); font-size: 14px; padding: 5px 9px; outline: none;
   font-feature-settings: "tnum";
   font-variant-numeric: tabular-nums;
 }
@@ -180,22 +179,22 @@ body {
 
 .rs-quote-row {
   display: flex; justify-content: space-between; align-items: baseline;
-  margin-top: 8px; font-size: 12.5px; min-height: 17px;
+  margin-top: 7px; font-size: 12px; min-height: 16px;
 }
 .rs-backing {
   color: var(--rs-muted); background: none; border: none; padding: 0;
-  font-size: 12.5px; cursor: pointer;
+  font-size: 12px; cursor: pointer;
 }
 .rs-backing:hover { color: var(--rs-fg); }
 .rs-quote { color: var(--rs-fg); font-weight: 700; font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; }
 
-.rs-sign-row { display: flex; gap: 8px; margin-top: 8px; }
+.rs-sign-row { display: flex; gap: 6px; margin-top: 7px; }
 .rs-custom-btn {
-  padding: 7px 14px; border: 1px solid var(--rs-border); border-radius: 999px;
-  background: none; color: var(--rs-muted); font-size: 13px; cursor: pointer;
+  padding: 6px 12px; border: 1px solid var(--rs-border); border-radius: 999px;
+  background: none; color: var(--rs-muted); font-size: 12.5px; cursor: pointer;
 }
 .rs-sign {
-  flex: 1 1; padding: 7px 0; border-radius: 999px; font-weight: 700; font-size: 13.5px;
+  flex: 1 1; padding: 6px 0; border-radius: 999px; font-weight: 700; font-size: 12.5px;
   border: 1px solid var(--rs-border); background: none; color: var(--rs-muted);
 }
 .rs-sign-on {
@@ -229,6 +228,8 @@ body {
   --host-muted: var(--gunmetal);
   --host-border: var(--carbon);
   --host-radius: 12px;
+  /* the leader's shading — the one differentiator between the rows */
+  --host-shade: color-mix(in srgb, var(--lime) 45%, transparent);
 }
 
 body {
@@ -243,7 +244,7 @@ body {
   background: var(--lime);
   color: var(--carbon);
   font-weight: 800;
-  font-size: 12.5px;
+  font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -253,7 +254,7 @@ body {
 }
 .ticker-track {
   display: inline-block;
-  padding: 7px 0;
+  padding: 6px 0;
   animation: ticker 22s linear infinite;
 }
 @keyframes ticker {
@@ -263,16 +264,16 @@ body {
 
 .masthead {
   max-width: 560px;
-  margin: 26px auto 0;
+  margin: 22px auto 0;
   padding: 0 16px;
   display: flex;
   align-items: baseline;
-  gap: 12px;
+  gap: 10px;
 }
 .masthead .wordmark {
-  font-size: 44px;
+  font-size: 26px;
   font-weight: 900;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.03em;
   color: var(--paper);
   line-height: 1;
 }
@@ -280,97 +281,54 @@ body {
   font-style: normal;
   background: var(--lime);
   color: var(--carbon);
-  padding: 0 8px 2px;
-  border-radius: 10px;
+  padding: 0 6px 1px;
+  border-radius: 8px;
   display: inline-block;
   transform: rotate(-1.2deg);
 }
 .masthead .tag {
   color: var(--mint);
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
 }
 
 .timeline h1 { display: none; }
 .timeline .section {
-  color: var(--lime);
-  font-weight: 800;
-  font-size: 11.5px;
+  color: var(--gunmetal);
+  font-weight: 700;
+  font-size: 10.5px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
-  margin: 10px 0 8px;
+  margin: 8px 0 6px;
 }
-
-.host-tweet {
-  background: var(--gunmetal);
-  border: 2px solid var(--carbon);
-  border-radius: 12px;
-  box-shadow: 4px 4px 0 var(--lime);
-  color: var(--paper);
-}
-.host-tweet .t { color: var(--mint); }
 
 /* -- the strip, in costume ------------------------------------------------ */
 .rs-strip {
   border-width: 2px;
-  box-shadow: 5px 5px 0 var(--lime);
+  box-shadow: 4px 4px 0 var(--lime);
   transition: transform 120ms ease, box-shadow 120ms ease;
 }
 .rs-strip:hover {
   transform: translate(-2px, -2px);
-  box-shadow: 7px 7px 0 var(--lime);
+  box-shadow: 6px 6px 0 var(--lime);
 }
-.rs-strip[data-status="settled"] { box-shadow: 5px 5px 0 var(--mint); }
-.rs-strip[data-status="settled"]:hover { box-shadow: 7px 7px 0 var(--mint); }
-.rs-strip[data-status="voided"] { box-shadow: 5px 5px 0 var(--gunmetal); }
-.rs-strip[data-status="voided"]:hover { box-shadow: 7px 7px 0 var(--gunmetal); }
+.rs-strip[data-status="settled"] { box-shadow: 4px 4px 0 var(--mint); }
+.rs-strip[data-status="settled"]:hover { box-shadow: 6px 6px 0 var(--mint); }
+.rs-strip[data-status="voided"] { box-shadow: 4px 4px 0 var(--gunmetal); }
+.rs-strip[data-status="voided"]:hover { box-shadow: 6px 6px 0 var(--gunmetal); }
 
-/* leading like-count gets the highlighter swipe */
-.rs-leading .rs-like-count {
-  background: var(--lime);
-  padding: 0 10px 2px;
-  border-radius: 10px;
-  display: inline-block;
-  transform: rotate(-1deg);
-}
-
-.rs-hint { border-width: 1.5px; font-weight: 800; }
-.rs-hint:hover::after, .rs-hint:focus::after {
-  background: var(--carbon);
-  color: var(--lime);
-  border-radius: 10px;
-}
-
-/* username buttons: chunky pills that mean business */
-.rs-back {
-  border-width: 2px;
-  box-shadow: 3px 3px 0 var(--carbon);
-  transition: transform 90ms ease, box-shadow 90ms ease, background 90ms ease;
-}
-.rs-back:hover {
-  background: var(--lime);
-  transform: translate(-1px, -1px);
-  box-shadow: 4px 4px 0 var(--carbon);
-}
-.rs-back:active { transform: translate(2px, 2px); box-shadow: 0 0 0 var(--carbon); }
+/* rows: the leader is lime-shaded; a picked row gets the carbon ring */
+.rs-row { transition: background 90ms ease; }
+.rs-row-tap:hover { outline: none; background: color-mix(in srgb, var(--lime) 20%, transparent); }
+.rs-row-lead.rs-row-tap:hover { background: color-mix(in srgb, var(--lime) 60%, transparent); }
 
 .rs-divider { border-top-width: 2px; }
 
-/* money stays demoted: greens, but quiet ones. The swap cell reserves the
-   amount step's height; spread the money view through it instead of
-   leaving dead space under the timer. */
-.rs-view { display: flex; flex-direction: column; }
-.rs-money {
-  flex: 1 1;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-evenly;
-  gap: 2px;
-}
-.rs-bar { background: var(--mint); height: 8px; border: 1.5px solid var(--carbon); }
+/* money stays demoted: greens, but quiet ones */
+.rs-bar { background: var(--mint); height: 6px; border: 1.5px solid var(--carbon); }
 .rs-bar-a { background: var(--gunmetal); }
 
-/* amount step */
+/* amount grid */
 .rs-preset {
   border-width: 2px;
   box-shadow: 2px 2px 0 var(--carbon);
@@ -407,14 +365,6 @@ body {
   border-radius: 10px;
   font-weight: 700;
   transform: rotate(-0.6deg);
-  box-shadow: 3px 3px 0 var(--carbon);
-}
-
-/* settled verdict reads like a stamp */
-.rs-strip[data-status="settled"] .rs-meta {
-  color: var(--carbon);
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  box-shadow: 2px 2px 0 var(--carbon);
 }
 

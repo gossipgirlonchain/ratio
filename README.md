@@ -49,6 +49,18 @@ handle is unregistered — `BOT_HANDLE` in `@ratio/config` drives it everywhere.
   Display and fee-card code must not conflate the two. Mock tweet ids are
   wall-clock-seeded in the devnet sim (ids become oracle nonces; reused
   nonces collide with prior runs' PDAs).
+- **UI spec landed (2026-08-03).** `packages/ui` MarketStrip = the
+  canonical component (extension strip is the reference; app mirrors it).
+  Rules live in the component: one strip one market (no aggregate state,
+  ever); likes hero / money demoted, never sharing an axis or label; no
+  status vocabulary (usernames + numbers; settled/voided get minimal
+  words); amount step swaps in place via grid-cell stacking so the strip
+  height never changes inside a timeline; parimutuel quote with dilution
+  surfaced (payout.ts documents the spec-example discrepancy + the v2 plan
+  to quote from the chain's preview swap); hidden badge is a story beat and
+  the market stays bettable. `apps/web` renders every state (`ratio-web`
+  dev server). Funding (§11: hosted onramp / direct USDC + QR / external
+  wallet) goes behind a FundingProvider interface in R4.
 - **R4.** Privy server wallets keyed on numeric X id, ATA creation in the
   sponsored-gas path, unclaimed-fee notifications.
 - **R5.** PWA -> extension -> Telegram.

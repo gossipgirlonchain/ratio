@@ -49,18 +49,22 @@ handle is unregistered — `BOT_HANDLE` in `@ratio/config` drives it everywhere.
   Display and fee-card code must not conflate the two. Mock tweet ids are
   wall-clock-seeded in the devnet sim (ids become oracle nonces; reused
   nonces collide with prior runs' PDAs).
-- **UI spec landed (2026-08-03).** `packages/ui` MarketStrip = the
-  canonical component (extension strip is the reference; app mirrors it).
-  Rules live in the component: one strip one market (no aggregate state,
-  ever); likes hero / money demoted, never sharing an axis or label; no
-  status vocabulary (usernames + numbers; settled/voided get minimal
-  words); amount step swaps in place via grid-cell stacking so the strip
-  height never changes inside a timeline; parimutuel quote with dilution
-  surfaced (payout.ts documents the spec-example discrepancy + the v2 plan
-  to quote from the chain's preview swap); hidden badge is a story beat and
-  the market stays bettable. `apps/web` renders every state (`ratio-web`
-  dev server). Funding (§11: hosted onramp / direct USDC + QR / external
-  wallet) goes behind a FundingProvider interface in R4.
+- **UI spec landed (2026-08-03); strip v2 after winny's review.**
+  `packages/ui` MarketStrip = the canonical component (extension strip is
+  the reference; app mirrors it via host variables + `apps/web` skin.css —
+  never fork the component for a skin). v2 layout: both tweets are sibling
+  rows with identical treatment (the OP is a competitor, not context);
+  like counts 13px at the right of each row; the leader is a shaded row
+  with a bold count and nothing else; zero ? hints; ONE line of copy
+  ("most likes in <time> wins" / "@x won" / "voided · stakes refunded");
+  12-13px throughout; tap a row to back someone; the amount grid appears
+  only after a pick, swapping with the whole body in one grid cell (no
+  reserved dead space, height provably constant). One strip one market (no
+  aggregate state, ever); money demoted below the divider as pot shares;
+  no status vocabulary anywhere; parimutuel quote with dilution surfaced
+  (payout.ts documents the spec-example discrepancy + the plan to quote
+  from the chain's preview swap); hidden badge is a story beat and the
+  market stays bettable. Funding (§11) goes behind FundingProvider in R4.
 - **Reply surface is §4-clean (2026-08-03).** Stakes are handle-based
   ("$25 @handle", "@handle $25", "$25 on @handle"); A/B letters remain a
   silent parser fallback. Unresolvable handles fail safe (skip, no reply

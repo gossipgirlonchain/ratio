@@ -1,0 +1,204 @@
+/*!*********************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ../../node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[12].use[2]!../../node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[12].use[3]!./app/globals.css ***!
+  \*********************************************************************************************************************************************************************************************************************************************************************/
+/* The app mirrors the strip's host: X-dark greys, same rhythm (spec §1). */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --host-bg: #000;
+  --host-fg: #e7e9ea;
+  --host-muted: #71767b;
+  --host-border: #2f3336;
+  --host-radius: 16px;
+}
+
+body {
+  background: var(--host-bg);
+  color: var(--host-fg);
+  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.timeline {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 24px 16px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.timeline h1 { font-size: 15px; color: var(--host-muted); font-weight: 600; }
+.timeline .section { font-size: 12px; color: var(--host-muted); margin-top: 14px; }
+
+/* Fake host tweet above a strip, so the strip reads in context. */
+.host-tweet {
+  border: 1px solid var(--host-border);
+  border-radius: var(--host-radius);
+  padding: 12px 14px;
+  font-size: 14px;
+  color: var(--host-fg);
+}
+.host-tweet .h { font-weight: 700; margin-right: 6px; }
+.host-tweet .t { color: var(--host-muted); }
+
+/*!***********************************************************************************************************************************************************************************************************************************************************************************!*\
+  !*** css ../../node_modules/next/dist/build/webpack/loaders/css-loader/src/index.js??ruleSet[1].rules[14].oneOf[12].use[2]!../../node_modules/next/dist/build/webpack/loaders/postcss-loader/src/index.js??ruleSet[1].rules[14].oneOf[12].use[3]!../../packages/ui/src/strip.css ***!
+  \***********************************************************************************************************************************************************************************************************************************************************************************/
+/**
+ * Strip skin. Everything inherits from the host through custom properties
+ * (the extension sets these from X's computed styles; the app sets its own).
+ * The strip adds a thin border and the two-sided bar, nothing louder.
+ */
+.rs-strip {
+  --rs-radius: var(--host-radius, 16px);
+  --rs-border: var(--host-border, #2f3336);
+  --rs-fg: var(--host-fg, #e7e9ea);
+  --rs-muted: var(--host-muted, #71767b);
+  --rs-bg: var(--host-bg, #000);
+  --rs-accent: var(--host-fg, #e7e9ea);
+
+  font-family: var(--host-font, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif);
+  border: 1px solid var(--rs-border);
+  border-radius: var(--rs-radius);
+  background: var(--rs-bg);
+  color: var(--rs-fg);
+  padding: 12px 14px;
+  max-width: 520px;
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+/* -- hidden-from-thread story beat ---------------------------------------- */
+.rs-hidden-beat {
+  border: 1px solid var(--rs-border);
+  border-radius: calc(var(--rs-radius) / 2);
+  padding: 6px 10px;
+  margin-bottom: 10px;
+  font-size: 12.5px;
+  color: var(--rs-fg);
+  background: color-mix(in srgb, var(--rs-fg) 7%, transparent);
+}
+
+/* -- quoted reply, clamped ------------------------------------------------ */
+.rs-reply { color: var(--rs-muted); font-size: 13px; margin-bottom: 10px; }
+.rs-reply-handle { color: var(--rs-fg); font-weight: 600; margin-right: 6px; }
+.rs-clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.rs-reply-text { display: inline; }
+.rs-clamp.rs-reply-text { display: -webkit-box; }
+.rs-expand {
+  background: none; border: none; padding: 0;
+  color: var(--rs-muted); font-size: 12px; cursor: pointer;
+  text-decoration: underline;
+}
+
+/* -- likes: the hero ------------------------------------------------------ */
+.rs-likes {
+  display: flex; align-items: baseline; justify-content: center;
+  gap: 14px; margin: 2px 0 10px;
+}
+.rs-like-count { font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; letter-spacing: -0.02em; }
+.rs-leading .rs-like-count { font-size: 30px; font-weight: 800; color: var(--rs-fg); }
+.rs-trailing .rs-like-count { font-size: 20px; font-weight: 600; color: var(--rs-muted); }
+
+.rs-hint {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 50%;
+  border: 1px solid var(--rs-muted); color: var(--rs-muted);
+  font-size: 10px; cursor: default; position: relative; align-self: center;
+  margin: 0 2px;
+}
+.rs-hint:hover::after, .rs-hint:focus::after {
+  content: attr(data-tip);
+  position: absolute; bottom: 130%; left: 50%; transform: translateX(-50%);
+  width: 220px; padding: 8px 10px; border-radius: 8px;
+  background: var(--rs-fg); color: var(--rs-bg);
+  font-size: 12px; line-height: 1.3; z-index: 10; text-align: left;
+}
+
+/* -- username buttons ----------------------------------------------------- */
+.rs-buttons { display: flex; gap: 8px; margin-bottom: 10px; }
+.rs-back {
+  flex: 1 1; padding: 7px 0; cursor: pointer;
+  border: 1px solid var(--rs-border); border-radius: 999px;
+  background: none; color: var(--rs-fg); font-weight: 700; font-size: 13.5px;
+}
+.rs-back:hover { background: color-mix(in srgb, var(--rs-fg) 8%, transparent); }
+.rs-back-on { background: var(--rs-fg); color: var(--rs-bg); border-color: var(--rs-fg); }
+.rs-back-on:hover { background: var(--rs-fg); }
+
+.rs-divider { border-top: 1px solid var(--rs-border); margin: 0 -14px 10px; }
+
+/* -- in-place swap: both views share one grid cell (§5) ------------------- */
+/* Height = max(money view, amount step) from first paint; tapping a
+   username toggles visibility only, so the strip NEVER changes height. */
+.rs-swap { display: grid; }
+.rs-view { grid-area: 1 / 1; min-width: 0; }
+.rs-view-off { visibility: hidden; pointer-events: none; }
+
+/* money (visually secondary) */
+.rs-bar {
+  height: 6px; border-radius: 999px; overflow: hidden;
+  background: color-mix(in srgb, var(--rs-muted) 35%, transparent);
+}
+.rs-bar-a { height: 100%; background: var(--rs-muted); border-radius: 999px 0 0 999px; }
+.rs-pot-row {
+  display: flex; justify-content: space-between; align-items: center;
+  color: var(--rs-muted); font-size: 12.5px; margin-top: 6px;
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
+}
+.rs-pot-mid { display: inline-flex; align-items: center; gap: 4px; }
+.rs-meta { color: var(--rs-muted); font-size: 12.5px; margin-top: 8px; text-align: center; }
+.rs-strip[data-status="settled"] .rs-meta { color: var(--rs-fg); font-weight: 600; }
+
+/* amount step */
+.rs-presets { display: grid; grid-template-columns: repeat(3, 1fr); grid-gap: 6px; gap: 6px; }
+.rs-preset {
+  padding: 6px 0; border: 1px solid var(--rs-border); border-radius: 8px;
+  background: none; color: var(--rs-fg); font-size: 13px; font-weight: 600;
+  cursor: pointer; font-feature-settings: "tnum"; font-variant-numeric: tabular-nums;
+}
+.rs-preset-on { background: var(--rs-fg); color: var(--rs-bg); border-color: var(--rs-fg); }
+
+.rs-custom { display: flex; gap: 8px; align-items: center; height: 66px; }
+.rs-back-arrow {
+  background: none; border: 1px solid var(--rs-border); border-radius: 8px;
+  color: var(--rs-fg); width: 34px; height: 34px; cursor: pointer;
+}
+.rs-custom-input {
+  flex: 1 1; background: none; border: 1px solid var(--rs-border); border-radius: 8px;
+  color: var(--rs-fg); font-size: 16px; padding: 6px 10px; outline: none;
+  font-feature-settings: "tnum";
+  font-variant-numeric: tabular-nums;
+}
+.rs-custom-input:focus { border-color: var(--rs-fg); }
+
+.rs-quote-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  margin-top: 8px; font-size: 12.5px; min-height: 17px;
+}
+.rs-backing {
+  color: var(--rs-muted); background: none; border: none; padding: 0;
+  font-size: 12.5px; cursor: pointer;
+}
+.rs-backing:hover { color: var(--rs-fg); }
+.rs-quote { color: var(--rs-fg); font-weight: 700; font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; }
+
+.rs-sign-row { display: flex; gap: 8px; margin-top: 8px; }
+.rs-custom-btn {
+  padding: 7px 14px; border: 1px solid var(--rs-border); border-radius: 999px;
+  background: none; color: var(--rs-muted); font-size: 13px; cursor: pointer;
+}
+.rs-sign {
+  flex: 1 1; padding: 7px 0; border-radius: 999px; font-weight: 700; font-size: 13.5px;
+  border: 1px solid var(--rs-border); background: none; color: var(--rs-muted);
+}
+.rs-sign-on {
+  background: var(--rs-fg); color: var(--rs-bg); border-color: var(--rs-fg); cursor: pointer;
+}
+

@@ -1,0 +1,39 @@
+/* The app mirrors the strip's host: X-dark greys, same rhythm (spec §1). */
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --host-bg: #000;
+  --host-fg: #e7e9ea;
+  --host-muted: #71767b;
+  --host-border: #2f3336;
+  --host-radius: 16px;
+}
+
+body {
+  background: var(--host-bg);
+  color: var(--host-fg);
+  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.timeline {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 24px 16px 80px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.timeline h1 { font-size: 15px; color: var(--host-muted); font-weight: 600; }
+.timeline .section { font-size: 12px; color: var(--host-muted); margin-top: 14px; }
+
+/* Fake host tweet above a strip, so the strip reads in context. */
+.host-tweet {
+  border: 1px solid var(--host-border);
+  border-radius: var(--host-radius);
+  padding: 12px 14px;
+  font-size: 14px;
+  color: var(--host-fg);
+}
+.host-tweet .h { font-weight: 700; margin-right: 6px; }
+.host-tweet .t { color: var(--host-muted); }

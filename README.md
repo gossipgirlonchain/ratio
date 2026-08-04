@@ -61,6 +61,13 @@ handle is unregistered — `BOT_HANDLE` in `@ratio/config` drives it everywhere.
   the market stays bettable. `apps/web` renders every state (`ratio-web`
   dev server). Funding (§11: hosted onramp / direct USDC + QR / external
   wallet) goes behind a FundingProvider interface in R4.
+- **Reply surface is §4-clean (2026-08-03).** Stakes are handle-based
+  ("$25 @handle", "@handle $25", "$25 on @handle"); A/B letters remain a
+  silent parser fallback. Unresolvable handles fail safe (skip, no reply
+  spend). Bot confirms and recaps name people, never sides. Also landed:
+  `feeLeaderboard` store query (one combined board ranked on total fees,
+  per-role breakdown per row, rolling windows keyed on bet timestamps) and
+  the `FundingMethod` seam (`@ratio/config/funding`).
 - **R4.** Privy server wallets keyed on numeric X id, ATA creation in the
   sponsored-gas path, unclaimed-fee notifications.
 - **R5.** PWA -> extension -> Telegram.

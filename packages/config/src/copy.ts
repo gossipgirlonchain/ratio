@@ -40,21 +40,26 @@ export const rejection = (reason: RejectionReason, botHandle: string): string =>
 export const duplicatePointer = (): string =>
   `someone beat you to this one. the market is already live, bet on it here:`;
 
+/**
+ * §4 applies to bot copy too: no side letters, no status vocabulary.
+ * Users see two people and two numbers, in replies as much as in strips.
+ */
 export const marketCard = (opts: {
   settlesAtMs: number;
   sideAHandle: string;
   sideBHandle: string;
 }): string =>
   `market open: @${opts.sideBHandle} vs @${opts.sideAHandle}. most likes when the clock runs out wins, the likes are the referee. ` +
-  `stake with a reply: "$25 A" or "$10 B". settles ${fmtUtc(opts.settlesAtMs)} UTC. live odds:`;
+  `stake with a reply: "$25 @${opts.sideAHandle}" or "$10 @${opts.sideBHandle}". settles ${fmtUtc(opts.settlesAtMs)} UTC. live odds:`;
 
 export const betConfirm = (opts: {
   handle: string;
   amountUsd: number;
-  side: 0 | 1;
+  backedHandle: string;
+  sideAHandle: string;
   impliedAPct: number;
 }): string =>
-  `locked: @${opts.handle} put $${opts.amountUsd} on ${opts.side === 0 ? "A" : "B"}. money says ${opts.impliedAPct}% A.`;
+  `locked: @${opts.handle} put $${opts.amountUsd} on @${opts.backedHandle}. money says ${opts.impliedAPct}% @${opts.sideAHandle}.`;
 
 export const recap = (opts: {
   winner: "a" | "b";
@@ -62,16 +67,18 @@ export const recap = (opts: {
   likesB: number;
   moneyImpliedAPct: number;
   tie: boolean;
+  sideAHandle: string;
+  sideBHandle: string;
 }): string => {
   const moneySawIt =
     (opts.winner === "a" && opts.moneyImpliedAPct >= 50) ||
     (opts.winner === "b" && opts.moneyImpliedAPct < 50);
   const verdict = opts.tie
-    ? `dead heat ${opts.likesA}-${opts.likesB}. tie goes to the original, side A holds the line.`
+    ? `dead heat ${opts.likesA}-${opts.likesB}. tie goes to the original, @${opts.sideAHandle} holds the line.`
     : opts.winner === "b"
-      ? `ratio confirmed, side B takes it ${opts.likesB}-${opts.likesA}.`
-      : `side A held the line ${opts.likesA}-${opts.likesB}.`;
-  return `${verdict} money had A at ${opts.moneyImpliedAPct}%: ${
+      ? `ratio confirmed, @${opts.sideBHandle} takes it ${opts.likesB}-${opts.likesA}.`
+      : `@${opts.sideAHandle} held the line ${opts.likesA}-${opts.likesB}.`;
+  return `${verdict} money had @${opts.sideAHandle} at ${opts.moneyImpliedAPct}%: ${
     moneySawIt ? "the money saw it coming" : "the likes surprised the money"
   }. winners claim at ratio.wtf`;
 };

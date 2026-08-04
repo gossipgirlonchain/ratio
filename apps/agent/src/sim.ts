@@ -412,6 +412,63 @@ assert.equal(pRow.marketCount, 3, "count surfaces for display");
 assert.equal(pRow.stakedVolumeUsd, 30, "three cheap markets rank below one big one");
 
 // ---------------------------------------------------------------------------
+// 14. Handle-based stakes (§4: people, not letters) with A/B fallback
+// ---------------------------------------------------------------------------
+scenario("14. handle stakes — $25 @handle, letters still tolerated");
+const m14 = seedPair({ type: "quoted", a: "cora", b: "dex", likesA: 10, likesB: 30 });
+tagOn(m14.sideB.tweetId, "scout");
+await engine.tick();
+const m14id = (await store.getMarketByTweet(m14.sideB.tweetId))!.id;
+
+betOn(m14.sideB.tweetId, "carol", "$25 @cora"); // handle grammar, original
+betOn(m14.sideB.tweetId, "dave", "$10 on @dex"); // handle grammar with "on"
+betOn(m14.sideB.tweetId, "erin", "@dex 15"); // reversed handle grammar
+betOn(m14.sideB.tweetId, "fred", "$20 B"); // letter fallback still works
+betOn(m14.sideB.tweetId, "gary", "$50 @stranger"); // not a side: skip, no reply
+const posted14 = x.posted.length;
+await engine.tick();
+let bets14 = await store.listBets(m14id);
+assert.equal(bets14.length, 4, "four stakes landed, stranger skipped");
+assert.deepEqual(
+  bets14.map((b) => b.side),
+  [0, 1, 1, 1],
+  "handles resolved to the right sides",
+);
+assert.equal(x.posted.length, posted14 + 4, "no reply spend on the skip");
+assert.match(x.posted.at(-1)!.text, /put \$20 on @dex/, "confirms name people");
+assert.doesNotMatch(x.posted.at(-1)!.text, /on [AB]\b/, "no side letters in copy");
+
+// ---------------------------------------------------------------------------
+// 15. Fee leaderboard — combined board, per-role breakdown, rolling window
+// ---------------------------------------------------------------------------
+scenario("15. fee leaderboard (rolling window)");
+const allTimeBefore = await store.feeLeaderboard({ sinceMs: 0 });
+assert.ok(allTimeBefore.length > 0, "history exists from earlier scenarios");
+
+// jump far ahead: the rolling 24h window must only see what follows
+advance(30 * 24 * HOUR);
+const windowStart = clock();
+const m15 = seedPair({ type: "replied_to", a: "zara", b: "yanni", likesA: 5, likesB: 6 });
+tagOn(m15.sideB.tweetId, "scout2");
+await engine.tick();
+betOn(m15.sideB.tweetId, "carol", "$100 @zara");
+betOn(m15.sideB.tweetId, "dave", "$60 @yanni");
+await engine.tick();
+
+const board = await store.feeLeaderboard({ sinceMs: windowStart });
+// $160 volume × 1.25% = $2 fees; sides 18% each = $0.36, tagger 11.5% = $0.23
+const by = (h: string) => board.find((r) => r.handle === h)!;
+assert.equal(board.length, 3, "window isolates the fresh market's three earners");
+assert.ok(Math.abs(by("zara").totalFeeUsd - 0.36) < 1e-9);
+assert.ok(Math.abs(by("zara").byRole.sideA - 0.36) < 1e-9, "role breakdown: all from being the original");
+assert.ok(Math.abs(by("yanni").byRole.sideB - 0.36) < 1e-9);
+assert.ok(Math.abs(by("scout2").byRole.tagger - 0.23) < 1e-9, "tagger slice");
+assert.ok(by("zara").totalFeeUsd >= by("scout2").totalFeeUsd, "ranked by total");
+
+const allTime = await store.feeLeaderboard({ sinceMs: 0 });
+assert.ok(allTime.length > board.length, "all-time keeps the older earners");
+
+// ---------------------------------------------------------------------------
 scenario("instrumentation: void rate by side-B age bucket (3h)");
 for (const [bucket, row] of await store.voidRateByAgeBucket(3 * HOUR))
   console.log(

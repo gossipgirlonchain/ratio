@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./copy": "./src/copy.ts"
+    "./copy": "./src/copy.ts",
+    "./funding": "./src/funding.ts"
   }
 }

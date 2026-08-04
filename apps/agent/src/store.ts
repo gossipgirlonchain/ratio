@@ -9,6 +9,8 @@
  * drop in later without a migration.
  */
 
+import { FEE_SHARE_BPS, SWAP_FEE_BPS } from "@ratio/config";
+
 export type PairType = "quote" | "reply";
 /** `forfeited` is reserved in the schema; nothing sets it in v1 (no hide detection). */
 export type MarketStatus = "open" | "settled" | "voided" | "forfeited";
@@ -63,6 +65,21 @@ export interface PostView {
   stakedVolumeUsd: number; // the ranking key
 }
 
+/**
+ * Fee leaderboard row (spec item 9): ONE combined board ranked on total
+ * fees earned — never three boards by role, which would show a power user
+ * as mediocre three times instead of dominant once. The per-role breakdown
+ * renders underneath each row (the character read: mostly-original means
+ * someone who gets dunked on constantly, mostly-tagger means a market
+ * maker). Windows roll continuously (last 24h / 7d), no clock resets.
+ */
+export interface FeeLeaderboardRow {
+  xUserId: string;
+  handle: string; // display cache
+  totalFeeUsd: number;
+  byRole: { sideA: number; sideB: number; tagger: number };
+}
+
 export interface BetRecord {
   marketId: string;
   xUserId: string;
@@ -104,6 +121,13 @@ export interface Store {
    * without spending. `marketCount` rides along for display only.
    */
   trendingPosts(limit: number): Promise<PostView[]>;
+  /**
+   * Combined fee board over bets placed since `sinceMs` (fees accrue at
+   * swap time, so the bet timestamp is the window key). Rolling windows:
+   * all-time = 0, 24h = now − 24h, weekly = now − 7d. Protocol and Doppler
+   * wallets are not rows — this is a user leaderboard.
+   */
+  feeLeaderboard(opts: { sinceMs: number; limit?: number }): Promise<FeeLeaderboardRow[]>;
   /** Instrumentation for the freshness-window decision (9-12h keep or cut). */
   voidRateByAgeBucket(bucketMs: number): Promise<Map<number, { total: number; voided: number }>>;
 }
@@ -182,6 +206,34 @@ export class InMemoryStore implements Store {
     }));
     return views
       .sort((x, y) => y.stakedVolumeUsd - x.stakedVolumeUsd)
+      .slice(0, limit);
+  }
+  async feeLeaderboard({ sinceMs, limit = 100 }: { sinceMs: number; limit?: number }) {
+    const rows = new Map<string, FeeLeaderboardRow>();
+    const credit = (
+      xUserId: string,
+      handle: string,
+      role: keyof FeeLeaderboardRow["byRole"],
+      usd: number,
+    ) => {
+      const row =
+        rows.get(xUserId) ??
+        ({ xUserId, handle, totalFeeUsd: 0, byRole: { sideA: 0, sideB: 0, tagger: 0 } } satisfies FeeLeaderboardRow);
+      row.totalFeeUsd += usd;
+      row.byRole[role] += usd;
+      rows.set(xUserId, row);
+    };
+    for (const bet of this.bets) {
+      if (bet.placedAtMs < sinceMs) continue;
+      const m = this.markets.get(bet.marketId);
+      if (!m) continue;
+      const fee = (bet.amountUsd * SWAP_FEE_BPS) / 10_000;
+      credit(m.authorAXId, m.authorAHandle, "sideA", (fee * FEE_SHARE_BPS.sideA) / 10_000);
+      credit(m.authorBXId, m.authorBHandle, "sideB", (fee * FEE_SHARE_BPS.sideB) / 10_000);
+      credit(m.taggerXId, m.taggerHandle, "tagger", (fee * FEE_SHARE_BPS.tagger) / 10_000);
+    }
+    return [...rows.values()]
+      .sort((x, y) => y.totalFeeUsd - x.totalFeeUsd)
       .slice(0, limit);
   }
   async voidRateByAgeBucket(bucketMs: number) {

@@ -88,7 +88,7 @@ export class RatioEngine {
   }
 
   private async handleMention(mention: XMention): Promise<void> {
-    const intent = parseMention(mention.text);
+    const intent = parseMention(mention.text, this.config.botHandle);
     if (intent.action === "ignore") return; // read cost only, never reply to noise
 
     if (intent.action === "bet") {
@@ -99,7 +99,25 @@ export class RatioEngine {
         console.log(`  (stake from @${mention.authorHandle} too late — market closed)`);
         return; // skip silently: no reply spend on late stakes
       }
-      await this.placeBet(mention, record, intent.side, intent.amountUsd);
+      // Handle-based stakes resolve against the market's cached handles.
+      // Handles are display cache (identity = numeric id); a handle change
+      // between creation and stake makes the stake unresolvable, which
+      // fails SAFE: skip silently, money never routes on a stale name.
+      let side: 0 | 1;
+      if (typeof intent.side === "object") {
+        const h = intent.side.handle.toLowerCase();
+        if (h === record.authorAHandle.toLowerCase()) side = 0;
+        else if (h === record.authorBHandle.toLowerCase()) side = 1;
+        else {
+          console.log(
+            `  (stake from @${mention.authorHandle} names @${intent.side.handle} — not a side here, skipped)`,
+          );
+          return;
+        }
+      } else {
+        side = intent.side;
+      }
+      await this.placeBet(mention, record, side, intent.amountUsd);
       return;
     }
 
@@ -277,7 +295,8 @@ export class RatioEngine {
       text: betConfirm({
         handle: mention.authorHandle,
         amountUsd: capped,
-        side,
+        backedHandle: side === 0 ? record.authorAHandle : record.authorBHandle,
+        sideAHandle: record.authorAHandle,
         impliedAPct: Math.round(odds.impliedA * 100),
       }),
     });
@@ -420,6 +439,8 @@ export class RatioEngine {
         likesB: b.likeCount,
         moneyImpliedAPct: Math.round(odds.impliedA * 100),
         tie: a.likeCount === b.likeCount,
+        sideAHandle: record.authorAHandle,
+        sideBHandle: record.authorBHandle,
       }),
     });
   }

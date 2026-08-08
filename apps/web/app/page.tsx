@@ -4,14 +4,15 @@
  * Dev gallery in user-flow order: fresh market -> money arrives -> flagged
  * mid-market -> settled -> voided. Labels are state names, nothing more.
  */
+import { useEffect, useState } from "react";
+
 import { MarketStrip, type MarketStripData } from "@ratio/ui";
 
 const NOW = Date.now();
 const H = 3_600_000;
 
-const markets: Array<{ note: string; data: MarketStripData }> = [
+const markets: Array<{ data: MarketStripData }> = [
   {
-    note: "just opened",
     data: {
       marketId: "m1",
       a: {
@@ -31,7 +32,6 @@ const markets: Array<{ note: string; data: MarketStripData }> = [
     },
   },
   {
-    note: "open",
     data: {
       marketId: "m2",
       a: {
@@ -51,7 +51,6 @@ const markets: Array<{ note: string; data: MarketStripData }> = [
     },
   },
   {
-    note: "open",
     data: {
       marketId: "m3",
       a: { handle: "opinionhaver", text: "cereal is a soup", likes: 3_100, potUsd: 240 },
@@ -61,7 +60,6 @@ const markets: Array<{ note: string; data: MarketStripData }> = [
     },
   },
   {
-    note: "flagged",
     data: {
       marketId: "m4",
       a: {
@@ -82,7 +80,6 @@ const markets: Array<{ note: string; data: MarketStripData }> = [
     },
   },
   {
-    note: "settled",
     data: {
       marketId: "m5",
       a: {
@@ -103,7 +100,6 @@ const markets: Array<{ note: string; data: MarketStripData }> = [
     },
   },
   {
-    note: "voided",
     data: {
       marketId: "m6",
       a: { handle: "deleter", text: "watch me say it anyway", likes: 950, potUsd: 75 },
@@ -118,6 +114,11 @@ const TICKER =
   "the likes are the referee · every reply is a market · tag it and find out · ";
 
 export default function Page() {
+  // Dev gallery only: fixtures derive from Date.now() at module scope, which
+  // differs between server and client render — mount-gate to skip SSR.
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => setMounted(true), []);
+  if (!mounted) return null;
   return (
     <>
       <div className="ticker" aria-hidden>
@@ -130,9 +131,8 @@ export default function Page() {
         <span className="tag">the likes are the referee</span>
       </header>
       <main className="timeline">
-        {markets.map(({ note, data }) => (
+        {markets.map(({ data }) => (
           <div key={data.marketId}>
-            <p className="section">{note}</p>
             <MarketStrip
               data={data}
               onSign={(side, amount) =>

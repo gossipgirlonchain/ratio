@@ -47,6 +47,14 @@
 .rs-row-lead .rs-row-likes { font-weight: 800; color: var(--rs-fg); }
 .rs-row-tap { cursor: pointer; }
 .rs-row-tap:hover { outline: 1px solid var(--rs-border); }
+/* Selected = outlined. The row itself is the state; no other label exists. */
+.rs-row-on { outline: 1.5px solid var(--rs-fg); }
+.rs-row-on:hover { outline: 1.5px solid var(--rs-fg); }
+
+.rs-hairline {
+  border-top: 1px solid color-mix(in srgb, var(--rs-border) 55%, transparent);
+  margin: 2px 0;
+}
 
 .rs-row-main { flex: 1; min-width: 0; }
 .rs-row-handle { font-weight: 700; margin-right: 6px; }
@@ -84,30 +92,25 @@
 
 .rs-divider { border-top: 1px solid var(--rs-border); margin: 0 -12px 8px; }
 
-/* -- in-place swap: both views share one grid cell ------------------------ */
-/* Height = max(pot view, amount grid) from first paint; picking a row
-   toggles visibility only, so the strip NEVER changes height. */
-.rs-swap { display: grid; }
-.rs-view { grid-area: 1 / 1; min-width: 0; display: flex; flex-direction: column; }
-.rs-view-off { visibility: hidden; pointer-events: none; }
-/* The amount view is the shorter one: center it in the body's height. */
-.rs-view-amount { justify-content: center; }
-.rs-view-amount .rs-quote-row { margin: 0 0 8px; }
-
-/* money, resting */
-.rs-money { flex: 1; display: flex; flex-direction: column; justify-content: space-evenly; gap: 4px; }
-.rs-bar {
-  height: 5px; border-radius: 999px; overflow: hidden;
+/* -- money: always visible, always secondary ------------------------------ */
+.rs-money { display: flex; flex-direction: column; gap: 4px; padding: 0 8px 2px; }
+/* Two segments with a gap; each side is clamped to a visible share in the
+   component, so a one-sided market shows a SLIVER, never a solid bar. */
+.rs-bar { display: flex; gap: 2px; height: 5px; }
+.rs-bar-a { background: var(--rs-muted); border-radius: 999px; }
+.rs-bar-b {
+  flex: 1;
   background: color-mix(in srgb, var(--rs-muted) 35%, transparent);
+  border-radius: 999px;
 }
-.rs-bar-a { height: 100%; background: var(--rs-muted); border-radius: 999px 0 0 999px; }
 .rs-pot-row {
   display: flex; justify-content: space-between; align-items: center;
   color: var(--rs-muted); font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
 
-/* amount grid — appears only after a row is picked */
+/* -- amount block: expands below on row tap (user-initiated height) ------- */
+.rs-amount { margin-top: 8px; }
 .rs-presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
 .rs-preset {
   padding: 5px 0; border: 1px solid var(--rs-border); border-radius: 8px;
@@ -128,16 +131,10 @@
 }
 .rs-custom-input:focus { border-color: var(--rs-fg); }
 
-.rs-quote-row {
-  display: flex; justify-content: space-between; align-items: baseline;
-  margin-top: 7px; font-size: 12px; min-height: 16px;
+.rs-quote {
+  text-align: right; margin-top: 7px; font-size: 12px;
+  color: var(--rs-fg); font-weight: 700; font-variant-numeric: tabular-nums;
 }
-.rs-backing {
-  color: var(--rs-muted); background: none; border: none; padding: 0;
-  font-size: 12px; cursor: pointer;
-}
-.rs-backing:hover { color: var(--rs-fg); }
-.rs-quote { color: var(--rs-fg); font-weight: 700; font-variant-numeric: tabular-nums; }
 
 .rs-sign-row { display: flex; gap: 6px; margin-top: 7px; }
 .rs-custom-btn {

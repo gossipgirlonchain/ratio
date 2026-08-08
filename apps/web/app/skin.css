@@ -113,12 +113,18 @@ body {
 .rs-row { transition: background 90ms ease; }
 .rs-row-tap:hover { outline: none; background: color-mix(in srgb, var(--lime) 20%, transparent); }
 .rs-row-lead.rs-row-tap:hover { background: color-mix(in srgb, var(--lime) 60%, transparent); }
+/* Selected row: fat outline, the row is the whole state */
+.rs-row-on, .rs-row-on:hover {
+  outline: 2px solid var(--carbon);
+  background: color-mix(in srgb, var(--lime) 45%, transparent);
+}
 
 .rs-divider { border-top-width: 2px; }
 
 /* money stays demoted: greens, but quiet ones */
-.rs-bar { background: var(--mint); height: 6px; border: 1.5px solid var(--carbon); }
+.rs-bar { height: 7px; gap: 3px; }
 .rs-bar-a { background: var(--gunmetal); }
+.rs-bar-b { background: var(--mint); }
 
 /* amount grid */
 .rs-preset {

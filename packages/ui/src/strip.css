@@ -17,43 +17,52 @@
   border-radius: var(--rs-radius);
   background: var(--rs-bg);
   color: var(--rs-fg);
-  padding: 10px 12px;
+  padding: 14px 16px;
   max-width: 520px;
   font-size: 13px;
-  line-height: 1.35;
+  line-height: 1.4;
 }
 
-/* -- hidden-from-thread story beat ---------------------------------------- */
+/* -- hidden-from-thread: a small inline label, never the loudest thing ---- */
 .rs-hidden-beat {
-  border: 1px solid var(--rs-border);
-  border-radius: calc(var(--rs-radius) / 2);
-  padding: 5px 9px;
-  margin-bottom: 8px;
-  font-size: 12px;
-  color: var(--rs-fg);
-  background: var(--rs-shade);
+  display: inline-block;
+  font-size: 11.5px;
+  color: var(--rs-muted);
+  margin: 0 0 8px 2px;
 }
 
-/* -- the two rows: siblings, identical treatment -------------------------- */
+/* -- the two rows: siblings, identical treatment, whitespace-separated ---- */
 .rs-row {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  padding: 7px 8px;
+  gap: 10px;
+  padding: 9px 10px;
   border-radius: calc(var(--rs-radius) / 2);
-  margin: 0 -2px;
+  margin: 0 -4px;
 }
-.rs-row-lead { background: var(--rs-shade); }
+.rs-row + .rs-row { margin-top: 6px; }
+/* Leading is shown by the BOLD COUNT and nothing else. */
 .rs-row-lead .rs-row-likes { font-weight: 800; color: var(--rs-fg); }
 .rs-row-tap { cursor: pointer; }
-.rs-row-tap:hover { outline: 1px solid var(--rs-border); }
-/* Selected = outlined. The row itself is the state; no other label exists. */
-.rs-row-on { outline: 1.5px solid var(--rs-fg); }
-.rs-row-on:hover { outline: 1.5px solid var(--rs-fg); }
+.rs-row-tap:hover { background: color-mix(in srgb, var(--rs-fg) 5%, transparent); }
+/* Selected = FILL, and the fill color marks nothing else, ever. */
+.rs-row-on, .rs-row-on:hover { background: var(--rs-shade); }
 
-.rs-hairline {
-  border-top: 1px solid color-mix(in srgb, var(--rs-border) 55%, transparent);
-  margin: 2px 0;
+.rs-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  flex-shrink: 0;
+  object-fit: cover;
+  background: color-mix(in srgb, var(--rs-muted) 30%, transparent);
+}
+.rs-avatar-fallback {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--rs-fg);
 }
 
 .rs-row-main { flex: 1; min-width: 0; }
@@ -75,25 +84,30 @@
   margin-left: 4px;
 }
 .rs-row-likes {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   font-variant-numeric: tabular-nums;
   color: var(--rs-muted);
   font-size: 13px;
   white-space: nowrap;
-  padding-top: 1px;
+  padding-top: 2px;
 }
+.rs-row-likes svg { opacity: 0.75; }
 
 /* -- the one line of copy -------------------------------------------------- */
 .rs-rule {
   color: var(--rs-muted);
   font-size: 12px;
-  padding: 6px 8px 8px;
+  padding: 10px 8px 12px;
 }
 .rs-strip[data-status="settled"] .rs-rule { color: var(--rs-fg); font-weight: 700; }
 
-.rs-divider { border-top: 1px solid var(--rs-border); margin: 0 -12px 8px; }
+/* The single divider: tweets block above, money block below. */
+.rs-divider { border-top: 1px solid var(--rs-border); margin: 0 -16px 12px; }
 
 /* -- money: always visible, always secondary ------------------------------ */
-.rs-money { display: flex; flex-direction: column; gap: 4px; padding: 0 8px 2px; }
+.rs-money { display: flex; flex-direction: column; gap: 6px; padding: 0 6px 2px; }
 /* Two segments with a gap; each side is clamped to a visible share in the
    component, so a one-sided market shows a SLIVER, never a solid bar. */
 .rs-bar { display: flex; gap: 2px; height: 5px; }
@@ -105,12 +119,15 @@
 }
 .rs-pot-row {
   display: flex; justify-content: space-between; align-items: center;
-  color: var(--rs-muted); font-size: 12px;
+  color: var(--rs-muted); font-size: 11.5px;
   font-variant-numeric: tabular-nums;
+  gap: 8px;
 }
+/* Handles at each end attribute the figures, matching the row order above. */
+.rs-pot-side { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* -- amount block: expands below on row tap (user-initiated height) ------- */
-.rs-amount { margin-top: 8px; }
+.rs-amount { margin-top: 14px; }
 .rs-presets { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; }
 .rs-preset {
   padding: 5px 0; border: 1px solid var(--rs-border); border-radius: 8px;

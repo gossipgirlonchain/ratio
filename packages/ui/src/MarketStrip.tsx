@@ -56,6 +56,15 @@ export interface MarketStripProps {
   onPresetUsed?: (amountUsd: number | "custom") => void;
 }
 
+/** Small heart before the count: reads as likes without a label. */
+function Heart() {
+  return (
+    <svg viewBox="0 0 24 24" width="11" height="11" fill="currentColor" aria-hidden>
+      <path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
+    </svg>
+  );
+}
+
 function Row({
   side,
   who,
@@ -89,6 +98,13 @@ function Row({
       onClick={tappable ? () => onPick(who) : undefined}
       onKeyDown={tappable ? (e) => e.key === "Enter" && onPick(who) : undefined}
     >
+      {side.avatarUrl ? (
+        <img className="rs-avatar" src={side.avatarUrl} alt="" />
+      ) : (
+        <span className="rs-avatar rs-avatar-fallback">
+          {side.handle[0]?.toUpperCase()}
+        </span>
+      )}
       <div className="rs-row-main">
         <span className="rs-row-handle">@{side.handle}</span>
         <span className={expanded ? "rs-row-text" : "rs-row-text rs-clamp"}>
@@ -108,7 +124,10 @@ function Row({
           </span>
         )}
       </div>
-      <span className="rs-row-likes">{fmtLikes(side.likes)}</span>
+      <span className="rs-row-likes">
+        <Heart />
+        {fmtLikes(side.likes)}
+      </span>
     </div>
   );
 }
@@ -170,20 +189,24 @@ export function MarketStrip({ data, nowMs, onSign, onPresetUsed }: MarketStripPr
       )}
 
       <Row side={data.a} who="a" leading={leading === "a"} selected={backing === "a"} tappable={tappable} onPick={pick} />
-      <div className="rs-hairline" />
       <Row side={data.b} who="b" leading={leading === "b"} selected={backing === "b"} tappable={tappable} onPick={pick} />
-      <div className="rs-hairline" />
 
       <div className="rs-rule">{rule}</div>
+      {/* The one divider: tweets block above, money block below. */}
+      <div className="rs-divider" />
       <div className="rs-money">
         <div className="rs-bar">
           <div className="rs-bar-a" style={{ width: `${aPct}%` }} />
           <div className="rs-bar-b" />
         </div>
         <div className="rs-pot-row">
-          <span>{fmtUsd(data.a.potUsd)}</span>
+          <span className="rs-pot-side">
+            @{data.a.handle} {fmtUsd(data.a.potUsd)}
+          </span>
           <span className="rs-pot-mid">{fmtUsd(total)} staked</span>
-          <span>{fmtUsd(data.b.potUsd)}</span>
+          <span className="rs-pot-side">
+            {fmtUsd(data.b.potUsd)} @{data.b.handle}
+          </span>
         </div>
       </div>
 
@@ -191,7 +214,6 @@ export function MarketStrip({ data, nowMs, onSign, onPresetUsed }: MarketStripPr
           above it moves; deselecting the row collapses it. */}
       {backing && (
         <div className="rs-amount">
-          <div className="rs-divider" />
           {custom === null ? (
             <div className="rs-presets">
               {PRESETS.map((p) => (

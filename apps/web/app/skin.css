@@ -23,7 +23,6 @@
   --host-border: var(--carbon);
   --host-radius: 12px;
   /* the leader's shading — the one differentiator between the rows */
-  --host-shade: color-mix(in srgb, var(--lime) 45%, transparent);
 }
 
 body {
@@ -109,15 +108,12 @@ body {
 .rs-strip[data-status="voided"] { box-shadow: 4px 4px 0 var(--gunmetal); }
 .rs-strip[data-status="voided"]:hover { box-shadow: 6px 6px 0 var(--gunmetal); }
 
-/* rows: the leader is lime-shaded; a picked row gets the carbon ring */
+/* rows: GREEN MEANS SELECTED and nothing else is ever green.
+   Leading is the bold count alone; hover is a neutral tint. */
 .rs-row { transition: background 90ms ease; }
-.rs-row-tap:hover { outline: none; background: color-mix(in srgb, var(--lime) 20%, transparent); }
-.rs-row-lead.rs-row-tap:hover { background: color-mix(in srgb, var(--lime) 60%, transparent); }
-/* Selected row: fat outline, the row is the whole state */
-.rs-row-on, .rs-row-on:hover {
-  outline: 2px solid var(--carbon);
-  background: color-mix(in srgb, var(--lime) 45%, transparent);
-}
+.rs-row-tap:hover { background: color-mix(in srgb, var(--carbon) 6%, transparent); }
+.rs-row-on, .rs-row-on:hover { background: var(--lime); }
+.rs-avatar { border: 1.5px solid var(--carbon); }
 
 .rs-divider { border-top-width: 2px; }
 
@@ -155,13 +151,5 @@ body {
 .rs-sign-on:hover { background: var(--lime-dark); transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--carbon); }
 .rs-sign-on:active { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--carbon); }
 
-/* the hidden beat is a feature: lime, loud, slightly off-axis */
-.rs-hidden-beat {
-  background: var(--lime);
-  color: var(--carbon);
-  border: 2px solid var(--carbon);
-  border-radius: 10px;
-  font-weight: 700;
-  transform: rotate(-0.6deg);
-  box-shadow: 2px 2px 0 var(--carbon);
-}
+/* hidden label: a quiet inline note, not a banner (and never green) */
+.rs-hidden-beat { color: var(--gunmetal); font-weight: 700; }

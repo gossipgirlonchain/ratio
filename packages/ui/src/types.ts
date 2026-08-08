@@ -8,6 +8,8 @@ export type StripStatus = "open" | "settled" | "voided";
 
 export interface StripSide {
   handle: string;
+  /** Profile picture; absent renders an initial. The row reads like a tweet. */
+  avatarUrl?: string;
   /** The tweet's text. Both sides carry it: the OP is a competitor row,
    * not context — the matchup must be legible in one glance. */
   text: string;

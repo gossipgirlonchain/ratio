@@ -19,9 +19,11 @@ const B = "#7A9A2E";
 
 const W = 640;
 const LINE_H = 230;
-const VOL_H = 64;
+/** Money panel: buys stack UP from the zero line, sells stack DOWN. */
+const VOL_UP = 52;
+const VOL_DOWN = 26;
 const PAD = { l: 8, r: 34, gap: 18, top: 10, bottom: 22 };
-const H_TOTAL = LINE_H + PAD.gap + VOL_H + PAD.top + PAD.bottom;
+const H_TOTAL = LINE_H + PAD.gap + VOL_UP + VOL_DOWN + PAD.top + PAD.bottom;
 
 const fmtLikes = (n: number): string =>
   n >= 1_000 ? `${(n / 1_000).toFixed(1)}K` : String(Math.round(n));
@@ -44,19 +46,20 @@ export function MarketChart({
   const svgRef = useRef<SVGSVGElement>(null);
   const n = series.ts.length;
 
-  const { pathA, pathB, x, yLike, likeMax, volMax } = useMemo(() => {
+  const { pathA, pathB, x, yLike, likeMax, pxPerUsd } = useMemo(() => {
     const likeMax = Math.max(...series.likesA, ...series.likesB) * 1.08;
-    // stacked bars: the scale is the stacked TOTAL, not the larger side
-    const volMax = Math.max(...series.volA.map((v, i) => v + series.volB[i]!), 1);
+    // ONE $/px scale for both directions — up and down share an axis.
+    const buyMax = Math.max(...series.buyA.map((v, i) => v + series.buyB[i]!), 1);
+    const sellMax = Math.max(...series.sellA.map((v, i) => v + series.sellB[i]!), 0);
+    const pxPerUsd = Math.min(VOL_UP / buyMax, sellMax > 0 ? VOL_DOWN / sellMax : Infinity);
     const x = (i: number) => PAD.l + ((W - PAD.l - PAD.r) * i) / (n - 1);
     const yLike = (v: number) => PAD.top + LINE_H - (LINE_H * v) / likeMax;
     const path = (vals: number[]) =>
       vals.map((v, i) => `${i === 0 ? "M" : "L"}${x(i).toFixed(1)},${yLike(v).toFixed(1)}`).join("");
-    return { pathA: path(series.likesA), pathB: path(series.likesB), x, yLike, likeMax, volMax };
+    return { pathA: path(series.likesA), pathB: path(series.likesB), x, yLike, likeMax, pxPerUsd };
   }, [series, n]);
 
-  const volTop = PAD.top + LINE_H + PAD.gap;
-  const yVol = (v: number) => (VOL_H * v) / volMax;
+  const zeroY = PAD.top + LINE_H + PAD.gap + VOL_UP; // the money zero line
   const barW = Math.max(2, (W - PAD.l - PAD.r) / n - 2);
 
   const onMove = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -72,7 +75,7 @@ export function MarketChart({
       <div className="chart-legend">
         <span><i className="chart-swatch" style={{ background: A }} /> @{handleA} likes</span>
         <span><i className="chart-swatch" style={{ background: B }} /> @{handleB} likes</span>
-        <span className="chart-legend-vol"><i className="chart-swatch chart-swatch-bar" /> money in</span>
+        <span className="chart-legend-vol"><i className="chart-swatch chart-swatch-bar" /> money in ↑ · out ↓</span>
       </div>
       <svg
         ref={svgRef}
@@ -101,41 +104,30 @@ export function MarketChart({
         <path d={pathA} fill="none" stroke={A} strokeWidth="2" strokeLinejoin="round" />
         <path d={pathB} fill="none" stroke={B} strokeWidth="2" strokeLinejoin="round" />
 
-        {/* money: ONE stacked bar per interval — a single series about
-            money, not two competing charts. Same entity hues, 1px gap
-            between segments. */}
+        {/* money, two channels kept separate: DIRECTION is vertical (buys
+            stack up from the zero line, sells stack down), COLOUR is side,
+            matched to the like lines. Per-interval, never cumulative. */}
         {series.ts.map((_, i) => {
-          const a = series.volA[i]!;
-          const b = series.volB[i]!;
-          if (a + b === 0) return null;
-          const hA = yVol(a);
-          const hB = yVol(b);
+          const bA = series.buyA[i]! * pxPerUsd;
+          const bB = series.buyB[i]! * pxPerUsd;
+          const sA = series.sellA[i]! * pxPerUsd;
+          const sB = series.sellB[i]! * pxPerUsd;
+          if (bA + bB + sA + sB === 0) return null;
+          const bx = x(i) - barW / 2;
           return (
             <g key={i}>
-              {a > 0 && (
-                <rect
-                  x={x(i) - barW / 2}
-                  y={volTop + VOL_H - hA}
-                  width={barW}
-                  height={hA}
-                  rx="1"
-                  fill={A}
-                />
+              {bA > 0 && <rect x={bx} y={zeroY - bA} width={barW} height={bA} rx="1" fill={A} />}
+              {bB > 0 && (
+                <rect x={bx} y={zeroY - bA - (bA > 0 ? 1 : 0) - bB} width={barW} height={bB} rx="1" fill={B} />
               )}
-              {b > 0 && (
-                <rect
-                  x={x(i) - barW / 2}
-                  y={volTop + VOL_H - hA - (a > 0 ? 1 : 0) - hB}
-                  width={barW}
-                  height={hB}
-                  rx="1"
-                  fill={B}
-                />
+              {sA > 0 && <rect x={bx} y={zeroY + 1} width={barW} height={sA} rx="1" fill={A} />}
+              {sB > 0 && (
+                <rect x={bx} y={zeroY + 1 + sA + (sA > 0 ? 1 : 0)} width={barW} height={sB} rx="1" fill={B} />
               )}
             </g>
           );
         })}
-        <line x1={PAD.l} x2={W - PAD.r} y1={volTop + VOL_H} y2={volTop + VOL_H} className="chart-axis" />
+        <line x1={PAD.l} x2={W - PAD.r} y1={zeroY} y2={zeroY} className="chart-axis" />
 
         {/* time ticks */}
         <text x={PAD.l} y={H_TOTAL - 6} className="chart-tick">
@@ -149,7 +141,7 @@ export function MarketChart({
             sides so it never leaves the plot */}
         {hover !== null && (
           <g>
-            <line x1={x(hover)} x2={x(hover)} y1={PAD.top} y2={volTop + VOL_H} className="chart-crosshair" />
+            <line x1={x(hover)} x2={x(hover)} y1={PAD.top} y2={zeroY + VOL_DOWN} className="chart-crosshair" />
             <circle cx={x(hover)} cy={yLike(series.likesA[hover]!)} r="3.5" fill={A} stroke="#fff" strokeWidth="1.5" />
             <circle cx={x(hover)} cy={yLike(series.likesB[hover]!)} r="3.5" fill={B} stroke="#fff" strokeWidth="1.5" />
             <g
@@ -164,7 +156,11 @@ export function MarketChart({
               <circle cx="63" cy="26" r="3" fill={B} />
               <text x="71" y="29" className="chart-tip-text">{fmtLikes(series.likesB[hover]!)}</text>
               <text x="9" y="44" className="chart-tip-text">
-                ${Math.round(series.volA[hover]! + series.volB[hover]!)} staked
+                {(() => {
+                  const inUsd = Math.round(series.buyA[hover]! + series.buyB[hover]!);
+                  const outUsd = Math.round(series.sellA[hover]! + series.sellB[hover]!);
+                  return outUsd > 0 ? `$${inUsd} in · $${outUsd} out` : `$${inUsd} in`;
+                })()}
               </text>
             </g>
           </g>

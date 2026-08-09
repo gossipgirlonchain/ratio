@@ -121,18 +121,25 @@ export default function MarketPage() {
           <MarketChart series={series} handleA={data.a.handle} handleB={data.b.handle} />
         </div>
 
-        {/* trades live under the chart — that is where people look */}
+        {/* trades live under the chart — that is where people look.
+            Sells are trades too: shown signed, newest first. */}
         <div className="card mod centre-trades">
           {trades.length === 0 ? (
             <div className="mod-row"><span className="mod-quiet">nobody in yet</span></div>
           ) : (
-            trades.map((t) => (
-              <div className="mod-row" key={t.handle + t.amountUsd}>
-                <Link href={`/${t.handle}`}>@{t.handle}</Link>
-                <span className="mod-quiet">on @{t.side === "a" ? data.a.handle : data.b.handle}</span>
-                <span className="mod-strong">{fmtUsd(t.amountUsd)}</span>
-              </div>
-            ))
+            [...trades]
+              .sort((x, y) => y.atMs - x.atMs)
+              .map((t) => (
+                <div className="mod-row" key={t.handle + t.amountUsd + t.atMs}>
+                  <Link href={`/${t.handle}`}>@{t.handle}</Link>
+                  <span className="mod-quiet">
+                    {t.direction === "sell" ? "sold" : "on"} @{t.side === "a" ? data.a.handle : data.b.handle}
+                  </span>
+                  <span className="mod-strong">
+                    {t.direction === "sell" ? `−${fmtUsd(t.amountUsd)}` : fmtUsd(t.amountUsd)}
+                  </span>
+                </div>
+              ))
           )}
         </div>
       </main>

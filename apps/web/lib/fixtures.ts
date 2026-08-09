@@ -124,26 +124,28 @@ export const marketsByParticipant = (handle: string) =>
 export interface TradeFixture {
   handle: string;
   side: "a" | "b";
+  direction: "buy" | "sell";
   amountUsd: number;
   atMs: number;
 }
 
-/** Position list for the market page (who is on each side, for how much). */
+/** Trade list for the market page — buys and sells both. */
 export const tradesByMarket: Record<string, TradeFixture[]> = {
   m2: [
-    { handle: "carol", side: "a", amountUsd: 1_200, atMs: NOW - 13 * H },
-    { handle: "dave", side: "a", amountUsd: 760, atMs: NOW - 9 * H },
-    { handle: "erin", side: "b", amountUsd: 400, atMs: NOW - 11 * H },
-    { handle: "fred", side: "b", amountUsd: 240, atMs: NOW - 2 * H },
+    { handle: "carol", side: "a", direction: "buy", amountUsd: 1_200, atMs: NOW - 13 * H },
+    { handle: "dave", side: "a", direction: "buy", amountUsd: 760, atMs: NOW - 9 * H },
+    { handle: "erin", side: "b", direction: "buy", amountUsd: 400, atMs: NOW - 11 * H },
+    { handle: "gina", side: "b", direction: "sell", amountUsd: 160, atMs: NOW - 5 * H },
+    { handle: "fred", side: "b", direction: "buy", amountUsd: 240, atMs: NOW - 2 * H },
   ],
-  m1: [{ handle: "gary", side: "a", amountUsd: 125, atMs: NOW - 20 * 60_000 }],
+  m1: [{ handle: "gary", side: "a", direction: "buy", amountUsd: 125, atMs: NOW - 20 * 60_000 }],
   m3: [
-    { handle: "carol", side: "a", amountUsd: 240, atMs: NOW - 6 * H },
-    { handle: "erin", side: "b", amountUsd: 380, atMs: NOW - 5 * H },
+    { handle: "carol", side: "a", direction: "buy", amountUsd: 240, atMs: NOW - 6 * H },
+    { handle: "erin", side: "b", direction: "buy", amountUsd: 380, atMs: NOW - 5 * H },
   ],
   m4: [
-    { handle: "dave", side: "a", amountUsd: 410, atMs: NOW - 4 * H },
-    { handle: "carol", side: "b", amountUsd: 890, atMs: NOW - 3 * H },
+    { handle: "dave", side: "a", direction: "buy", amountUsd: 410, atMs: NOW - 4 * H },
+    { handle: "carol", side: "b", direction: "buy", amountUsd: 890, atMs: NOW - 3 * H },
   ],
 };
 
@@ -224,11 +226,19 @@ export interface ChartSeries {
   ts: number[];
   likesA: number[];
   likesB: number[];
-  volA: number[];
-  volB: number[];
+  /** Money per interval, split two ways that never share a channel:
+   * DIRECTION is vertical (buys up, sells down), SIDE is colour. */
+  buyA: number[];
+  buyB: number[];
+  sellA: number[];
+  sellB: number[];
 }
 
-export function chartSeries(m: FixtureMarket, points = 48): ChartSeries {
+export function chartSeries(m: FixtureMarket): ChartSeries {
+  // Bucket count scales with activity — a thin market in fixed fine
+  // buckets renders as mostly empty intervals. (Real impl: size buckets
+  // from trade count, targeting a handful of trades per bucket.)
+  const points = m.volumeUsd > 2_000 ? 48 : m.volumeUsd > 500 ? 30 : 16;
   const seed = m.data.marketId.charCodeAt(1) * 7.3;
   const openMs = m.data.settlesAtMs - 24 * H;
   const end = Math.min(NOW, m.data.settlesAtMs);
@@ -236,8 +246,10 @@ export function chartSeries(m: FixtureMarket, points = 48): ChartSeries {
   const ts: number[] = [];
   const likesA: number[] = [];
   const likesB: number[] = [];
-  const volA: number[] = [];
-  const volB: number[] = [];
+  const buyA: number[] = [];
+  const buyB: number[] = [];
+  const sellA: number[] = [];
+  const sellB: number[] = [];
   const grow = (from: number, to: number, i: number, k: number) => {
     const p = i / (points - 1);
     const eased = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
@@ -254,10 +266,15 @@ export function chartSeries(m: FixtureMarket, points = 48): ChartSeries {
     likesB.push(Math.round(maxB));
     const spikeA = wob(i, 3.1);
     const spikeB = wob(i, 4.7);
-    volA.push(spikeA > 0.78 ? (m.data.a.potUsd / 6) * spikeA : 0);
-    volB.push(spikeB > 0.82 ? (m.data.b.potUsd / 5) * spikeB : 0);
+    buyA.push(spikeA > 0.78 ? (m.data.a.potUsd / 6) * spikeA : 0);
+    buyB.push(spikeB > 0.82 ? (m.data.b.potUsd / 5) * spikeB : 0);
+    // sells: sparser, smaller, later in the window
+    const dumpA = wob(i, 5.9);
+    const dumpB = wob(i, 6.7);
+    sellA.push(i > points * 0.4 && dumpA > 0.9 ? (m.data.a.potUsd / 14) * dumpA : 0);
+    sellB.push(i > points * 0.3 && dumpB > 0.88 ? (m.data.b.potUsd / 12) * dumpB : 0);
   }
-  return { ts, likesA, likesB, volA, volB };
+  return { ts, likesA, likesB, buyA, buyB, sellA, sellB };
 }
 
 /** Demo position for the trade panel: what the viewer holds, if anything. */

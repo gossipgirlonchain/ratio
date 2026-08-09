@@ -56,6 +56,8 @@ export interface MarketStripProps {
   onPresetUsed?: (amountUsd: number | "custom") => void;
   /** Market page link for the post-sign "view market" affordance. */
   marketHref?: string;
+  /** Market page variant: render both tweets in full, no clamp (§2). */
+  fullText?: boolean;
 }
 
 /** Small heart before the count: reads as likes without a label. */
@@ -74,6 +76,7 @@ function Row({
   selected,
   tappable,
   onPick,
+  fullText = false,
 }: {
   side: StripSide;
   who: "a" | "b";
@@ -81,8 +84,9 @@ function Row({
   selected: boolean;
   tappable: boolean;
   onPick: (who: "a" | "b") => void;
+  fullText?: boolean;
 }) {
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(fullText);
   const cls = [
     "rs-row",
     leading && "rs-row-lead",
@@ -112,7 +116,7 @@ function Row({
         <span className={expanded ? "rs-row-text" : "rs-row-text rs-clamp"}>
           {side.text}
         </span>
-        {side.text.length > 100 && (
+        {!fullText && side.text.length > 100 && (
           <span
             className="rs-expand"
             role="button"
@@ -134,7 +138,7 @@ function Row({
   );
 }
 
-export function MarketStrip({ data, nowMs, onSign, onPresetUsed, marketHref }: MarketStripProps) {
+export function MarketStrip({ data, nowMs, onSign, onPresetUsed, marketHref, fullText }: MarketStripProps) {
   const now = nowMs ?? Date.now();
   const [backing, setBacking] = useState<"a" | "b" | null>(null);
   const [amount, setAmount] = useState<number | null>(null);
@@ -210,8 +214,8 @@ export function MarketStrip({ data, nowMs, onSign, onPresetUsed, marketHref }: M
         </div>
       )}
 
-      <Row side={data.a} who="a" leading={leading === "a"} selected={backing === "a"} tappable={tappable} onPick={pick} />
-      <Row side={data.b} who="b" leading={leading === "b"} selected={backing === "b"} tappable={tappable} onPick={pick} />
+      <Row side={data.a} who="a" leading={leading === "a"} selected={backing === "a"} tappable={tappable} onPick={pick} fullText={fullText} />
+      <Row side={data.b} who="b" leading={leading === "b"} selected={backing === "b"} tappable={tappable} onPick={pick} fullText={fullText} />
 
       {/* The one divider: tweets block above, money block below. */}
       <div className="rs-divider" />

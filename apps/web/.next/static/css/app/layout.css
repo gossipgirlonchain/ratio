@@ -87,11 +87,14 @@ body {
   margin: 0 -4px;
 }
 .rs-row + .rs-row { margin-top: 6px; }
-/* Leading is shown by the BOLD COUNT and nothing else. */
+/* The leader wears the green at rest (bold count too) — the incentive is
+   visible. The moment a row is picked, green transfers to the selection:
+   the strip gets [data-picking] and the leader's tint drops. */
 .rs-row-lead .rs-row-likes { font-weight: 800; color: var(--rs-fg); }
+.rs-row-lead { background: color-mix(in srgb, var(--rs-shade) 45%, transparent); }
+.rs-strip[data-picking] .rs-row-lead:not(.rs-row-on) { background: transparent; }
 .rs-row-tap { cursor: pointer; }
 .rs-row-tap:hover { background: color-mix(in srgb, var(--rs-fg) 5%, transparent); }
-/* Selected = FILL, and the fill color marks nothing else, ever. */
 .rs-row-on, .rs-row-on:hover { background: var(--rs-shade); }
 
 .rs-avatar {
@@ -142,16 +145,8 @@ body {
 }
 .rs-row-likes svg { opacity: 0.75; }
 
-/* -- the one line of copy -------------------------------------------------- */
-.rs-rule {
-  color: var(--rs-muted);
-  font-size: 12px;
-  padding: 10px 8px 12px;
-}
-.rs-strip[data-status="settled"] .rs-rule { color: var(--rs-fg); font-weight: 700; }
-
 /* The single divider: tweets block above, money block below. */
-.rs-divider { border-top: 1px solid var(--rs-border); margin: 0 -16px 12px; }
+.rs-divider { border-top: 1px solid var(--rs-border); margin: 10px -16px 12px; }
 
 /* -- money: always visible, always secondary ------------------------------ */
 .rs-money { display: flex; flex-direction: column; gap: 6px; padding: 0 6px 2px; }
@@ -173,6 +168,15 @@ body {
 }
 /* Handles at each end attribute the figures, matching the row order above. */
 .rs-pot-side { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* One permanent bottom line: rule left, payout quote right (empty slot when
+   no amount is chosen — reserved so the Sign button never jumps). */
+.rs-bottom {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 10px; font-size: 12px; min-height: 16px;
+}
+.rs-rule { color: var(--rs-muted); }
+.rs-strip[data-status="settled"] .rs-rule { color: var(--rs-fg); font-weight: 700; }
 
 /* -- fold: the betting panel (and the success line) open smoothly --------- */
 /* grid-rows 0fr -> 1fr animates height without measuring; visibility keeps
@@ -230,8 +234,9 @@ body {
 .rs-custom-input:focus { border-color: var(--rs-fg); }
 
 .rs-quote {
-  text-align: right; margin-top: 7px; font-size: 12px;
+  text-align: right; font-size: 12px;
   color: var(--rs-fg); font-weight: 700; font-feature-settings: "tnum"; font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .rs-sign-row { display: flex; gap: 6px; margin-top: 7px; }
@@ -283,30 +288,6 @@ body {
 }
 
 /* -- page chrome ---------------------------------------------------------- */
-.ticker {
-  overflow: hidden;
-  border-bottom: 2px solid var(--carbon);
-  background: var(--lime);
-  color: var(--carbon);
-  font-weight: 800;
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  -webkit-user-select: none;
-     -moz-user-select: none;
-          user-select: none;
-}
-.ticker-track {
-  display: inline-block;
-  padding: 6px 0;
-  animation: ticker 22s linear infinite;
-}
-@keyframes ticker {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
-}
-
 .masthead {
   max-width: 560px;
   margin: 22px auto 0;
@@ -362,10 +343,12 @@ body {
 .rs-strip[data-status="voided"] { box-shadow: 4px 4px 0 var(--gunmetal); }
 .rs-strip[data-status="voided"]:hover { box-shadow: 6px 6px 0 var(--gunmetal); }
 
-/* rows: GREEN MEANS SELECTED and nothing else is ever green.
-   Leading is the bold count alone; hover is a neutral tint. */
+/* rows: the LEADER wears green at rest (the incentive on display); once a
+   row is picked, green transfers to the selection ([data-picking] drops
+   the leader's tint). Hover stays neutral. */
 .rs-row { transition: background 90ms ease; }
 .rs-row-tap:hover { background: color-mix(in srgb, var(--carbon) 6%, transparent); }
+.rs-row-lead { background: color-mix(in srgb, var(--lime) 35%, transparent); }
 .rs-row-on, .rs-row-on:hover { background: var(--lime); }
 .rs-avatar { border: 1.5px solid var(--carbon); }
 

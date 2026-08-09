@@ -118,9 +118,6 @@ const markets: Array<{ data: MarketStripData }> = [
   },
 ];
 
-const TICKER =
-  "the likes are the referee · every reply is a market · tag it and find out · ";
-
 export default function Page() {
   // Dev gallery only: fixtures derive from Date.now() at module scope, which
   // differs between server and client render — mount-gate to skip SSR.
@@ -129,9 +126,6 @@ export default function Page() {
   if (!mounted) return null;
   return (
     <>
-      <div className="ticker" aria-hidden>
-        <div className="ticker-track">{TICKER.repeat(6)}</div>
-      </div>
       <header className="masthead">
         <span className="wordmark">
           get <em>ratio&apos;d</em>

@@ -195,7 +195,13 @@ export function MarketStrip({ data, nowMs, onSign, onPresetUsed, marketHref }: M
   const aPct = total === 0 ? 50 : Math.min(98, Math.max(2, (data.a.potUsd / total) * 100));
 
   return (
-    <div className="rs-strip" data-status={data.status}>
+    <div
+      className="rs-strip"
+      data-status={data.status}
+      // While picking, green belongs to the selection: the leader's tint
+      // drops so green never means two things at once.
+      data-picking={backing ? "" : undefined}
+    >
       {data.hiddenFromThread && (
         // Story beat, not error state: observation wording only — never a
         // claim about who hid it. Surfaced prominently.
@@ -207,21 +213,30 @@ export function MarketStrip({ data, nowMs, onSign, onPresetUsed, marketHref }: M
       <Row side={data.a} who="a" leading={leading === "a"} selected={backing === "a"} tappable={tappable} onPick={pick} />
       <Row side={data.b} who="b" leading={leading === "b"} selected={backing === "b"} tappable={tappable} onPick={pick} />
 
-      <div className="rs-rule">{rule}</div>
       {/* The one divider: tweets block above, money block below. */}
       <div className="rs-divider" />
       <div className="rs-money">
-        <div className="rs-bar">
-          <div className="rs-bar-a" style={{ width: `${aPct}%` }} />
-          <div className="rs-bar-b" />
-        </div>
         <div className="rs-pot-row">
           <span className="rs-pot-side">
-            @{data.a.handle} {fmtUsd(data.a.potUsd)}
+            {fmtUsd(data.a.potUsd)} @{data.a.handle}
           </span>
           <span className="rs-pot-mid">{fmtUsd(total)} staked</span>
           <span className="rs-pot-side">
             {fmtUsd(data.b.potUsd)} @{data.b.handle}
+          </span>
+        </div>
+        <div className="rs-bar">
+          <div className="rs-bar-a" style={{ width: `${aPct}%` }} />
+          <div className="rs-bar-b" />
+        </div>
+        {/* One permanent line: the rule at left, the payout quote at right.
+            The quote fills an ALWAYS-PRESENT slot, so nothing ever jumps. */}
+        <div className="rs-bottom">
+          <span className="rs-rule">{rule}</span>
+          <span className="rs-quote">
+            {quote && backing
+              ? formatQuote(quote, (backing === "a" ? data.a : data.b).handle)
+              : ""}
           </span>
         </div>
       </div>
@@ -274,7 +289,6 @@ export function MarketStrip({ data, nowMs, onSign, onPresetUsed, marketHref }: M
               />
             </div>
           )}
-          {quote && <div className="rs-quote">{formatQuote(quote)}</div>}
           <div className="rs-sign-row">
             {custom === null && (
               <button

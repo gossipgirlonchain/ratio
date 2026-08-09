@@ -41,7 +41,7 @@ export function quotePayout(opts: {
   return { payoutUsd, multiple: payoutUsd / stakeUsd };
 }
 
-/** `$97.45 if they win · 3.90x` — the inline quote line (§7). */
-export function formatQuote(q: PayoutQuote): string {
-  return `$${q.payoutUsd.toFixed(2)} if they win · ${q.multiple.toFixed(2)}x`;
+/** `$148.13 if @challenger wins` — the inline quote, right slot of the rule line. */
+export function formatQuote(q: PayoutQuote, handle: string): string {
+  return `$${q.payoutUsd.toFixed(2)} if @${handle} wins`;
 }

@@ -22,12 +22,6 @@ export default function Page() {
   if (!mounted) return null;
   return (
     <>
-      <header className="masthead">
-        <span className="wordmark">
-          get <em>ratio&apos;d</em>
-        </span>
-        <span className="tag">the likes are the referee</span>
-      </header>
       <div className="home-grid">
         <main className="timeline timeline-flush">
           {markets.map(({ data }) => (

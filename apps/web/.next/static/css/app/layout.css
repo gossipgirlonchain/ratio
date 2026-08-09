@@ -505,12 +505,8 @@ body {
   font-size: 12px; margin: 10px 0;
 }
 
-/* -- home: two columns, the shape X uses ---------------------------------- */
-.masthead { max-width: 920px; }
-.home-grid {
-  max-width: 920px; margin: 0 auto; padding: 18px 16px 60px;
-  display: grid; grid-template-columns: minmax(0, 560px) 320px; grid-gap: 20px; gap: 20px;
-}
+/* -- home: base pieces (layout lives in the canonical block below) -------- */
+.home-grid { display: grid; }
 .home-grid .timeline { display: flex; flex-direction: column; gap: 14px; }
 .home-side { min-width: 0; }
 .side-board { position: -webkit-sticky; position: sticky; top: 16px; padding: 12px 14px; }
@@ -527,8 +523,6 @@ body {
 .side-total { margin-left: auto; font-weight: 800; font-size: 12.5px; font-feature-settings: "tnum"; font-variant-numeric: tabular-nums; }
 .side-more { display: block; margin-top: 8px; font-size: 12px; color: var(--gunmetal); }
 @media (max-width: 900px) {
-  .home-grid { grid-template-columns: minmax(0, 1fr); }
-  .home-side { display: none; }
   .nav-links a:not(.nav-profile) { display: none; }
 }
 
@@ -640,12 +634,20 @@ body {
 }
 .nav-profile { color: var(--lime); text-decoration: none; font-size: 12.5px; font-weight: 700; }
 
-/* -- home: feed centre, small quiet rail far right ------------------------ */
+/* -- home: the FEED is the centred track; the rail floats in the right
+   gutter and never pushes the feed off centre ---------------------------- */
 .home-grid {
-  grid-template-columns: minmax(0, 560px) 1fr;
-  max-width: 1040px; margin: 0; padding: 18px 24px 60px;
+  grid-template-columns: 1fr minmax(0, 660px) 1fr;
+  margin: 0; padding: 24px 24px 60px;
 }
-.home-side { justify-self: end; width: 232px; }
+.home-grid > .timeline { grid-column: 2; max-width: none; }
+.home-grid .rs-strip { max-width: none; }
+.home-side { grid-column: 3; justify-self: start; padding-left: 40px; width: 232px; box-sizing: content-box; }
+@media (max-width: 1240px) {
+  .home-grid { grid-template-columns: minmax(0, 660px) 232px; justify-content: center; column-gap: 40px; }
+  .home-grid > .timeline { grid-column: auto; }
+  .home-side { grid-column: auto; padding-left: 0; }
+}
 .side-board { padding: 10px 12px; box-shadow: 3px 3px 0 color-mix(in srgb, var(--lime) 45%, transparent); border-width: 1.5px; }
 .side-board h2 { font-size: 10px; letter-spacing: 0.08em; color: var(--gunmetal); }
 .side-board .rs-avatar { width: 22px; height: 22px; }

@@ -285,6 +285,7 @@ export class RatioEngine {
       handle: mention.authorHandle,
       side,
       amountUsd: capped,
+      direction: "buy", // reply-stakes only buy; sells are an app-surface action
       tokensOut: result.tokensOut,
       placedAtMs: config.now(),
     });

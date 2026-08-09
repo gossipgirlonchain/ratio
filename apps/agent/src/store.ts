@@ -80,14 +80,35 @@ export interface FeeLeaderboardRow {
   byRole: { sideA: number; sideB: number; tagger: number };
 }
 
+export type TradeDirection = "buy" | "sell";
+
+/**
+ * One trade. This is the ONLY time series that exists — no historical
+ * state on-chain, vaults drain at settlement — so the market-page chart
+ * is reconstructable exactly and only from these rows. Recording cannot
+ * be backfilled; fidelity here is load-bearing (site architecture §2).
+ * `amountUsd` is the quote leg (in for buys, proceeds for sells);
+ * `tokensOut` is the base leg (received for buys, sold for sells).
+ */
 export interface BetRecord {
   marketId: string;
   xUserId: string;
   handle: string; // display cache
   side: 0 | 1;
+  direction: TradeDirection;
   amountUsd: number;
   tokensOut: number;
   placedAtMs: number;
+}
+
+/** A user's net standing in one open market, derived from trade records. */
+export interface PositionView {
+  marketId: string;
+  side: 0 | 1;
+  tokens: number;
+  /** Net quote in (buys minus sell proceeds) — average entry comes from
+   * here too, since entry prices exist nowhere on-chain. */
+  netStakedUsd: number;
 }
 
 export interface Store {
@@ -122,12 +143,22 @@ export interface Store {
    */
   trendingPosts(limit: number): Promise<PostView[]>;
   /**
-   * Combined fee board over bets placed since `sinceMs` (fees accrue at
-   * swap time, so the bet timestamp is the window key). Rolling windows:
-   * all-time = 0, 24h = now − 24h, weekly = now − 7d. Protocol and Doppler
-   * wallets are not rows — this is a user leaderboard.
+   * Combined fee board over trades since `sinceMs` (fees accrue at swap
+   * time in BOTH directions — buys and sells both pay the five recipients,
+   * fees earn on churn). Rolling windows: all-time = 0, 24h = now − 24h,
+   * weekly = now − 7d. Protocol and Doppler wallets are not rows — this is
+   * a user leaderboard.
    */
   feeLeaderboard(opts: { sinceMs: number; limit?: number }): Promise<FeeLeaderboardRow[]>;
+  /** Profile page: every market this X id touched, in any of the three roles. */
+  listMarketsByParticipant(xUserId: string): Promise<MarketRecord[]>;
+  /**
+   * Feed/trending: MARKETS ranked by staked volume (buy-side quote in) over
+   * a rolling window. Volume cannot be faked without spending.
+   */
+  listMarketsByVolume(opts: { sinceMs: number; limit: number; openOnly?: boolean }): Promise<MarketRecord[]>;
+  /** Open positions for a user, net of sells, derived from trade records. */
+  openPositionsByUser(xUserId: string): Promise<PositionView[]>;
   /** Instrumentation for the freshness-window decision (9-12h keep or cut). */
   voidRateByAgeBucket(bucketMs: number): Promise<Map<number, { total: number; voided: number }>>;
 }
@@ -235,6 +266,50 @@ export class InMemoryStore implements Store {
     return [...rows.values()]
       .sort((x, y) => y.totalFeeUsd - x.totalFeeUsd)
       .slice(0, limit);
+  }
+  async listMarketsByParticipant(xUserId: string) {
+    return [...this.markets.values()].filter(
+      (m) =>
+        m.authorAXId === xUserId ||
+        m.authorBXId === xUserId ||
+        m.taggerXId === xUserId,
+    );
+  }
+  async listMarketsByVolume({
+    sinceMs,
+    limit,
+    openOnly = true,
+  }: {
+    sinceMs: number;
+    limit: number;
+    openOnly?: boolean;
+  }) {
+    const volume = new Map<string, number>();
+    for (const t of this.bets) {
+      if (t.placedAtMs < sinceMs || t.direction !== "buy") continue;
+      volume.set(t.marketId, (volume.get(t.marketId) ?? 0) + t.amountUsd);
+    }
+    return [...this.markets.values()]
+      .filter((m) => (openOnly ? m.status === "open" : true))
+      .sort((x, y) => (volume.get(y.id) ?? 0) - (volume.get(x.id) ?? 0))
+      .slice(0, limit);
+  }
+  async openPositionsByUser(xUserId: string) {
+    const byKey = new Map<string, PositionView>();
+    for (const t of this.bets) {
+      if (t.xUserId !== xUserId) continue;
+      const m = this.markets.get(t.marketId);
+      if (!m || m.status !== "open") continue;
+      const key = `${t.marketId}:${t.side}`;
+      const p =
+        byKey.get(key) ??
+        ({ marketId: t.marketId, side: t.side, tokens: 0, netStakedUsd: 0 } satisfies PositionView);
+      const sign = t.direction === "buy" ? 1 : -1;
+      p.tokens += sign * t.tokensOut;
+      p.netStakedUsd += sign * t.amountUsd;
+      byKey.set(key, p);
+    }
+    return [...byKey.values()].filter((p) => p.tokens > 1e-9);
   }
   async voidRateByAgeBucket(bucketMs: number) {
     const out = new Map<number, { total: number; voided: number }>();

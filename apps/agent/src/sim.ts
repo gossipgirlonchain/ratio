@@ -474,6 +474,49 @@ const allTime = await store.feeLeaderboard({ sinceMs: 0 });
 assert.ok(allTime.length > board.length, "all-time keeps the older earners");
 
 // ---------------------------------------------------------------------------
+// 16. Site-architecture store queries (schema hardening before R5)
+// ---------------------------------------------------------------------------
+scenario("16. profile / feed / position queries");
+// zara touched exactly one market, as side A
+const zaraMarkets = await store.listMarketsByParticipant("u:zara");
+assert.equal(zaraMarkets.length, 1);
+assert.equal(zaraMarkets[0]!.authorAXId, "u:zara");
+// scout has tagged many markets across the sim
+const scoutMarkets = await store.listMarketsByParticipant("u:scout");
+assert.ok(scoutMarkets.length >= 5, "tagger role counts as participation");
+
+// feed ranking: m15 ($160) is the only open market with volume in-window
+const feed = await store.listMarketsByVolume({ sinceMs: windowStart, limit: 5 });
+assert.equal(feed[0]!.id, m15.sideB.tweetId, "feed ranks by staked volume");
+assert.ok(
+  feed.every((m) => m.status === "open"),
+  "settled markets drop off the default feed",
+);
+
+// positions: carol holds side A of m15, net of nothing sold yet
+const carolPositions = await store.openPositionsByUser("u:carol");
+const carolM15 = carolPositions.find((p) => p.marketId === m15.sideB.tweetId)!;
+assert.equal(carolM15.side, 0);
+assert.ok(carolM15.tokens > 0);
+assert.ok(Math.abs(carolM15.netStakedUsd - 100) < 1e-9);
+// a sell trade nets the position down (direction fidelity — unbackfillable)
+await store.saveBet({
+  marketId: m15.sideB.tweetId,
+  xUserId: "u:carol",
+  handle: "carol",
+  side: 0,
+  direction: "sell",
+  amountUsd: 30,
+  tokensOut: carolM15.tokens / 2,
+  placedAtMs: clock(),
+});
+const after = (await store.openPositionsByUser("u:carol")).find(
+  (p) => p.marketId === m15.sideB.tweetId,
+)!;
+assert.ok(Math.abs(after.tokens - carolM15.tokens / 2) < 1e-9, "sell halves the tokens");
+assert.ok(Math.abs(after.netStakedUsd - 70) < 1e-9, "sell proceeds net the stake");
+
+// ---------------------------------------------------------------------------
 scenario("instrumentation: void rate by side-B age bucket (3h)");
 for (const [bucket, row] of await store.voidRateByAgeBucket(3 * HOUR))
   console.log(

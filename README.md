@@ -72,6 +72,20 @@ handle is unregistered — `BOT_HANDLE` in `@ratio/config` drives it everywhere.
   `feeLeaderboard` store query (one combined board ranked on total fees,
   per-role breakdown per row, rolling windows keyed on bet timestamps) and
   the `FundingMethod` seam (`@ratio/config/funding`).
+- **Site architecture specced (2026-08-03, R5 scope)** — see winny's doc.
+  Store hardened NOW so the schema can carry it: trade records gained
+  `direction` (buy/sell — the chart's only time series, unbackfillable),
+  plus `listMarketsByParticipant` (profiles exist for every account that
+  ever touched a market, no opt-out), `listMarketsByVolume` (feed ranks by
+  windowed staked volume; settled markets drop off), and
+  `openPositionsByUser` (net of sells; average entry only exists in our
+  records). Key page decisions: profile IS the claim page (no separate
+  dashboard, public unclaimed balances are the acquisition hook); exits
+  live on the market page only, never the extension strip; extension
+  collapsed bar shows count + volume ONLY (no aggregate outcome state);
+  posts without markets get a hover-only create preview in X's action
+  row; OG unfurl images are their own workstream sharing infra with
+  settlement fee cards.
 - **R4.** Privy server wallets keyed on numeric X id, ATA creation in the
   sponsored-gas path, unclaimed-fee notifications.
 - **R5.** PWA -> extension -> Telegram.

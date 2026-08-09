@@ -2,8 +2,8 @@ import "./globals.css";
 import "@ratio/ui/strip.css";
 import "./skin.css";
 
-import { Footer } from "./footer";
 import { Nav } from "./nav";
+import { Sidebar } from "./sidebar";
 
 export const metadata = {
   title: "ratio",
@@ -14,9 +14,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
-        <Nav />
-        {children}
-        <Footer />
+        <div className="shell">
+          <Sidebar />
+          <div className="main-col">
+            <Nav />
+            {children}
+          </div>
+        </div>
       </body>
     </html>
   );

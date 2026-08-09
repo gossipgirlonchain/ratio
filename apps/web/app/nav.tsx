@@ -1,13 +1,12 @@
 "use client";
 
 /**
- * Top bar: logo, inline search, leaderboard, and profile-or-login.
- * Search is not a page — results open under the input as you type,
- * matching handles and tweet text. The info pages live in the footer.
+ * Thin top bar: search and auth. Nothing else — navigation lives in the
+ * sidebar. Search opens results under the input as you type.
  */
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useState } from "react";
 
 import { allHandles, markets } from "../lib/fixtures";
 import { useAuth } from "../lib/auth";
@@ -17,7 +16,6 @@ export function Nav() {
   const [open, setOpen] = useState(false);
   const router = useRouter();
   const { viewer, login } = useAuth();
-  const box = useRef<HTMLDivElement>(null);
 
   const needle = q.trim().replace(/^@/, "").toLowerCase();
   const handleHits = needle
@@ -42,11 +40,8 @@ export function Nav() {
   };
 
   return (
-    <nav className="nav">
-      <Link className="nav-home" href="/">
-        ratio
-      </Link>
-      <div className="nav-search" ref={box}>
+    <header className="topbar">
+      <div className="nav-search">
         <input
           className="nav-search-input"
           placeholder="search"
@@ -80,18 +75,15 @@ export function Nav() {
           </div>
         )}
       </div>
-      <div className="nav-links">
-        <Link href="/leaderboard">leaderboard</Link>
-        {viewer ? (
-          <Link className="nav-profile" href={`/${viewer}`}>
-            @{viewer}
-          </Link>
-        ) : (
-          <button className="nav-login" onClick={login}>
-            log in
-          </button>
-        )}
-      </div>
-    </nav>
+      {viewer ? (
+        <Link className="nav-profile" href={`/${viewer}`}>
+          @{viewer}
+        </Link>
+      ) : (
+        <button className="nav-login" onClick={login}>
+          log in
+        </button>
+      )}
+    </header>
   );
 }

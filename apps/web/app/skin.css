@@ -153,3 +153,13 @@ body {
 
 /* hidden label: a quiet inline note, not a banner (and never green) */
 .rs-hidden-beat { color: var(--gunmetal); font-weight: 700; }
+
+/* success line: neutral (green stays selection-only), mint accent */
+.rs-placed {
+  border-width: 2px;
+  border-color: var(--carbon);
+  background: var(--mint);
+  color: var(--carbon);
+  box-shadow: 2px 2px 0 var(--carbon);
+}
+.rs-placed-link { color: var(--carbon); }

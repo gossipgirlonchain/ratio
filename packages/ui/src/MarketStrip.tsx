@@ -54,6 +54,8 @@ export interface MarketStripProps {
   onSign?: (side: "a" | "b", amountUsd: number) => void;
   /** Instrumentation for the preset ladder (tune from real data). */
   onPresetUsed?: (amountUsd: number | "custom") => void;
+  /** Market page link for the post-sign "view market" affordance. */
+  marketHref?: string;
 }
 
 /** Small heart before the count: reads as likes without a label. */
@@ -132,11 +134,12 @@ function Row({
   );
 }
 
-export function MarketStrip({ data, nowMs, onSign, onPresetUsed }: MarketStripProps) {
+export function MarketStrip({ data, nowMs, onSign, onPresetUsed, marketHref }: MarketStripProps) {
   const now = nowMs ?? Date.now();
   const [backing, setBacking] = useState<"a" | "b" | null>(null);
   const [amount, setAmount] = useState<number | null>(null);
   const [custom, setCustom] = useState<string | null>(null);
+  const [placed, setPlaced] = useState<{ side: "a" | "b"; amountUsd: number } | null>(null);
 
   const open = data.status === "open" && now < data.settlesAtMs;
   const tappable = open && Boolean(onSign);
@@ -159,8 +162,21 @@ export function MarketStrip({ data, nowMs, onSign, onPresetUsed }: MarketStripPr
   }, [backing, amount, data]);
 
   // Rows ARE the navigation: same row toggles, other row switches.
+  // Starting a new pick clears the previous success line.
   const pick = (who: "a" | "b") => {
     setBacking(backing === who ? null : who);
+    setAmount(null);
+    setCustom(null);
+    setPlaced(null);
+  };
+
+  const sign = () => {
+    if (!backing || !amount) return;
+    onSign?.(backing, amount);
+    // Panel folds closed; the success line folds open in its place. The
+    // reader keeps scrolling (and can tap a row to go again).
+    setPlaced({ side: backing, amountUsd: amount });
+    setBacking(null);
     setAmount(null);
     setCustom(null);
   };
@@ -210,9 +226,11 @@ export function MarketStrip({ data, nowMs, onSign, onPresetUsed }: MarketStripPr
         </div>
       </div>
 
-      {/* The amount block appears BELOW everything, user-initiated. Nothing
-          above it moves; deselecting the row collapses it. */}
-      {backing && (
+      {/* The betting panel FOLDS OUT below everything on a row tap: resting
+          cards are just tweets + the money line, so scrolling stays clean.
+          Content stays mounted while the fold animates closed. */}
+      <div className={backing ? "rs-fold rs-fold-open" : "rs-fold"} aria-hidden={!backing}>
+        <div>
         <div className="rs-amount">
           {custom === null ? (
             <div className="rs-presets">
@@ -274,13 +292,33 @@ export function MarketStrip({ data, nowMs, onSign, onPresetUsed }: MarketStripPr
             <button
               className={amount ? "rs-sign rs-sign-on" : "rs-sign"}
               disabled={!amount}
-              onClick={() => backing && amount && onSign?.(backing, amount)}
+              onClick={sign}
             >
               Sign
             </button>
           </div>
         </div>
-      )}
+        </div>
+      </div>
+
+      {/* Post-sign: the panel closed; a slim success line folds open. The
+          reader keeps scrolling, or taps through to the market page. */}
+      <div className={placed ? "rs-fold rs-fold-open" : "rs-fold"} aria-hidden={!placed}>
+        <div>
+          {placed && (
+            <div className="rs-placed">
+              <span className="rs-placed-msg">
+                ✓ ${placed.amountUsd} on @{(placed.side === "a" ? data.a : data.b).handle} placed
+              </span>
+              {marketHref && (
+                <a className="rs-placed-link" href={marketHref}>
+                  view market
+                </a>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 }

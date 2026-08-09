@@ -147,6 +147,7 @@ export default function Page() {
                 console.log(`sign: $${amount} backing ${side}`)
               }
               onPresetUsed={(p) => console.log(`preset used: ${p}`)}
+              marketHref={`https://ratio.wtf/m/${data.marketId}`}
             />
           </div>
         ))}

@@ -174,8 +174,40 @@ body {
 /* Handles at each end attribute the figures, matching the row order above. */
 .rs-pot-side { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-/* -- amount block: expands below on row tap (user-initiated height) ------- */
-.rs-amount { margin-top: 14px; }
+/* -- fold: the betting panel (and the success line) open smoothly --------- */
+/* grid-rows 0fr -> 1fr animates height without measuring; visibility keeps
+   closed content out of the tab order but visible while animating shut. */
+.rs-fold {
+  display: grid;
+  grid-template-rows: 0fr;
+  visibility: hidden;
+  transition: grid-template-rows 220ms ease, visibility 220ms;
+}
+.rs-fold-open { grid-template-rows: 1fr; visibility: visible; }
+.rs-fold > div { overflow: hidden; min-height: 0; }
+
+/* -- amount block: folds out below on row tap (user-initiated height) ----- */
+.rs-amount { margin-top: 14px; padding: 2px; }
+
+/* -- post-sign success line ----------------------------------------------- */
+.rs-placed {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  margin-top: 14px;
+  padding: 8px 10px;
+  border: 1px solid var(--rs-border);
+  border-radius: calc(var(--rs-radius) / 2);
+  font-size: 12.5px;
+}
+.rs-placed-msg { font-weight: 700; }
+.rs-placed-link {
+  color: var(--rs-fg);
+  font-weight: 700;
+  text-decoration: underline;
+  white-space: nowrap;
+}
 .rs-presets { display: grid; grid-template-columns: repeat(3, 1fr); grid-gap: 5px; gap: 5px; }
 .rs-preset {
   padding: 5px 0; border: 1px solid var(--rs-border); border-radius: 8px;
@@ -375,4 +407,14 @@ body {
 
 /* hidden label: a quiet inline note, not a banner (and never green) */
 .rs-hidden-beat { color: var(--gunmetal); font-weight: 700; }
+
+/* success line: neutral (green stays selection-only), mint accent */
+.rs-placed {
+  border-width: 2px;
+  border-color: var(--carbon);
+  background: var(--mint);
+  color: var(--carbon);
+  box-shadow: 2px 2px 0 var(--carbon);
+}
+.rs-placed-link { color: var(--carbon); }
 

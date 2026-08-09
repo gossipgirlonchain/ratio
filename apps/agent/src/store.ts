@@ -153,8 +153,13 @@ export interface Store {
   /** Profile page: every market this X id touched, in any of the three roles. */
   listMarketsByParticipant(xUserId: string): Promise<MarketRecord[]>;
   /**
-   * Feed/trending: MARKETS ranked by staked volume (buy-side quote in) over
-   * a rolling window. Volume cannot be faked without spending.
+   * Feed: MARKETS ranked by NET CURRENTLY STAKED (all-time buys minus sell
+   * proceeds) — what is in the market right now, which is what makes it
+   * worth looking at. Gross cumulative buys would keep ranking a market
+   * whose losing side already ran for the exit. `sinceMs` filters to
+   * markets with any trade activity in the window; the net is always
+   * computed over all trades. (Gross buys remain the number for the
+   * extension's all-time post volume — a historical fact — via PostView.)
    */
   listMarketsByVolume(opts: { sinceMs: number; limit: number; openOnly?: boolean }): Promise<MarketRecord[]>;
   /** Open positions for a user, net of sells, derived from trade records. */
@@ -227,9 +232,13 @@ export class InMemoryStore implements Store {
     return (this.byPost.get(tweetAId) ?? []).map((id) => this.markets.get(id)!);
   }
   async trendingPosts(limit: number) {
+    // GROSS buys: the extension's all-time post volume is a historical
+    // fact about the post; sells neither add to it nor subtract.
     const volumeByMarket = new Map<string, number>();
-    for (const b of this.bets)
+    for (const b of this.bets) {
+      if (b.direction !== "buy") continue;
       volumeByMarket.set(b.marketId, (volumeByMarket.get(b.marketId) ?? 0) + b.amountUsd);
+    }
     const views: PostView[] = [...this.byPost.entries()].map(([tweetAId, ids]) => ({
       tweetAId,
       marketCount: ids.length,
@@ -284,14 +293,16 @@ export class InMemoryStore implements Store {
     limit: number;
     openOnly?: boolean;
   }) {
-    const volume = new Map<string, number>();
+    const net = new Map<string, number>();
+    const active = new Set<string>();
     for (const t of this.bets) {
-      if (t.placedAtMs < sinceMs || t.direction !== "buy") continue;
-      volume.set(t.marketId, (volume.get(t.marketId) ?? 0) + t.amountUsd);
+      const sign = t.direction === "buy" ? 1 : -1;
+      net.set(t.marketId, (net.get(t.marketId) ?? 0) + sign * t.amountUsd);
+      if (t.placedAtMs >= sinceMs) active.add(t.marketId);
     }
     return [...this.markets.values()]
-      .filter((m) => (openOnly ? m.status === "open" : true))
-      .sort((x, y) => (volume.get(y.id) ?? 0) - (volume.get(x.id) ?? 0))
+      .filter((m) => (openOnly ? m.status === "open" : true) && active.has(m.id))
+      .sort((x, y) => (net.get(y.id) ?? 0) - (net.get(x.id) ?? 0))
       .slice(0, limit);
   }
   async openPositionsByUser(xUserId: string) {

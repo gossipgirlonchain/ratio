@@ -516,6 +516,28 @@ const after = (await store.openPositionsByUser("u:carol")).find(
 assert.ok(Math.abs(after.tokens - carolM15.tokens / 2) < 1e-9, "sell halves the tokens");
 assert.ok(Math.abs(after.netStakedUsd - 70) < 1e-9, "sell proceeds net the stake");
 
+// Feed ranks NET staked, not gross buys: a market whose money ran for the
+// exit ($200 in, $180 out) sits below a smaller intact one ($50 in) —
+// gross would surface the dead market. Gross stays the number for the
+// extension's historical post volume (trendingPosts).
+const mDead = seedPair({ type: "quoted", a: "gone", b: "ghost" });
+const mAlive = seedPair({ type: "quoted", a: "here", b: "now" });
+tagOn(mDead.sideB.tweetId, "scout");
+tagOn(mAlive.sideB.tweetId, "scout");
+await engine.tick();
+betOn(mDead.sideB.tweetId, "dave", "$200 @ghost");
+betOn(mAlive.sideB.tweetId, "erin", "$50 @now");
+await engine.tick();
+const deadId = (await store.getMarketByTweet(mDead.sideB.tweetId))!.id;
+await store.saveBet({
+  marketId: deadId, xUserId: "u:dave", handle: "dave", side: 1,
+  direction: "sell", amountUsd: 180, tokensOut: 1, placedAtMs: clock(),
+});
+const feed2 = await store.listMarketsByVolume({ sinceMs: windowStart, limit: 10 });
+const deadRank = feed2.findIndex((m) => m.id === deadId);
+const aliveRank = feed2.findIndex((m) => m.id === (mAlive.sideB.tweetId));
+assert.ok(aliveRank < deadRank, "net ranking: intact $50 beats drained $200");
+
 // ---------------------------------------------------------------------------
 scenario("instrumentation: void rate by side-B age bucket (3h)");
 for (const [bucket, row] of await store.voidRateByAgeBucket(3 * HOUR))

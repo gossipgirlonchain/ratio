@@ -117,8 +117,13 @@ assert.equal(rec!.status, "settled");
 assert.equal(rec!.winner, "a");
 assert.equal(rec!.likesAFinal, 300);
 assert.ok(rec!.finalImpliedA! < 0.5, "money was on B (snapshot pre-migration)");
+// Token-weighted claim (§7): dave's actual multiple from his token count,
+// not a dollar-share average.
+const daveBet = (await store.listBets(rec!.id)).find((b) => b.xUserId === "u:dave")!;
+const davePayout = chain.claimQuote(rec!.chainRefs, daveBet.tokensOut);
+assert.ok(davePayout > daveBet.amountUsd, "winner clears their stake");
 console.log(
-  `   winner A at ${Math.round(rec!.finalImpliedA! * 100)}% implied, payout ${chain.payoutMultiple(rec!.chainRefs).toFixed(2)}x`,
+  `   winner A at ${Math.round(rec!.finalImpliedA! * 100)}% implied, dave's $${daveBet.amountUsd} pays $${davePayout.toFixed(2)} (${(davePayout / daveBet.amountUsd).toFixed(2)}x)`,
 );
 
 // ---------------------------------------------------------------------------

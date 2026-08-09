@@ -42,6 +42,16 @@ export interface MarketChain {
     amountUsd: number;
     bettor: string;
   }): Promise<{ tokensOut: number }>;
+  /**
+   * Quote source for the UI (§7): NEVER computed client-side from pot
+   * totals — the real implementation simulates previewSwapExactIn. Entry
+   * is curve-priced, so tokensOut (not dollars) is the unit of payout.
+   */
+  previewStake(opts: {
+    refs: ChainRefs;
+    side: 0 | 1;
+    amountUsd: number;
+  }): Promise<{ tokensOut: number; feeUsd: number }>;
   getOdds(refs: ChainRefs): Promise<Odds>;
   settle(opts: { refs: ChainRefs; winner: 0 | 1 }): Promise<void>;
   void(refs: ChainRefs): Promise<void>;
@@ -98,6 +108,13 @@ export class MockMarketChain implements MarketChain {
     return m;
   }
 
+  /** XYK: tokensOut for a net quote-in at the CURRENT curve state. */
+  private curveTokensOut(side: MockSide, netUsd: number): number {
+    return (
+      side.virtualBase - (side.virtualBase * side.virtualQuote) / (side.virtualQuote + netUsd)
+    );
+  }
+
   async placeBet(opts: {
     refs: ChainRefs;
     side: 0 | 1;
@@ -110,14 +127,27 @@ export class MockMarketChain implements MarketChain {
     const net = opts.amountUsd - fee;
     m.feesUsd += fee;
     const side = m.sides[opts.side];
-    // XYK: tokensOut = base reserve moved by the quote-in
-    const tokensOut =
-      side.virtualBase - (side.virtualBase * side.virtualQuote) / (side.virtualQuote + net);
+    const tokensOut = this.curveTokensOut(side, net);
     side.virtualBase -= tokensOut;
     side.virtualQuote += net;
     side.raisedUsd += net;
     side.tokensOut += tokensOut;
     return { tokensOut };
+  }
+
+  /** Mirrors previewSwapExactIn: quote without mutating the curve. */
+  async previewStake(opts: {
+    refs: ChainRefs;
+    side: 0 | 1;
+    amountUsd: number;
+  }): Promise<{ tokensOut: number; feeUsd: number }> {
+    const m = this.market(opts.refs);
+    if (m.state !== "open") throw new Error("market not open");
+    const feeUsd = (opts.amountUsd * this.swapFeeBps) / 10_000;
+    return {
+      tokensOut: this.curveTokensOut(m.sides[opts.side], opts.amountUsd - feeUsd),
+      feeUsd,
+    };
   }
 
   async getOdds(refs: ChainRefs): Promise<Odds> {
@@ -142,11 +172,15 @@ export class MockMarketChain implements MarketChain {
     m.state = "voided"; // never finalized; curves allow sells, bettors exit
   }
 
-  /** Sim helper: winner's parimutuel payout multiple (pot / winning pool). */
-  payoutMultiple(refs: ChainRefs): number {
+  /**
+   * Claim quote, TOKEN-WEIGHTED like the real chain (§7 correction — the
+   * old helper split by dollars): payout = burn / claimableSupply × pot,
+   * where claimableSupply = winner tokens actually sold.
+   */
+  claimQuote(refs: ChainRefs, tokensBurned: number): number {
     const m = this.market(refs);
     if (m.state !== "settled" || m.winner === undefined) throw new Error("not settled");
     const pot = m.sides[0].raisedUsd + m.sides[1].raisedUsd;
-    return pot / m.sides[m.winner].raisedUsd;
+    return (tokensBurned / m.sides[m.winner].tokensOut) * pot;
   }
 }

@@ -64,6 +64,23 @@ export const FEE_SHARE_BPS = {
   tagger: 1_150, // 11.5%
 } as const;
 
+/**
+ * Exit fee (§7b): app-layer, custody-enforced (embedded wallets only — and
+ * §11 means that is ALL wallets). Ramps with elapsed time to this ceiling
+ * at the close, split the SAME FIVE WAYS as every other fee (it does not
+ * refill the pot; it makes the losing side's mid-market run irrational).
+ * Composed into the atomic sell tx as transfers per FEE_SHARE_BPS.
+ * INVARIANTS: zero for voided markets (refunds are not exits); disclosed
+ * in the sell quote before commitment, current rate + amount.
+ */
+export const EXIT_FEE_MAX_BPS = 7_500; // 75% at close
+/**
+ * TODO(exit-fee): the RAMP SHAPE is the real decision and is undecided —
+ * flat-then-steep vs linear-from-open produce very different behaviour,
+ * and the first hours must stay cheap (early exit liquidity is why people
+ * enter). Do not implement a shape until it is chosen.
+ */
+
 /** Market page URL for the one linked post per market. */
 export const marketUrl = (marketId: string): string =>
   `https://ratio.wtf/m/${marketId}`;

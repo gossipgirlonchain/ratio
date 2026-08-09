@@ -86,6 +86,19 @@ export class DopplerMarketChain implements MarketChain {
     return { tokensOut: 0 }; // token amount lives in the bettor's ATA on-chain
   }
 
+  async previewStake(_params: {
+    refs: ChainRefs;
+    side: 0 | 1;
+    amountUsd: number;
+  }): Promise<{ tokensOut: number; feeUsd: number }> {
+    // Real path (§7): build previewSwapExactIn for the side's launch and
+    // SIMULATE it — never compute a quote from pot totals. Lands with the
+    // market-page quote wiring; nothing agent-side calls this yet.
+    throw new Error(
+      "previewStake: wire previewSwapExactIn simulation before exposing quotes",
+    );
+  }
+
   async getOdds(chainRefs: ChainRefs): Promise<Odds> {
     const view = await readOdds(this.clients, this.refs(chainRefs));
     const toUsd = (raised: bigint) =>

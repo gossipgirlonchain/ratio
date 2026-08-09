@@ -695,20 +695,48 @@ body {
 .chart-grid { stroke: color-mix(in srgb, var(--carbon) 8%, transparent); stroke-width: 1; }
 .chart-axis { stroke: color-mix(in srgb, var(--carbon) 25%, transparent); stroke-width: 1; }
 .chart-tick { font-size: 10px; fill: var(--gunmetal); }
-.chart-endlabel { font-size: 10.5px; font-weight: 700; fill: var(--carbon); }
 .chart-crosshair { stroke: color-mix(in srgb, var(--carbon) 30%, transparent); stroke-width: 1; stroke-dasharray: 3 3; }
-.chart-tip { fill: var(--carbon); opacity: 0.92; }
-.chart-tip-text { font-size: 10px; fill: var(--paper); }
+.chart-tip { fill: var(--paper); stroke: var(--carbon); stroke-width: 1.5; }
+.chart-tip-time { font-size: 9.5px; font-weight: 700; fill: var(--gunmetal); }
+.chart-tip-text { font-size: 10px; font-weight: 700; fill: var(--carbon); }
 
 .market-rail { display: flex; flex-direction: column; gap: 12px; position: -webkit-sticky; position: sticky; top: 14px; align-self: start; }
-.trade-panel { padding: 12px; margin-bottom: 0; }
+/* The reused rs-* controls read --rs-* custom properties that only exist
+   inside .rs-strip — define them at the panel root or buttons render as
+   bare text. Rail buttons are FLAT: no offset shadows off-strip. */
+.trade-panel {
+  --rs-border: var(--carbon);
+  --rs-fg: var(--carbon);
+  --rs-bg: var(--paper);
+  --rs-muted: var(--gunmetal);
+  --rs-shade: var(--lime);
+  padding: 12px; margin-bottom: 0;
+}
+.trade-panel .rs-preset,
+.trade-panel .rs-sign,
+.trade-panel .rs-custom-btn,
+.trade-panel .rs-custom-input {
+  box-shadow: none !important;
+  transform: none !important;
+  border: 2px solid var(--carbon);
+}
+.trade-panel .rs-sign:disabled { border-color: var(--gunmetal); color: var(--gunmetal); }
+.trade-panel .rs-custom-btn { color: var(--gunmetal); }
+.panel-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+.panel-tab {
+  flex: 1 1; border: 2px solid var(--carbon); background: none; color: var(--carbon);
+  border-radius: 999px; padding: 6px 0; font-weight: 800; font-size: 12.5px; cursor: pointer;
+}
+.panel-tab-on { background: var(--carbon); color: var(--paper); }
 .trade-sides { display: flex; gap: 6px; margin-bottom: 10px; }
 .trade-side {
   flex: 1 1; border: 2px solid var(--carbon); border-radius: 999px; background: none;
   color: var(--carbon); font-weight: 800; font-size: 12.5px; padding: 7px 0; cursor: pointer;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  box-shadow: none;
 }
 .trade-side-on { background: var(--lime); }
+.centre-trades { margin-top: 14px; }
 .trade-side:disabled { color: var(--gunmetal); border-color: var(--gunmetal); cursor: default; }
 .trade-panel .rs-quote { margin-top: 8px; }
 .trade-panel .rs-sign-row { margin-top: 8px; }

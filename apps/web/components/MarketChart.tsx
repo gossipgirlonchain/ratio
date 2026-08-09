@@ -20,7 +20,7 @@ const B = "#7A9A2E";
 const W = 640;
 const LINE_H = 230;
 const VOL_H = 64;
-const PAD = { l: 8, r: 74, gap: 18, top: 10, bottom: 22 };
+const PAD = { l: 8, r: 34, gap: 18, top: 10, bottom: 22 };
 const H_TOTAL = LINE_H + PAD.gap + VOL_H + PAD.top + PAD.bottom;
 
 const fmtLikes = (n: number): string =>
@@ -46,7 +46,8 @@ export function MarketChart({
 
   const { pathA, pathB, x, yLike, likeMax, volMax } = useMemo(() => {
     const likeMax = Math.max(...series.likesA, ...series.likesB) * 1.08;
-    const volMax = Math.max(...series.volA, ...series.volB, 1);
+    // stacked bars: the scale is the stacked TOTAL, not the larger side
+    const volMax = Math.max(...series.volA.map((v, i) => v + series.volB[i]!), 1);
     const x = (i: number) => PAD.l + ((W - PAD.l - PAD.r) * i) / (n - 1);
     const yLike = (v: number) => PAD.top + LINE_H - (LINE_H * v) / likeMax;
     const path = (vals: number[]) =>
@@ -100,39 +101,40 @@ export function MarketChart({
         <path d={pathA} fill="none" stroke={A} strokeWidth="2" strokeLinejoin="round" />
         <path d={pathB} fill="none" stroke={B} strokeWidth="2" strokeLinejoin="round" />
 
-        {/* direct labels at the line ends — identity never color-alone */}
-        <text x={W - PAD.r + 6} y={yLike(series.likesA[n - 1]!) + 4} className="chart-endlabel">
-          @{handleA}
-        </text>
-        <text x={W - PAD.r + 6} y={yLike(series.likesB[n - 1]!) + 4} className="chart-endlabel">
-          @{handleB}
-        </text>
-
-        {/* money: per-side bars, baseline-anchored, 2px gap via width */}
-        {series.ts.map((_, i) => (
-          <g key={i}>
-            {series.volA[i]! > 0 && (
-              <rect
-                x={x(i) - barW / 2}
-                y={volTop + VOL_H - yVol(series.volA[i]!)}
-                width={barW / 2 - 1}
-                height={yVol(series.volA[i]!)}
-                rx="1.5"
-                fill={A}
-              />
-            )}
-            {series.volB[i]! > 0 && (
-              <rect
-                x={x(i) + 1}
-                y={volTop + VOL_H - yVol(series.volB[i]!)}
-                width={barW / 2 - 1}
-                height={yVol(series.volB[i]!)}
-                rx="1.5"
-                fill={B}
-              />
-            )}
-          </g>
-        ))}
+        {/* money: ONE stacked bar per interval — a single series about
+            money, not two competing charts. Same entity hues, 1px gap
+            between segments. */}
+        {series.ts.map((_, i) => {
+          const a = series.volA[i]!;
+          const b = series.volB[i]!;
+          if (a + b === 0) return null;
+          const hA = yVol(a);
+          const hB = yVol(b);
+          return (
+            <g key={i}>
+              {a > 0 && (
+                <rect
+                  x={x(i) - barW / 2}
+                  y={volTop + VOL_H - hA}
+                  width={barW}
+                  height={hA}
+                  rx="1"
+                  fill={A}
+                />
+              )}
+              {b > 0 && (
+                <rect
+                  x={x(i) - barW / 2}
+                  y={volTop + VOL_H - hA - (a > 0 ? 1 : 0) - hB}
+                  width={barW}
+                  height={hB}
+                  rx="1"
+                  fill={B}
+                />
+              )}
+            </g>
+          );
+        })}
         <line x1={PAD.l} x2={W - PAD.r} y1={volTop + VOL_H} y2={volTop + VOL_H} className="chart-axis" />
 
         {/* time ticks */}
@@ -143,20 +145,26 @@ export function MarketChart({
           now
         </text>
 
-        {/* crosshair + tooltip */}
+        {/* crosshair + tooltip: light surface, three short lines, flips
+            sides so it never leaves the plot */}
         {hover !== null && (
           <g>
             <line x1={x(hover)} x2={x(hover)} y1={PAD.top} y2={volTop + VOL_H} className="chart-crosshair" />
             <circle cx={x(hover)} cy={yLike(series.likesA[hover]!)} r="3.5" fill={A} stroke="#fff" strokeWidth="1.5" />
             <circle cx={x(hover)} cy={yLike(series.likesB[hover]!)} r="3.5" fill={B} stroke="#fff" strokeWidth="1.5" />
-            <g transform={`translate(${Math.min(x(hover) + 10, W - 150)}, ${PAD.top + 6})`}>
-              <rect width="140" height="58" rx="8" className="chart-tip" />
-              <text x="10" y="16" className="chart-tip-text">{fmtClock(series.ts[hover]!)}</text>
-              <text x="10" y="31" className="chart-tip-text">
-                @{handleA} {fmtLikes(series.likesA[hover]!)} · @{handleB} {fmtLikes(series.likesB[hover]!)}
-              </text>
-              <text x="10" y="46" className="chart-tip-text">
-                ${Math.round(series.volA[hover]! + series.volB[hover]!)} staked here
+            <g
+              transform={`translate(${
+                x(hover) + 130 > W - PAD.r ? x(hover) - 130 : x(hover) + 12
+              }, ${PAD.top + 8})`}
+            >
+              <rect width="118" height="52" rx="8" className="chart-tip" />
+              <text x="9" y="15" className="chart-tip-time">{fmtClock(series.ts[hover]!)}</text>
+              <circle cx="13" cy="26" r="3" fill={A} />
+              <text x="21" y="29" className="chart-tip-text">{fmtLikes(series.likesA[hover]!)}</text>
+              <circle cx="63" cy="26" r="3" fill={B} />
+              <text x="71" y="29" className="chart-tip-text">{fmtLikes(series.likesB[hover]!)}</text>
+              <text x="9" y="44" className="chart-tip-text">
+                ${Math.round(series.volA[hover]! + series.volB[hover]!)} staked
               </text>
             </g>
           </g>

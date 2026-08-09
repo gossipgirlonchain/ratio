@@ -40,6 +40,7 @@ export default function MarketPage() {
   const mounted = useMounted();
   const params = useParams<{ id: string }>();
   const { viewer, login } = useAuth();
+  const [tab, setTab] = useState<"buy" | "sell">("buy");
   const [backing, setBacking] = useState<"a" | "b" | null>(null);
   const [amount, setAmount] = useState<number | null>(null);
   const [custom, setCustom] = useState<string | null>(null);
@@ -83,14 +84,6 @@ export default function MarketPage() {
     console.log(`sign: $${amount} on ${backing}`);
   };
 
-  const recipients = [
-    { label: `@${data.a.handle}`, href: `/${data.a.handle}`, note: "the original" },
-    { label: `@${data.b.handle}`, href: `/${data.b.handle}`, note: "the reply" },
-    { label: `@${market.taggerHandle}`, href: `/${market.taggerHandle}`, note: "tagged it" },
-    { label: "ratio", note: "treasury" },
-    { label: "doppler", note: "protocol" },
-  ];
-
   return (
     <div className="market-grid">
       <main className="market-centre">
@@ -127,10 +120,37 @@ export default function MarketPage() {
         <div className="card chart-card">
           <MarketChart series={series} handleA={data.a.handle} handleB={data.b.handle} />
         </div>
+
+        {/* trades live under the chart — that is where people look */}
+        <div className="card mod centre-trades">
+          {trades.length === 0 ? (
+            <div className="mod-row"><span className="mod-quiet">nobody in yet</span></div>
+          ) : (
+            trades.map((t) => (
+              <div className="mod-row" key={t.handle + t.amountUsd}>
+                <Link href={`/${t.handle}`}>@{t.handle}</Link>
+                <span className="mod-quiet">on @{t.side === "a" ? data.a.handle : data.b.handle}</span>
+                <span className="mod-strong">{fmtUsd(t.amountUsd)}</span>
+              </div>
+            ))
+          )}
+        </div>
       </main>
 
       <aside className="market-rail">
         <div className="card trade-panel">
+          {open && (
+            <div className="panel-tabs">
+              <button className={tab === "buy" ? "panel-tab panel-tab-on" : "panel-tab"} onClick={() => setTab("buy")}>
+                Buy
+              </button>
+              <button className={tab === "sell" ? "panel-tab panel-tab-on" : "panel-tab"} onClick={() => setTab("sell")}>
+                Sell
+              </button>
+            </div>
+          )}
+          {tab === "buy" && (
+          <>
           <div className="trade-sides">
             {(["a", "b"] as const).map((who) => {
               const side = who === "a" ? data.a : data.b;
@@ -206,66 +226,52 @@ export default function MarketPage() {
               </div>
             </>
           )}
+          </>
+          )}
 
-          {position && open && (
-            <div className="position-mod">
-              <div className="mod-row">
-                <span>your position</span>
-                <span className="mod-strong">
-                  {position.tokens.toLocaleString()} on @{position.side === "a" ? data.a.handle : data.b.handle}
-                </span>
-              </div>
-              <div className="mod-row">
-                <span>sell now</span>
-                <span className="mod-strong">{fmtUsd2(position.netStakedUsd * 0.96)}</span>
-              </div>
-              <div className="mod-row">
-                <span>if held and @{position.side === "a" ? data.a.handle : data.b.handle} wins</span>
-                <span className="mod-strong">
-                  {fmtUsd2(
-                    quotePayout({
-                      stakeUsd: position.netStakedUsd,
-                      potAUsd: data.a.potUsd - (position.side === "a" ? position.netStakedUsd : 0),
-                      potBUsd: data.b.potUsd - (position.side === "b" ? position.netStakedUsd : 0),
-                      yourSideUsd:
-                        (position.side === "a" ? data.a.potUsd : data.b.potUsd) - position.netStakedUsd,
-                    }).payoutUsd,
-                  )}
-                </span>
-              </div>
-              <div className="mod-row">
-                <span>exit fee right now</span>
-                <span className="mod-strong">{exitFeePct}%</span>
-              </div>
-              <button className="sell-btn" onClick={() => console.log("sell")}>
-                sell
-              </button>
+          {tab === "sell" && open && (
+            <div className="sell-tab">
+              {position ? (
+                <>
+                  <div className="mod-row">
+                    <span className="mod-quiet">position</span>
+                    <span className="mod-strong">
+                      {position.tokens.toLocaleString()} on @{position.side === "a" ? data.a.handle : data.b.handle}
+                    </span>
+                  </div>
+                  <div className="mod-row">
+                    <span className="mod-quiet">sell now</span>
+                    <span className="mod-strong">{fmtUsd2(position.netStakedUsd * 0.96)}</span>
+                  </div>
+                  <div className="mod-row">
+                    <span className="mod-quiet">if wins</span>
+                    <span className="mod-strong">
+                      {fmtUsd2(
+                        quotePayout({
+                          stakeUsd: position.netStakedUsd,
+                          potAUsd: data.a.potUsd - (position.side === "a" ? position.netStakedUsd : 0),
+                          potBUsd: data.b.potUsd - (position.side === "b" ? position.netStakedUsd : 0),
+                          yourSideUsd:
+                            (position.side === "a" ? data.a.potUsd : data.b.potUsd) - position.netStakedUsd,
+                        }).payoutUsd,
+                      )}
+                    </span>
+                  </div>
+                  <div className="mod-row">
+                    <span className="mod-quiet">exit fee</span>
+                    <span className="mod-strong">{exitFeePct}%</span>
+                  </div>
+                  <button className="sell-btn" onClick={() => console.log("sell")}>
+                    Sell
+                  </button>
+                </>
+              ) : (
+                <div className="mod-row">
+                  <span className="mod-quiet">no position in this market</span>
+                </div>
+              )}
             </div>
           )}
-        </div>
-
-        <div className="card mod">
-          {trades.length === 0 ? (
-            <div className="mod-row"><span className="mod-quiet">nobody in yet</span></div>
-          ) : (
-            trades.map((t) => (
-              <div className="mod-row" key={t.handle + t.amountUsd}>
-                <Link href={`/${t.handle}`}>@{t.handle}</Link>
-                <span className="mod-quiet">on @{t.side === "a" ? data.a.handle : data.b.handle}</span>
-                <span className="mod-strong">{fmtUsd(t.amountUsd)}</span>
-              </div>
-            ))
-          )}
-        </div>
-
-        <div className="card mod">
-          <div className="mod-row"><span className="mod-quiet">1.25% per trade, split five ways</span></div>
-          {recipients.map((r) => (
-            <div className="mod-row" key={r.label}>
-              {r.href ? <Link href={r.href}>{r.label}</Link> : <span>{r.label}</span>}
-              <span className="mod-quiet">{r.note}</span>
-            </div>
-          ))}
         </div>
 
         <div className="card mod">

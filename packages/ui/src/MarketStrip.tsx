@@ -247,33 +247,36 @@ export function MarketStrip({ data, nowMs, onSign, onPresetUsed, marketHref }: M
       <div className={backing ? "rs-fold rs-fold-open" : "rs-fold"} aria-hidden={!backing}>
         <div>
         <div className="rs-amount">
-          {custom === null ? (
-            <div className="rs-presets">
-              {PRESETS.map((p) => (
-                <button
-                  key={p}
-                  className={amount === p ? "rs-preset rs-preset-on" : "rs-preset"}
-                  onClick={() => {
-                    setAmount(p);
-                    onPresetUsed?.(p);
-                  }}
-                >
-                  ${p}
-                </button>
-              ))}
-            </div>
-          ) : (
-            <div className="rs-custom">
+          {/* The grid never leaves. Custom is not a separate screen — the
+              button itself becomes the field, in place, in the sign row. */}
+          <div className="rs-presets">
+            {PRESETS.map((p) => (
               <button
-                className="rs-back-arrow"
-                aria-label="back to presets"
+                key={p}
+                className={amount === p && custom === null ? "rs-preset rs-preset-on" : "rs-preset"}
                 onClick={() => {
-                  setCustom(null);
-                  setAmount(null);
+                  setAmount(p);
+                  setCustom(null); // a preset tap exits custom mode
+                  onPresetUsed?.(p);
                 }}
               >
-                ←
+                ${p}
               </button>
+            ))}
+          </div>
+          <div className="rs-sign-row">
+            {custom === null ? (
+              <button
+                className="rs-custom-btn"
+                onClick={() => {
+                  setCustom("");
+                  setAmount(null);
+                  onPresetUsed?.("custom");
+                }}
+              >
+                Custom
+              </button>
+            ) : (
               <input
                 className="rs-custom-input"
                 inputMode="decimal"
@@ -286,21 +289,10 @@ export function MarketStrip({ data, nowMs, onSign, onPresetUsed, marketHref }: M
                   const n = Number(raw);
                   setAmount(n > 0 ? n : null);
                 }}
-              />
-            </div>
-          )}
-          <div className="rs-sign-row">
-            {custom === null && (
-              <button
-                className="rs-custom-btn"
-                onClick={() => {
-                  setCustom("");
-                  setAmount(null);
-                  onPresetUsed?.("custom");
+                onBlur={() => {
+                  if (!custom) setCustom(null); // empty field reverts to the button
                 }}
-              >
-                Custom
-              </button>
+              />
             )}
             {/* Always visible; muted until an amount exists; never hidden. */}
             <button

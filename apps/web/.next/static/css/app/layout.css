@@ -220,14 +220,25 @@ body {
 }
 .rs-preset-on { background: var(--rs-fg); color: var(--rs-bg); border-color: var(--rs-fg); }
 
-.rs-custom { display: flex; gap: 6px; align-items: center; height: 57px; }
-.rs-back-arrow {
-  background: none; border: 1px solid var(--rs-border); border-radius: 8px;
-  color: var(--rs-fg); width: 30px; height: 30px; cursor: pointer;
-}
+/* Custom-in-place: the button and the field are the SAME slot at the SAME
+   size — the swap changes content only, never geometry. No jumping. */
+.rs-custom-btn,
 .rs-custom-input {
-  flex: 1 1; background: none; border: 1px solid var(--rs-border); border-radius: 8px;
-  color: var(--rs-fg); font-size: 14px; padding: 5px 9px; outline: none;
+  flex: 1 1;
+  min-width: 0;
+  box-sizing: border-box;
+  padding: 6px 14px;
+  border: 1px solid var(--rs-border);
+  border-radius: 999px;
+  background: none;
+  font-size: 12.5px;
+  line-height: 1.4;
+  text-align: left;
+}
+.rs-custom-btn { color: var(--rs-muted); cursor: pointer; }
+.rs-custom-input {
+  color: var(--rs-fg);
+  outline: none;
   font-feature-settings: "tnum";
   font-variant-numeric: tabular-nums;
 }
@@ -240,12 +251,8 @@ body {
 }
 
 .rs-sign-row { display: flex; gap: 6px; margin-top: 7px; }
-.rs-custom-btn {
-  padding: 6px 12px; border: 1px solid var(--rs-border); border-radius: 999px;
-  background: none; color: var(--rs-muted); font-size: 12.5px; cursor: pointer;
-}
 .rs-sign {
-  flex: 1 1; padding: 6px 0; border-radius: 999px; font-weight: 700; font-size: 12.5px;
+  flex: 1.4 1; padding: 6px 0; border-radius: 999px; font-weight: 700; font-size: 12.5px;
   border: 1px solid var(--rs-border); background: none; color: var(--rs-muted);
 }
 .rs-sign-on {
@@ -374,7 +381,6 @@ body {
 }
 .rs-custom-input { border-width: 2px; }
 .rs-custom-input:focus { border-color: var(--carbon); box-shadow: 2px 2px 0 var(--lime); }
-.rs-back-arrow { border-width: 2px; box-shadow: 2px 2px 0 var(--carbon); }
 .rs-custom-btn { border-width: 2px; color: var(--gunmetal); }
 
 .rs-sign { border-width: 2px; }

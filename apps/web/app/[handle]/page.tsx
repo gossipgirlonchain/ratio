@@ -9,10 +9,80 @@
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
+import { useState } from "react";
+
 import { MarketStrip } from "@ratio/ui";
 
+import { useAuth } from "../../lib/auth";
 import { marketsByParticipant, profileFor } from "../../lib/fixtures";
 import { useMounted } from "../../lib/useMounted";
+
+const DEMO_ADDRESS = "ratio1DemoWa11etAddre55Repl4cedByPrivyR4";
+
+/**
+ * Owner-only wallet block: one page for everything that is yours, kept
+ * COMPACT — balance is one line, deposit and withdraw are collapsed
+ * toggles. The record and positions are what the page is actually for.
+ */
+function WalletBlock() {
+  const [openSection, setOpenSection] = useState<"deposit" | "withdraw" | null>(null);
+  const [copied, setCopied] = useState(false);
+  return (
+    <section className="card wallet-block">
+      <div className="wallet-line">
+        <span className="muted">balance</span>
+        <span className="wallet-amount">$0.00</span>
+        <div className="wallet-actions">
+          <button
+            className={openSection === "deposit" ? "wallet-toggle wallet-toggle-on" : "wallet-toggle"}
+            onClick={() => setOpenSection(openSection === "deposit" ? null : "deposit")}
+          >
+            deposit
+          </button>
+          <button
+            className={openSection === "withdraw" ? "wallet-toggle wallet-toggle-on" : "wallet-toggle"}
+            onClick={() => setOpenSection(openSection === "withdraw" ? null : "withdraw")}
+          >
+            withdraw
+          </button>
+        </div>
+      </div>
+      {openSection === "deposit" && (
+        <div className="wallet-detail">
+          <div className="deposit-row">
+            <code className="deposit-address">{DEMO_ADDRESS}</code>
+            <button
+              className="copy-btn"
+              onClick={() => {
+                navigator.clipboard?.writeText(DEMO_ADDRESS);
+                setCopied(true);
+                setTimeout(() => setCopied(false), 1500);
+              }}
+            >
+              {copied ? "copied" : "copy"}
+            </button>
+          </div>
+          <details className="qr-details">
+            <summary className="muted">show qr</summary>
+            <div className="qr-slot muted">qr renders when wallets are provisioned</div>
+          </details>
+          <p className="muted">usdc on solana. the address always works.</p>
+        </div>
+      )}
+      {openSection === "withdraw" && (
+        <div className="wallet-detail">
+          <div className="deposit-row">
+            <input className="search-input withdraw-input" placeholder="destination address" disabled />
+            <button className="copy-btn" disabled>
+              send
+            </button>
+          </div>
+          <p className="muted">enabled once wallets are provisioned. network fee only.</p>
+        </div>
+      )}
+    </section>
+  );
+}
 
 const fmtUsd = (n: number) =>
   `$${n.toLocaleString("en-US", { maximumFractionDigits: 2 })}`;
@@ -20,6 +90,7 @@ const fmtUsd = (n: number) =>
 export default function ProfilePage() {
   const mounted = useMounted();
   const params = useParams<{ handle: string }>();
+  const { viewer, login } = useAuth();
   if (!mounted) return null;
 
   const handle = decodeURIComponent(params.handle);
@@ -50,10 +121,19 @@ export default function ProfilePage() {
         {p.unclaimedUsd > 0 && (
           <div className="profile-claim">
             <span className="profile-unclaimed">{fmtUsd(p.unclaimedUsd)} unclaimed</span>
-            <button className="claim-btn">log in with x to claim</button>
+            {viewer === handle ? (
+              <button className="claim-btn">claim {fmtUsd(p.unclaimedUsd)}</button>
+            ) : (
+              // Point-of-action gate: the page reads fully logged out.
+              <button className="claim-btn" onClick={login}>
+                log in with x to claim
+              </button>
+            )}
           </div>
         )}
       </header>
+
+      {viewer === handle && <WalletBlock />}
 
       <section className="card">
         <h2>record</h2>

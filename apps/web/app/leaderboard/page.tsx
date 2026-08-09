@@ -1,10 +1,11 @@
 "use client";
 
 /**
- * One combined board ranked on total fees earned, never three boards by
- * role. The per-role breakdown under each row is the character read:
- * mostly-original gets dunked on constantly, mostly-tagger is a market
- * maker, same rank and a completely different story. Windows roll
+ * One combined board ranked on FEES EARNED — the heading says so, since a
+ * cold visitor should not have to guess whether the number is volume,
+ * winnings, or fees. The role breakdown is a proportion bar, not figures:
+ * it is a character read, not accounting (exact amounts live on the
+ * profile). Legend once at the top, never per row. Windows roll
  * continuously; no clock resets.
  */
 import Link from "next/link";
@@ -30,32 +31,44 @@ export default function LeaderboardPage() {
 
   return (
     <main className="page">
-      <h1 className="page-title">leaderboard</h1>
-      <div className="tabs">
-        {WINDOWS.map((w) => (
-          <button
-            key={w.key}
-            className={win === w.key ? "tab tab-on" : "tab"}
-            onClick={() => setWin(w.key)}
-          >
-            {w.label}
-          </button>
-        ))}
+      <h1 className="page-title">leaderboard · fees earned</h1>
+      <div className="board-top">
+        <div className="tabs">
+          {WINDOWS.map((w) => (
+            <button
+              key={w.key}
+              className={win === w.key ? "tab tab-on" : "tab"}
+              onClick={() => setWin(w.key)}
+            >
+              {w.label}
+            </button>
+          ))}
+        </div>
+        <div className="legend">
+          <span><i className="swatch swatch-original" /> original</span>
+          <span><i className="swatch swatch-reply" /> reply</span>
+          <span><i className="swatch swatch-tagger" /> tagger</span>
+        </div>
       </div>
       <div className="board">
-        {rows.map((r, i) => (
-          <div className="card board-row" key={r.handle}>
-            <span className="board-rank">{i + 1}</span>
-            <img className="rs-avatar" src={`https://i.pravatar.cc/60?u=${r.handle}`} alt="" />
-            <div className="board-main">
-              <Link href={`/${r.handle}`}>@{r.handle}</Link>
-              <span className="muted board-roles">
-                {fmtUsd(r.byRole.original)} original · {fmtUsd(r.byRole.reply)} reply · {fmtUsd(r.byRole.tagger)} tagger
-              </span>
+        {rows.map((r, i) => {
+          const total = r.byRole.original + r.byRole.reply + r.byRole.tagger || 1;
+          return (
+            <div className="card board-row" key={r.handle}>
+              <span className="board-rank">{i + 1}</span>
+              <img className="rs-avatar" src={`https://i.pravatar.cc/60?u=${r.handle}`} alt="" />
+              <div className="board-main">
+                <Link href={`/${r.handle}`}>@{r.handle}</Link>
+                <div className="role-bar">
+                  <i className="swatch-original" style={{ flexGrow: r.byRole.original / total }} />
+                  <i className="swatch-reply" style={{ flexGrow: r.byRole.reply / total }} />
+                  <i className="swatch-tagger" style={{ flexGrow: r.byRole.tagger / total }} />
+                </div>
+              </div>
+              <span className="board-total">{fmtUsd(r.totalFeeUsd)}</span>
             </div>
-            <span className="board-total">{fmtUsd(r.totalFeeUsd)}</span>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </main>
   );

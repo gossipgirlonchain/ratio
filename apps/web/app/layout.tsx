@@ -2,6 +2,7 @@ import "./globals.css";
 import "@ratio/ui/strip.css";
 import "./skin.css";
 
+import { Footer } from "./footer";
 import { Nav } from "./nav";
 
 export const metadata = {
@@ -15,6 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <Nav />
         {children}
+        <Footer />
       </body>
     </html>
   );

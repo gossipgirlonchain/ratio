@@ -50,8 +50,12 @@ const timeLeft = (settlesAtMs: number, nowMs: number): string => {
 export interface MarketStripProps {
   data: MarketStripData;
   nowMs?: number;
-  /** Called when a stake is signed. Absent = read-only strip. */
-  onSign?: (side: "a" | "b", amountUsd: number) => void;
+  /**
+   * Called when a stake is signed. Absent = read-only strip. Return false
+   * to reject (e.g. prompt login at the point of action) — the success
+   * line only shows when the handler accepts.
+   */
+  onSign?: (side: "a" | "b", amountUsd: number) => boolean | void;
   /** Instrumentation for the preset ladder (tune from real data). */
   onPresetUsed?: (amountUsd: number | "custom") => void;
   /** Market page link for the post-sign "view market" affordance. */
@@ -176,7 +180,7 @@ export function MarketStrip({ data, nowMs, onSign, onPresetUsed, marketHref, ful
 
   const sign = () => {
     if (!backing || !amount) return;
-    onSign?.(backing, amount);
+    if (onSign?.(backing, amount) === false) return; // rejected: panel stays
     // Panel folds closed; the success line folds open in its place. The
     // reader keeps scrolling (and can tap a row to go again).
     setPlaced({ side: backing, amountUsd: amount });

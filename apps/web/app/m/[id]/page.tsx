@@ -44,6 +44,7 @@ export default function MarketPage() {
   const [backing, setBacking] = useState<"a" | "b" | null>(null);
   const [amount, setAmount] = useState<number | null>(null);
   const [custom, setCustom] = useState<string | null>(null);
+  const [sellFrac, setSellFrac] = useState<25 | 50 | 100>(100);
 
   const market = marketById(params.id);
   const series = useMemo(
@@ -193,11 +194,6 @@ export default function MarketPage() {
                   </button>
                 ))}
               </div>
-              {quote && backing && (
-                <div className="rs-quote">
-                  ${quote.payoutUsd.toFixed(2)} if @{(backing === "a" ? data.a : data.b).handle} wins
-                </div>
-              )}
               <div className="rs-sign-row">
                 {custom === null ? (
                   <button
@@ -227,8 +223,12 @@ export default function MarketPage() {
                     }}
                   />
                 )}
+                {/* The outcome lives ON the button — no separate payout
+                    line, nothing to jump. */}
                 <button className={amount && backing ? "rs-sign rs-sign-on" : "rs-sign"} disabled={!amount || !backing} onClick={sign}>
-                  Sign
+                  {quote && backing
+                    ? `sign · $${quote.payoutUsd.toFixed(2)} if @${(backing === "a" ? data.a : data.b).handle} wins`
+                    : "sign"}
                 </button>
               </div>
             </>
@@ -239,39 +239,57 @@ export default function MarketPage() {
           {tab === "sell" && open && (
             <div className="sell-tab">
               {position ? (
-                <>
-                  <div className="mod-row">
-                    <span className="mod-quiet">position</span>
-                    <span className="mod-strong">
-                      {position.tokens.toLocaleString()} on @{position.side === "a" ? data.a.handle : data.b.handle}
-                    </span>
-                  </div>
-                  <div className="mod-row">
-                    <span className="mod-quiet">sell now</span>
-                    <span className="mod-strong">{fmtUsd2(position.netStakedUsd * 0.96)}</span>
-                  </div>
-                  <div className="mod-row">
-                    <span className="mod-quiet">if wins</span>
-                    <span className="mod-strong">
-                      {fmtUsd2(
-                        quotePayout({
-                          stakeUsd: position.netStakedUsd,
-                          potAUsd: data.a.potUsd - (position.side === "a" ? position.netStakedUsd : 0),
-                          potBUsd: data.b.potUsd - (position.side === "b" ? position.netStakedUsd : 0),
-                          yourSideUsd:
-                            (position.side === "a" ? data.a.potUsd : data.b.potUsd) - position.netStakedUsd,
-                        }).payoutUsd,
-                      )}
-                    </span>
-                  </div>
-                  <div className="mod-row">
-                    <span className="mod-quiet">exit fee</span>
-                    <span className="mod-strong">{exitFeePct}%</span>
-                  </div>
-                  <button className="sell-btn" onClick={() => console.log("sell")}>
-                    Sell
-                  </button>
-                </>
+                (() => {
+                  const posHandle = position.side === "a" ? data.a.handle : data.b.handle;
+                  const frac = sellFrac / 100;
+                  const gross = position.netStakedUsd * 0.96 * frac; // demo curve value
+                  const feeUsd = gross * (exitFeePct / 100);
+                  const net = gross - feeUsd;
+                  const ifWins = quotePayout({
+                    stakeUsd: position.netStakedUsd,
+                    potAUsd: data.a.potUsd - (position.side === "a" ? position.netStakedUsd : 0),
+                    potBUsd: data.b.potUsd - (position.side === "b" ? position.netStakedUsd : 0),
+                    yourSideUsd:
+                      (position.side === "a" ? data.a.potUsd : data.b.potUsd) - position.netStakedUsd,
+                  }).payoutUsd;
+                  return (
+                    <>
+                      {/* the number being decided on — the largest thing here */}
+                      <div className="sell-now">
+                        <span className="sell-now-num">{fmtUsd2(net)}</span>
+                        <span className="sell-now-label">you get, after the exit fee</span>
+                      </div>
+                      {/* the fee is the most consequential number: rate AND dollars */}
+                      <div className="exit-fee-callout">
+                        exit fee {exitFeePct}% · −{fmtUsd2(feeUsd)}
+                      </div>
+                      <div className="mod-row">
+                        <span className="mod-quiet">position</span>
+                        <span className="mod-strong">
+                          {position.tokens.toLocaleString()} on @{posHandle}
+                        </span>
+                      </div>
+                      <div className="mod-row">
+                        <span className="mod-quiet trunc">if @{posHandle} wins</span>
+                        <span className="mod-strong">{fmtUsd2(ifWins)}</span>
+                      </div>
+                      <div className="sell-fracs">
+                        {([25, 50, 100] as const).map((f) => (
+                          <button
+                            key={f}
+                            className={sellFrac === f ? "rs-preset rs-preset-on" : "rs-preset"}
+                            onClick={() => setSellFrac(f)}
+                          >
+                            {f}%
+                          </button>
+                        ))}
+                      </div>
+                      <button className="rs-sign rs-sign-on sell-confirm" onClick={() => console.log(`sell ${sellFrac}%`)}>
+                        sell for {fmtUsd2(net)}
+                      </button>
+                    </>
+                  );
+                })()
               ) : (
                 <div className="mod-row">
                   <span className="mod-quiet">no position in this market</span>

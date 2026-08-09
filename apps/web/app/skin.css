@@ -458,12 +458,43 @@ body {
 }
 .trade-panel .rs-sign:disabled { border-color: var(--gunmetal); color: var(--gunmetal); }
 .trade-panel .rs-custom-btn { color: var(--gunmetal); }
-.panel-tabs { display: flex; gap: 6px; margin-bottom: 12px; }
+/* segmented control: one bordered track, the active segment fills — a
+   mode switch, not two actions */
+.panel-tabs {
+  display: flex; border: 2px solid var(--carbon); border-radius: 999px;
+  padding: 2px; margin-bottom: 12px;
+}
 .panel-tab {
-  flex: 1; border: 2px solid var(--carbon); background: none; color: var(--carbon);
-  border-radius: 999px; padding: 6px 0; font-weight: 800; font-size: 12.5px; cursor: pointer;
+  flex: 1; border: none; background: none; color: var(--gunmetal);
+  border-radius: 999px; padding: 5px 0; font-weight: 800; font-size: 12.5px; cursor: pointer;
 }
 .panel-tab-on { background: var(--carbon); color: var(--paper); }
+
+/* one meaning per colour: GREEN = selected (sides, amounts, fractions);
+   CARBON = act. Kill the browser focus ring that read as orange. */
+.trade-panel button:focus, .trade-panel input:focus { outline: none; }
+.trade-panel .rs-preset-on {
+  background: var(--lime); color: var(--carbon); border-color: var(--carbon);
+}
+.trade-panel .rs-sign-on, .sell-confirm {
+  background: var(--carbon) !important; color: var(--paper) !important;
+  border-color: var(--carbon) !important;
+}
+.trade-panel .rs-sign { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* sell tab: the net number is the decision — largest thing in the panel */
+.sell-now { display: flex; flex-direction: column; margin: 2px 0 8px; }
+.sell-now-num { font-size: 26px; font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.sell-now-label { font-size: 11px; color: var(--gunmetal); }
+.exit-fee-callout {
+  background: var(--carbon); color: var(--paper);
+  border-radius: 8px; padding: 6px 10px; margin-bottom: 8px;
+  font-weight: 800; font-size: 12.5px; font-variant-numeric: tabular-nums;
+}
+.sell-fracs { display: flex; gap: 6px; margin: 10px 0 8px; }
+.sell-fracs .rs-preset { flex: 1; }
+.sell-confirm { width: 100%; border-radius: 999px; padding: 7px 0; font-weight: 800; cursor: pointer; border-width: 2px; border-style: solid; }
+.trunc { max-width: 150px; }
 .trade-sides { display: flex; gap: 6px; margin-bottom: 10px; }
 .trade-side {
   flex: 1; border: 2px solid var(--carbon); border-radius: 999px; background: none;
@@ -523,3 +554,4 @@ body {
   .market-rail { position: static; }
   .profile-header { flex-wrap: wrap; }
 }
+.chart-tip-label { font-size: 9.5px; font-weight: 700; fill: var(--gunmetal); }

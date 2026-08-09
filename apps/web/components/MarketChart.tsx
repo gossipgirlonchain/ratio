@@ -144,25 +144,35 @@ export function MarketChart({
             <line x1={x(hover)} x2={x(hover)} y1={PAD.top} y2={zeroY + VOL_DOWN} className="chart-crosshair" />
             <circle cx={x(hover)} cy={yLike(series.likesA[hover]!)} r="3.5" fill={A} stroke="#fff" strokeWidth="1.5" />
             <circle cx={x(hover)} cy={yLike(series.likesB[hover]!)} r="3.5" fill={B} stroke="#fff" strokeWidth="1.5" />
-            <g
-              transform={`translate(${
-                x(hover) + 130 > W - PAD.r ? x(hover) - 130 : x(hover) + 12
-              }, ${PAD.top + 8})`}
-            >
-              <rect width="118" height="52" rx="8" className="chart-tip" />
-              <text x="9" y="15" className="chart-tip-time">{fmtClock(series.ts[hover]!)}</text>
-              <circle cx="13" cy="26" r="3" fill={A} />
-              <text x="21" y="29" className="chart-tip-text">{fmtLikes(series.likesA[hover]!)}</text>
-              <circle cx="63" cy="26" r="3" fill={B} />
-              <text x="71" y="29" className="chart-tip-text">{fmtLikes(series.likesB[hover]!)}</text>
-              <text x="9" y="44" className="chart-tip-text">
-                {(() => {
-                  const inUsd = Math.round(series.buyA[hover]! + series.buyB[hover]!);
-                  const outUsd = Math.round(series.sellA[hover]! + series.sellB[hover]!);
-                  return outUsd > 0 ? `$${inUsd} in · $${outUsd} out` : `$${inUsd} in`;
-                })()}
-              </text>
-            </g>
+            {(() => {
+              // money split by side, matching the bars' colour encoding;
+              // the out row disappears entirely when the interval had no sells
+              const outA = Math.round(series.sellA[hover]!);
+              const outB = Math.round(series.sellB[hover]!);
+              const hasOut = outA + outB > 0;
+              const TIP_W = 158;
+              const TIP_H = hasOut ? 76 : 61;
+              // flip early enough to clear the y-max label at the right edge
+              const tipX = x(hover) + TIP_W + 16 > W - PAD.r ? x(hover) - TIP_W - 12 : x(hover) + 12;
+              const row = (label: string, y: number, va: string, vb: string) => (
+                <g key={label}>
+                  <text x="9" y={y} className="chart-tip-label">{label}</text>
+                  <circle cx="44" cy={y - 3} r="3" fill={A} />
+                  <text x="52" y={y} className="chart-tip-text">{va}</text>
+                  <circle cx="103" cy={y - 3} r="3" fill={B} />
+                  <text x="111" y={y} className="chart-tip-text">{vb}</text>
+                </g>
+              );
+              return (
+                <g transform={`translate(${tipX}, ${PAD.top + 12})`}>
+                  <rect width={TIP_W} height={TIP_H} rx="8" className="chart-tip" />
+                  <text x="9" y="15" className="chart-tip-time">{fmtClock(series.ts[hover]!)}</text>
+                  {row("like", 31, fmtLikes(series.likesA[hover]!), fmtLikes(series.likesB[hover]!))}
+                  {row("in", 46, `$${Math.round(series.buyA[hover]!)}`, `$${Math.round(series.buyB[hover]!)}`)}
+                  {hasOut && row("out", 61, `$${outA}`, `$${outB}`)}
+                </g>
+              );
+            })()}
           </g>
         )}
       </svg>

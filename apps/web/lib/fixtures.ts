@@ -214,6 +214,58 @@ export const profileFor = (handle: string): ProfileFixture => {
   };
 };
 
+/**
+ * Deterministic chart series (no Math.random: mount-gated pages, stable
+ * across renders). Real data replaces this with recorded trades — the
+ * shape (likes per side over time + volume buckets per side) is exactly
+ * what the store's trade records reconstruct.
+ */
+export interface ChartSeries {
+  ts: number[];
+  likesA: number[];
+  likesB: number[];
+  volA: number[];
+  volB: number[];
+}
+
+export function chartSeries(m: FixtureMarket, points = 48): ChartSeries {
+  const seed = m.data.marketId.charCodeAt(1) * 7.3;
+  const openMs = m.data.settlesAtMs - 24 * H;
+  const end = Math.min(NOW, m.data.settlesAtMs);
+  const wob = (i: number, k: number) => Math.sin(seed + i * k) * 0.5 + 0.5;
+  const ts: number[] = [];
+  const likesA: number[] = [];
+  const likesB: number[] = [];
+  const volA: number[] = [];
+  const volB: number[] = [];
+  const grow = (from: number, to: number, i: number, k: number) => {
+    const p = i / (points - 1);
+    const eased = p < 0.5 ? 2 * p * p : 1 - Math.pow(-2 * p + 2, 2) / 2;
+    return from + (to - from) * eased * (0.9 + 0.2 * wob(i, k));
+  };
+  let maxA = 0;
+  let maxB = 0;
+  for (let i = 0; i < points; i++) {
+    ts.push(openMs + ((end - openMs) * i) / (points - 1));
+    // likes only accumulate: running max keeps the lines honest
+    maxA = Math.max(maxA, grow(m.data.a.likes * 0.55, m.data.a.likes, i, 1.7));
+    maxB = Math.max(maxB, grow(m.data.b.likes * 0.2, m.data.b.likes, i, 2.3));
+    likesA.push(Math.round(maxA));
+    likesB.push(Math.round(maxB));
+    const spikeA = wob(i, 3.1);
+    const spikeB = wob(i, 4.7);
+    volA.push(spikeA > 0.78 ? (m.data.a.potUsd / 6) * spikeA : 0);
+    volB.push(spikeB > 0.82 ? (m.data.b.potUsd / 5) * spikeB : 0);
+  }
+  return { ts, likesA, likesB, volA, volB };
+}
+
+/** Demo position for the trade panel: what the viewer holds, if anything. */
+export const positionFor = (viewer: string | null, marketId: string) =>
+  viewer === "bigaccount" && marketId === "m2"
+    ? { side: "a" as const, tokens: 1_180, netStakedUsd: 1_200 }
+    : null;
+
 export const allHandles = (): string[] => {
   const set = new Set<string>();
   for (const m of markets) {

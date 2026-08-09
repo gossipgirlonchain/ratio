@@ -1,28 +1,56 @@
 "use client";
 
 /**
- * Market page: one market, one URL, forever. The most important page on
- * the site — every shared link opens here, usually for a stranger.
+ * Market page as a trading page (reference: the pump.fun coin page).
+ * Centre: compact matchup header, then the chart as the hero.
+ * Right rail, sticky: the trade panel — the reason the page exists —
+ * with dense stat modules under it. No onboarding prose, no section
+ * headers; every element earns its size.
  */
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
-import { MarketStrip } from "@ratio/ui";
+import { quotePayout } from "@ratio/ui";
 
-import { marketById, tradesByMarket } from "../../../lib/fixtures";
+import { MarketChart } from "../../../components/MarketChart";
+import { useAuth } from "../../../lib/auth";
+import {
+  chartSeries,
+  marketById,
+  positionFor,
+  tradesByMarket,
+} from "../../../lib/fixtures";
 import { useMounted } from "../../../lib/useMounted";
 
+const PRESETS = [1, 5, 25, 100, 250, 500] as const;
+
 const fmtUsd = (n: number) => `$${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+const fmtUsd2 = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+const fmtLikes = (n: number) => (n >= 1_000 ? `${(n / 1_000).toFixed(1)}K` : String(n));
+
+const timeLeft = (settlesAtMs: number): string => {
+  const ms = Math.max(0, settlesAtMs - Date.now());
+  const h = Math.floor(ms / 3_600_000);
+  const m = Math.floor((ms % 3_600_000) / 60_000);
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+};
 
 export default function MarketPage() {
   const mounted = useMounted();
   const params = useParams<{ id: string }>();
-  const [explainerOpen, setExplainerOpen] = useState(true);
-  if (!mounted) return null;
+  const { viewer, login } = useAuth();
+  const [backing, setBacking] = useState<"a" | "b" | null>(null);
+  const [amount, setAmount] = useState<number | null>(null);
+  const [custom, setCustom] = useState<string | null>(null);
 
   const market = marketById(params.id);
-  if (!market) {
+  const series = useMemo(
+    () => (market ? chartSeries(market) : null),
+    [market],
+  );
+  if (!mounted) return null;
+  if (!market || !series) {
     return (
       <main className="page">
         <p className="page-empty">no market here. <Link href="/">back to the feed</Link></p>
@@ -30,93 +58,233 @@ export default function MarketPage() {
     );
   }
   const { data } = market;
+  const open = data.status === "open";
   const trades = (tradesByMarket[data.marketId] ?? []).sort((x, y) => y.amountUsd - x.amountUsd);
+  const position = positionFor(viewer, data.marketId);
+  const quote =
+    backing && amount
+      ? quotePayout({
+          stakeUsd: amount,
+          potAUsd: data.a.potUsd,
+          potBUsd: data.b.potUsd,
+          yourSideUsd: (backing === "a" ? data.a : data.b).potUsd,
+        })
+      : null;
+  // DEMO ramp display only — the real shape is undecided (config TODO).
+  const elapsed = 1 - Math.max(0, data.settlesAtMs - Date.now()) / (24 * 3_600_000);
+  const exitFeePct = Math.round(75 * Math.max(0, Math.min(1, elapsed)));
+
+  const sign = () => {
+    if (!backing || !amount) return;
+    if (!viewer) {
+      login();
+      return;
+    }
+    console.log(`sign: $${amount} on ${backing}`);
+  };
+
   const recipients = [
-    { label: `@${data.a.handle}`, note: "the original" },
-    { label: `@${data.b.handle}`, note: "the reply" },
-    { label: `@${market.taggerHandle}`, note: "tagged it" },
+    { label: `@${data.a.handle}`, href: `/${data.a.handle}`, note: "the original" },
+    { label: `@${data.b.handle}`, href: `/${data.b.handle}`, note: "the reply" },
+    { label: `@${market.taggerHandle}`, href: `/${market.taggerHandle}`, note: "tagged it" },
     { label: "ratio", note: "treasury" },
     { label: "doppler", note: "protocol" },
   ];
 
   return (
-    <main className="page">
-      {explainerOpen && (
-        <div className="card explainer">
-          <p>
-            two tweets, one clock. anyone can stake on either person, and
-            whichever tweet has more likes when the clock runs out wins the
-            money. staking early pays better than piling on late.
-          </p>
-          <button className="explainer-dismiss" onClick={() => setExplainerOpen(false)}>
-            got it
-          </button>
+    <div className="market-grid">
+      <main className="market-centre">
+        <div className="match-head card">
+          {(["a", "b"] as const).map((who) => {
+            const side = who === "a" ? data.a : data.b;
+            const leading =
+              data.status === "settled" && data.winner
+                ? data.winner === who
+                : (who === "a") === (data.a.likes >= data.b.likes);
+            return (
+              <div className="match-row" key={who}>
+                <img className="rs-avatar" src={side.avatarUrl} alt="" />
+                <Link href={`/${side.handle}`} className="match-handle">
+                  @{side.handle}
+                </Link>
+                <span className="match-text">{side.text}</span>
+                <span className={leading ? "match-likes match-likes-lead" : "match-likes"}>
+                  ♥ {fmtLikes(side.likes)}
+                </span>
+              </div>
+            );
+          })}
+          <div className="match-rule">
+            {data.status === "settled" && data.winner
+              ? `@${(data.winner === "a" ? data.a : data.b).handle} won`
+              : data.status === "voided"
+                ? "voided · stakes refunded"
+                : `most likes in ${timeLeft(data.settlesAtMs)} wins`}
+            <span className="match-staked">{fmtUsd(data.a.potUsd + data.b.potUsd)} staked</span>
+          </div>
         </div>
-      )}
 
-      <MarketStrip
-        data={data}
-        fullText
-        onSign={(side, amount) => console.log(`sign: $${amount} backing ${side}`)}
-      />
+        <div className="card chart-card">
+          <MarketChart series={series} handleA={data.a.handle} handleB={data.b.handle} />
+        </div>
+      </main>
 
-      <section className="card">
-        <h2>the chart</h2>
-        <p className="muted">
-          likes as two lines, money as bars under them, from open to now.
-          lands with trade-history wiring; every stake is already being
-          recorded with amount, tokens, and timestamp so this chart can be
-          rebuilt from day one.
-        </p>
-      </section>
+      <aside className="market-rail">
+        <div className="card trade-panel">
+          <div className="trade-sides">
+            {(["a", "b"] as const).map((who) => {
+              const side = who === "a" ? data.a : data.b;
+              return (
+                <button
+                  key={who}
+                  className={backing === who ? "trade-side trade-side-on" : "trade-side"}
+                  disabled={!open}
+                  onClick={() => {
+                    setBacking(backing === who ? null : who);
+                    setAmount(null);
+                    setCustom(null);
+                  }}
+                >
+                  @{side.handle}
+                </button>
+              );
+            })}
+          </div>
+          {open && (
+            <>
+              <div className="rs-presets">
+                {PRESETS.map((p) => (
+                  <button
+                    key={p}
+                    className={amount === p && custom === null ? "rs-preset rs-preset-on" : "rs-preset"}
+                    onClick={() => {
+                      setAmount(p);
+                      setCustom(null);
+                    }}
+                  >
+                    ${p}
+                  </button>
+                ))}
+              </div>
+              {quote && backing && (
+                <div className="rs-quote">
+                  ${quote.payoutUsd.toFixed(2)} if @{(backing === "a" ? data.a : data.b).handle} wins
+                </div>
+              )}
+              <div className="rs-sign-row">
+                {custom === null ? (
+                  <button
+                    className="rs-custom-btn"
+                    onClick={() => {
+                      setCustom("");
+                      setAmount(null);
+                    }}
+                  >
+                    Custom
+                  </button>
+                ) : (
+                  <input
+                    className="rs-custom-input"
+                    inputMode="decimal"
+                    autoFocus
+                    placeholder="$0"
+                    value={custom}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/[^0-9.]/g, "");
+                      setCustom(raw);
+                      const v = Number(raw);
+                      setAmount(v > 0 ? v : null);
+                    }}
+                    onBlur={() => {
+                      if (!custom) setCustom(null);
+                    }}
+                  />
+                )}
+                <button className={amount && backing ? "rs-sign rs-sign-on" : "rs-sign"} disabled={!amount || !backing} onClick={sign}>
+                  Sign
+                </button>
+              </div>
+            </>
+          )}
 
-      <section className="card">
-        <h2>who is in</h2>
-        {trades.length === 0 ? (
-          <p className="muted">nobody yet. first money sets the tone.</p>
-        ) : (
-          <table className="table">
-            <tbody>
-              {trades.map((t) => (
-                <tr key={t.handle + t.amountUsd}>
-                  <td>
-                    <Link href={`/${t.handle}`}>@{t.handle}</Link>
-                  </td>
-                  <td className="muted">
-                    on @{t.side === "a" ? data.a.handle : data.b.handle}
-                  </td>
-                  <td className="num">{fmtUsd(t.amountUsd)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </section>
-
-      <section className="card">
-        <h2>where the fees go</h2>
-        <p className="muted">1.25% on every trade, split five ways:</p>
-        <table className="table">
-          <tbody>
-            {recipients.map((r) => (
-              <tr key={r.label}>
-                <td>
-                  {r.label.startsWith("@") ? (
-                    <Link href={`/${r.label.slice(1)}`}>{r.label}</Link>
-                  ) : (
-                    r.label
+          {position && open && (
+            <div className="position-mod">
+              <div className="mod-row">
+                <span>your position</span>
+                <span className="mod-strong">
+                  {position.tokens.toLocaleString()} on @{position.side === "a" ? data.a.handle : data.b.handle}
+                </span>
+              </div>
+              <div className="mod-row">
+                <span>sell now</span>
+                <span className="mod-strong">{fmtUsd2(position.netStakedUsd * 0.96)}</span>
+              </div>
+              <div className="mod-row">
+                <span>if held and @{position.side === "a" ? data.a.handle : data.b.handle} wins</span>
+                <span className="mod-strong">
+                  {fmtUsd2(
+                    quotePayout({
+                      stakeUsd: position.netStakedUsd,
+                      potAUsd: data.a.potUsd - (position.side === "a" ? position.netStakedUsd : 0),
+                      potBUsd: data.b.potUsd - (position.side === "b" ? position.netStakedUsd : 0),
+                      yourSideUsd:
+                        (position.side === "a" ? data.a.potUsd : data.b.potUsd) - position.netStakedUsd,
+                    }).payoutUsd,
                   )}
-                </td>
-                <td className="muted">{r.note}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </section>
+                </span>
+              </div>
+              <div className="mod-row">
+                <span>exit fee right now</span>
+                <span className="mod-strong">{exitFeePct}%</span>
+              </div>
+              <button className="sell-btn" onClick={() => console.log("sell")}>
+                sell
+              </button>
+            </div>
+          )}
+        </div>
 
-      <p className="page-empty">
-        <Link href={`/p/${market.postId}`}>all markets on this post</Link>
-      </p>
-    </main>
+        <div className="card mod">
+          {trades.length === 0 ? (
+            <div className="mod-row"><span className="mod-quiet">nobody in yet</span></div>
+          ) : (
+            trades.map((t) => (
+              <div className="mod-row" key={t.handle + t.amountUsd}>
+                <Link href={`/${t.handle}`}>@{t.handle}</Link>
+                <span className="mod-quiet">on @{t.side === "a" ? data.a.handle : data.b.handle}</span>
+                <span className="mod-strong">{fmtUsd(t.amountUsd)}</span>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="card mod">
+          <div className="mod-row"><span className="mod-quiet">1.25% per trade, split five ways</span></div>
+          {recipients.map((r) => (
+            <div className="mod-row" key={r.label}>
+              {r.href ? <Link href={r.href}>{r.label}</Link> : <span>{r.label}</span>}
+              <span className="mod-quiet">{r.note}</span>
+            </div>
+          ))}
+        </div>
+
+        <div className="card mod">
+          <div className="mod-row">
+            <span className="mod-quiet">staked</span>
+            <span className="mod-strong">{fmtUsd(data.a.potUsd + data.b.potUsd)}</span>
+          </div>
+          <div className="mod-row">
+            <span className="mod-quiet">settles</span>
+            <span className="mod-strong">
+              {data.status === "open" ? `in ${timeLeft(data.settlesAtMs)}` : "closed"}
+            </span>
+          </div>
+          <div className="mod-row">
+            <span className="mod-quiet">post</span>
+            <Link href={`/p/${market.postId}`}>all markets on it</Link>
+          </div>
+        </div>
+      </aside>
+    </div>
   );
 }

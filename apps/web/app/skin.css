@@ -552,3 +552,9 @@ body {
   .profile-header { flex-wrap: wrap; }
 }
 .chart-tip-label { font-size: 9.5px; font-weight: 700; fill: var(--gunmetal); }
+
+/* -- links: no underscores at rest, anywhere. Weight and colour carry
+   link identity; underline is hover feedback only. ------------------------ */
+a { text-decoration: none; }
+.page a:hover, .card a:hover, .mod-row a:hover, .side-more:hover,
+.profile-x:hover, .rs-placed-link:hover { text-decoration: underline; }

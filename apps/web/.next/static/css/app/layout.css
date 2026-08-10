@@ -128,10 +128,11 @@ body {
 .rs-expand {
   color: var(--rs-muted);
   font-size: 12px;
+  font-weight: 700;
   cursor: pointer;
-  text-decoration: underline;
   margin-left: 4px;
 }
+.rs-expand:hover { color: var(--rs-fg); }
 .rs-row-likes {
   display: inline-flex;
   align-items: center;
@@ -209,7 +210,7 @@ body {
 .rs-placed-link {
   color: var(--rs-fg);
   font-weight: 700;
-  text-decoration: underline;
+  text-decoration: none;
   white-space: nowrap;
 }
 .rs-presets { display: grid; grid-template-columns: repeat(3, 1fr); grid-gap: 5px; gap: 5px; }
@@ -817,4 +818,10 @@ body {
   .profile-header { flex-wrap: wrap; }
 }
 .chart-tip-label { font-size: 9.5px; font-weight: 700; fill: var(--gunmetal); }
+
+/* -- links: no underscores at rest, anywhere. Weight and colour carry
+   link identity; underline is hover feedback only. ------------------------ */
+a { text-decoration: none; }
+.page a:hover, .card a:hover, .mod-row a:hover, .side-more:hover,
+.profile-x:hover, .rs-placed-link:hover { text-decoration: underline; }
 

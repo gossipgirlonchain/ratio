@@ -1,0 +1,521 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>creator application</title>
+<style>
+/* rounded neobrutalism. Tokens mirror the app's skin.css. */
+:root {
+  --bg: #131416;
+  --surface: #1E2023;
+  --ink: #E9EAEC;
+  --ink-muted: #A2A8AD;
+  --accent: #CEF17B;
+  --accent-strong: #B8DB6E;
+  --on-accent: #131608;
+  --accent-text: #CEF17B;
+  --accent-2: #8FB0AB;
+  --err: #FF8A70;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #F4F3EE;
+    --surface: #F4F3EE;
+    --ink: #17191B;
+    --ink-muted: #4C5155;
+    --accent: #B8DD57;
+    --accent-strong: #A6CB49;
+    --on-accent: #131608;
+    --accent-text: #5F7A1E;
+    --accent-2: #52736D;
+    --err: #C2401C;
+  }
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg); color: var(--ink);
+  min-height: 100vh;
+}
+.wrap { max-width: 560px; margin: 0 auto; padding: 22px 16px 90px; }
+
+/* masthead: plain-text wordmark, no assets */
+.masthead { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
+.wordmark {
+  font-size: 26px; font-weight: 900; letter-spacing: -0.03em; line-height: 1;
+  background: var(--accent); color: var(--on-accent);
+  padding: 1px 7px 3px; border-radius: 8px; display: inline-block;
+  transform: rotate(-1.2deg);
+}
+.tag { color: var(--accent-2); font-size: 12px; font-weight: 600; }
+.intro { color: var(--ink-muted); font-size: 13.5px; line-height: 1.5; margin: 10px 0 18px; }
+
+/* progress */
+.progress { display: flex; gap: 6px; margin-bottom: 16px; }
+.progress span {
+  flex: 1; height: 6px; border-radius: 999px;
+  border: 1.5px solid var(--ink); background: none;
+}
+.progress span.done { background: var(--accent); border-color: var(--ink); }
+.step-label {
+  font-size: 10.5px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.08em; color: var(--ink-muted); margin-bottom: 10px;
+}
+
+/* card */
+.card {
+  background: var(--surface); border: 2px solid var(--ink); border-radius: 12px;
+  box-shadow: 4px 4px 0 var(--accent);
+  padding: 16px;
+}
+
+/* fields */
+.field { margin-bottom: 16px; }
+.field:last-child { margin-bottom: 0; }
+label, .q {
+  display: block; font-size: 13.5px; font-weight: 800; margin-bottom: 5px;
+}
+.hint { display: block; font-weight: 600; font-size: 11.5px; color: var(--ink-muted); margin-top: 2px; }
+input[type="text"], input[type="url"], input[type="number"], select, textarea {
+  width: 100%; font: inherit; font-size: 15px;
+  background: var(--bg); color: var(--ink);
+  border: 2px solid var(--ink); border-radius: 10px;
+  padding: 9px 12px; outline: none;
+  appearance: none; -webkit-appearance: none;
+}
+select {
+  background-image: linear-gradient(45deg, transparent 50%, var(--ink-muted) 50%),
+                    linear-gradient(135deg, var(--ink-muted) 50%, transparent 50%);
+  background-position: calc(100% - 18px) 50%, calc(100% - 13px) 50%;
+  background-size: 5px 5px; background-repeat: no-repeat;
+  padding-right: 34px;
+}
+input:focus-visible, select:focus-visible, textarea:focus-visible {
+  border-color: var(--ink); box-shadow: 2px 2px 0 var(--accent);
+}
+textarea { min-height: 96px; resize: vertical; }
+.invalid { border-color: var(--err) !important; }
+.err-msg { color: var(--err); font-size: 12px; font-weight: 700; margin-top: 4px; display: none; }
+.invalid ~ .err-msg, .err-msg.show { display: block; }
+
+/* multi-select chips */
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { position: relative; }
+.chip input {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  opacity: 0; cursor: pointer; margin: 0;
+}
+.chip span {
+  display: inline-block; border: 2px solid var(--ink); border-radius: 999px;
+  padding: 6px 13px; font-size: 12.5px; font-weight: 700; cursor: pointer;
+  user-select: none;
+}
+.chip input:checked + span { background: var(--accent); color: var(--on-accent); }
+.chip input:focus-visible + span { box-shadow: 2px 2px 0 var(--accent); }
+.chip input:disabled + span { opacity: 0.35; cursor: default; }
+#audOtherText { margin-top: 8px; display: none; }
+#audOtherText.show { display: block; }
+
+/* radio list (availability) */
+.radios { display: flex; flex-direction: column; gap: 8px; }
+.radio { position: relative; }
+.radio input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; margin: 0; }
+.radio span {
+  display: block; border: 2px solid var(--ink); border-radius: 10px;
+  padding: 9px 12px; font-size: 13.5px; font-weight: 700; cursor: pointer;
+}
+.radio input:checked + span { background: var(--accent); color: var(--on-accent); }
+.radio input:focus-visible + span { box-shadow: 2px 2px 0 var(--accent); }
+#availOtherText { display: none; margin-top: 8px; }
+#availOtherText.show { display: block; }
+
+/* rate card: a menu, not a survey */
+.menu-note { color: var(--ink-muted); font-size: 13px; line-height: 1.5; margin-bottom: 14px; }
+.rate-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 11px 0; border-top: 1px solid color-mix(in srgb, var(--ink) 15%, transparent);
+}
+.rate-row:first-of-type { border-top: none; padding-top: 0; }
+.rate-info { flex: 1; min-width: 0; }
+.rate-name { font-size: 14px; font-weight: 800; display: block; margin-bottom: 1px; }
+.rate-desc { font-size: 11.5px; color: var(--ink-muted); font-weight: 600; line-height: 1.35; }
+.rate-price { position: relative; flex-shrink: 0; width: 108px; }
+.rate-price b {
+  position: absolute; left: 11px; top: 50%; transform: translateY(-50%);
+  font-weight: 800; color: var(--ink-muted); font-size: 14px; pointer-events: none;
+}
+.rate-price input { padding-left: 26px; font-variant-numeric: tabular-nums; font-weight: 700; }
+.rate-price.plus b { content: "+"; }
+.bundle {
+  margin-top: 14px; padding: 12px; border: 2px solid var(--ink); border-radius: 10px;
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+}
+.bundle .q { margin-bottom: 2px; }
+.bundle .hint { margin-bottom: 8px; }
+
+/* nav buttons */
+.nav { display: flex; gap: 10px; margin-top: 18px; }
+.btn {
+  font: inherit; font-weight: 800; font-size: 14px; cursor: pointer;
+  border: 2px solid var(--ink); border-radius: 999px; padding: 10px 22px;
+}
+.btn-next {
+  flex: 1; background: var(--accent); color: var(--on-accent);
+  box-shadow: 3px 3px 0 var(--ink);
+  transition: transform 90ms ease, box-shadow 90ms ease;
+}
+.btn-next:hover { background: var(--accent-strong); transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--ink); }
+.btn-next:active { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--ink); }
+.btn-next:disabled { opacity: 0.6; cursor: default; transform: none; box-shadow: 3px 3px 0 var(--ink); }
+.btn-back { background: none; color: var(--ink); }
+.btn-back:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.btn:focus-visible { outline: none; box-shadow: 3px 3px 0 var(--accent-2); }
+
+.step { display: none; }
+.step.on { display: block; }
+.form-err {
+  display: none; margin-top: 12px; font-size: 13px; font-weight: 700;
+  color: var(--err); text-align: center;
+}
+.form-err.show { display: block; }
+
+/* full-screen confirmation */
+#done {
+  position: fixed; inset: 0; background: var(--bg); z-index: 50;
+  display: none; align-items: center; justify-content: center; text-align: center;
+  padding: 24px;
+}
+#done.show { display: flex; }
+#done h1 { font-size: 30px; font-weight: 900; letter-spacing: -0.03em; line-height: 1.3; }
+#done h1 em {
+  font-style: normal; background: var(--accent); color: var(--on-accent);
+  padding: 0 8px 2px; border-radius: 8px; display: inline-block; transform: rotate(-1.2deg);
+}
+@media (max-width: 420px) {
+  .rate-price { width: 96px; }
+  .wrap { padding-top: 16px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="masthead">
+    <span class="wordmark">ratio</span>
+    <span class="tag">creator application · launch campaign</span>
+  </header>
+  <p class="intro">One-off launch campaign. You set your prices. We pay in USDC/SOL on delivery. Accepted creators get a brief, assets, and confirmation before launch day.</p>
+
+  <div class="progress" aria-hidden="true"><span id="p1"></span><span id="p2"></span><span id="p3"></span></div>
+  <div class="step-label" id="stepLabel">step 1 of 3 · you &amp; your audience</div>
+
+  <form id="app" novalidate>
+
+  <!-- ============ STEP 1 ============ -->
+  <section class="step on card" id="step1">
+    <div class="field">
+      <label for="name">Name / alias</label>
+      <input type="text" id="name" name="name" autocomplete="nickname" required>
+      <p class="err-msg">required</p>
+    </div>
+    <div class="field">
+      <label for="xhandle">X (Twitter) handle</label>
+      <input type="text" id="xhandle" name="xhandle" placeholder="@handle" autocapitalize="none" autocorrect="off" required>
+      <p class="err-msg">enter your handle</p>
+    </div>
+    <div class="field">
+      <label for="followers">Follower count on X</label>
+      <select id="followers" name="followers" required>
+        <option value="" selected disabled>select</option>
+        <option>Under 5K</option><option>5K–15K</option><option>15K–50K</option>
+        <option>50K–150K</option><option>150K+</option>
+      </select>
+      <p class="err-msg">required</p>
+    </div>
+    <div class="field">
+      <label for="avgviews">Average views per post, last 30 days</label>
+      <span class="hint">Pull from your analytics. This matters more to us than follower count.</span>
+      <select id="avgviews" name="avgviews" required style="margin-top:6px">
+        <option value="" selected disabled>select</option>
+        <option>Under 5K</option><option>5K–20K</option><option>20K–75K</option>
+        <option>75K–250K</option><option>250K+</option>
+      </select>
+      <p class="err-msg">required</p>
+    </div>
+    <div class="field">
+      <span class="q" id="audLabel">What's your audience into? <span class="hint" style="display:inline">pick up to 3</span></span>
+      <div class="chips" role="group" aria-labelledby="audLabel" id="audChips">
+        <label class="chip"><input type="checkbox" name="audience" value="DeFi"><span>DeFi</span></label>
+        <label class="chip"><input type="checkbox" name="audience" value="Trenches / memecoins"><span>Trenches / memecoins</span></label>
+        <label class="chip"><input type="checkbox" name="audience" value="Pokémon, gacha & collectibles"><span>Pokémon, gacha &amp; collectibles</span></label>
+        <label class="chip"><input type="checkbox" name="audience" value="Trading / TA"><span>Trading / TA</span></label>
+        <label class="chip"><input type="checkbox" name="audience" value="NFTs"><span>NFTs</span></label>
+        <label class="chip"><input type="checkbox" name="audience" value="Gaming"><span>Gaming</span></label>
+        <label class="chip"><input type="checkbox" name="audience" value="Airdrops / farming"><span>Airdrops / farming</span></label>
+        <label class="chip"><input type="checkbox" name="audience" value="Consumer Crypto"><span>Consumer Crypto</span></label>
+        <label class="chip"><input type="checkbox" name="audience" value="Technical"><span>Technical</span></label>
+        <label class="chip"><input type="checkbox" name="audience" value="Other" id="audOther"><span>Other</span></label>
+      </div>
+      <input type="text" id="audOtherText" placeholder="tell us" aria-label="Other audience">
+      <p class="err-msg" id="audErr">pick at least one</p>
+    </div>
+    <div class="field">
+      <label for="tghandle">Telegram handle</label>
+      <input type="text" id="tghandle" name="tghandle" placeholder="@handle" autocapitalize="none" autocorrect="off" required>
+      <p class="err-msg">required</p>
+    </div>
+    <div class="field">
+      <label for="tgchannel">Telegram channel or group? Drop the link + member count</label>
+      <span class="hint">optional</span>
+      <input type="text" id="tgchannel" name="tgchannel" style="margin-top:6px" placeholder="t.me/… · 2,400 members">
+    </div>
+    <div class="field">
+      <label for="post1">Your 2 best-performing posts from the last 30 days</label>
+      <input type="url" id="post1" name="post1" placeholder="https://x.com/…" inputmode="url" autocapitalize="none" required>
+      <p class="err-msg">must be an x.com or twitter.com link</p>
+    </div>
+    <div class="field">
+      <label for="post2" class="hint" style="margin-bottom:5px">second post</label>
+      <input type="url" id="post2" name="post2" placeholder="https://x.com/…" inputmode="url" autocapitalize="none" required>
+      <p class="err-msg">must be an x.com or twitter.com link</p>
+    </div>
+  </section>
+
+  <!-- ============ STEP 2 ============ -->
+  <section class="step card" id="step2">
+    <p class="menu-note">One-off launch campaign, not a retainer. Price each deliverable you're open to, in USD. Leave anything blank you don't want to do. We may order one item or several.</p>
+    <div class="rate-row">
+      <div class="rate-info"><label class="rate-name" for="r_video">30-second video</label><span class="rate-desc">Talking head or screen-record, posted natively to your X</span></div>
+      <div class="rate-price"><b>$</b><input type="number" id="r_video" name="rate_video" min="0" step="1" inputmode="numeric" placeholder="0" aria-label="30-second video price in USD"></div>
+    </div>
+    <div class="rate-row">
+      <div class="rate-info"><label class="rate-name" for="r_post">Standing post</label><span class="rate-desc">Original tweet in your own voice</span></div>
+      <div class="rate-price"><b>$</b><input type="number" id="r_post" name="rate_post" min="0" step="1" inputmode="numeric" placeholder="0" aria-label="Standing post price in USD"></div>
+    </div>
+    <div class="rate-row">
+      <div class="rate-info"><label class="rate-name" for="r_thread">Thread</label><span class="rate-desc">3+ tweet deep-dive</span></div>
+      <div class="rate-price"><b>$</b><input type="number" id="r_thread" name="rate_thread" min="0" step="1" inputmode="numeric" placeholder="0" aria-label="Thread price in USD"></div>
+    </div>
+    <div class="rate-row">
+      <div class="rate-info"><label class="rate-name" for="r_qt">Quote tweet</label><span class="rate-desc">QT of our launch post with your take</span></div>
+      <div class="rate-price"><b>$</b><input type="number" id="r_qt" name="rate_qt" min="0" step="1" inputmode="numeric" placeholder="0" aria-label="Quote tweet price in USD"></div>
+    </div>
+    <div class="rate-row">
+      <div class="rate-info"><label class="rate-name" for="r_rt">Retweet</label><span class="rate-desc">Straight RT of our launch post</span></div>
+      <div class="rate-price"><b>$</b><input type="number" id="r_rt" name="rate_rt" min="0" step="1" inputmode="numeric" placeholder="0" aria-label="Retweet price in USD"></div>
+    </div>
+    <div class="rate-row">
+      <div class="rate-info"><label class="rate-name" for="r_comment">Comment</label><span class="rate-desc">Reply under a key launch post</span></div>
+      <div class="rate-price"><b>$</b><input type="number" id="r_comment" name="rate_comment" min="0" step="1" inputmode="numeric" placeholder="0" aria-label="Comment price in USD"></div>
+    </div>
+    <div class="rate-row">
+      <div class="rate-info"><label class="rate-name" for="r_tg">Telegram post</label><span class="rate-desc">Post or forward to your TG channel/group</span></div>
+      <div class="rate-price"><b>$</b><input type="number" id="r_tg" name="rate_tg" min="0" step="1" inputmode="numeric" placeholder="0" aria-label="Telegram post price in USD"></div>
+    </div>
+    <div class="rate-row">
+      <div class="rate-info"><label class="rate-name" for="r_pin">Pinned post, 24h</label><span class="rate-desc">Any of the above pinned to your profile for 24 hours</span></div>
+      <div class="rate-price"><b>+$</b><input type="number" id="r_pin" name="rate_pin" min="0" step="1" inputmode="numeric" placeholder="0" style="padding-left:36px" aria-label="Pinned post add-on price in USD"></div>
+    </div>
+    <div class="bundle">
+      <span class="q">Launch bundle</span>
+      <span class="hint">If we booked your top 3 deliverables together, what's your bundle price? Optional.</span>
+      <div class="rate-price" style="width:140px"><b>$</b><input type="number" id="r_bundle" name="rate_bundle" min="0" step="1" inputmode="numeric" placeholder="0" aria-label="Bundle price in USD"></div>
+    </div>
+  </section>
+
+  <!-- ============ STEP 3 ============ -->
+  <section class="step card" id="step3">
+    <div class="field">
+      <label for="wallet">Solana wallet for USDC/SOL payout</label>
+      <span class="hint">optional now, required if accepted</span>
+      <input type="text" id="wallet" name="wallet" style="margin-top:6px" autocapitalize="none" autocorrect="off" spellcheck="false">
+      <p class="err-msg">that doesn't look like a Solana address</p>
+    </div>
+    <div class="field">
+      <span class="q" id="availLabel">Launch-week availability</span>
+      <div class="radios" role="radiogroup" aria-labelledby="availLabel" id="availRadios">
+        <label class="radio"><input type="radio" name="availability" value="Locked in for launch day"><span>Locked in for launch day</span></label>
+        <label class="radio"><input type="radio" name="availability" value="Launch week, flexible on the day"><span>Launch week, flexible on the day</span></label>
+        <label class="radio"><input type="radio" name="availability" value="Tight, can fit one or two deliverables"><span>Tight, can fit one or two deliverables</span></label>
+        <label class="radio"><input type="radio" name="availability" value="Other" id="availOther"><span>Other</span></label>
+      </div>
+      <input type="text" id="availOtherText" placeholder="tell us" aria-label="Other availability">
+      <p class="err-msg" id="availErr">pick one</p>
+    </div>
+    <div class="field">
+      <label for="notes">Anything else we should know?</label>
+      <span class="hint">optional. Past paid campaigns, other platforms you're big on, ideas for the launch.</span>
+      <textarea id="notes" name="notes" style="margin-top:6px"></textarea>
+    </div>
+  </section>
+
+  <div class="nav">
+    <button type="button" class="btn btn-back" id="back" style="display:none">back</button>
+    <button type="button" class="btn btn-next" id="next">next</button>
+  </div>
+  <p class="form-err" id="formErr"></p>
+  </form>
+</div>
+
+<div id="done" role="alert">
+  <h1>got it.<br>we'll be in <em>touch</em>.</h1>
+</div>
+
+<script>
+// Point this at a Tally webhook, Apps Script, or your own API.
+const SUBMIT_URL = "https://example.com/submit";
+
+const steps = [1, 2, 3].map(n => document.getElementById("step" + n));
+const labels = ["you & your audience", "set your prices", "logistics"];
+const backBtn = document.getElementById("back");
+const nextBtn = document.getElementById("next");
+const formErr = document.getElementById("formErr");
+let cur = 0;
+
+function show(i) {
+  steps.forEach((s, j) => s.classList.toggle("on", j === i));
+  [1, 2, 3].forEach(n => document.getElementById("p" + n).classList.toggle("done", n <= i + 1));
+  document.getElementById("stepLabel").textContent = "step " + (i + 1) + " of 3 · " + labels[i];
+  backBtn.style.display = i === 0 ? "none" : "";
+  nextBtn.textContent = i === 2 ? "submit" : "next";
+  formErr.classList.remove("show");
+  cur = i;
+  window.scrollTo({ top: 0 });
+}
+
+// -- validation helpers ----------------------------------------------------
+const $ = id => document.getElementById(id);
+function mark(el, bad) { el.classList.toggle("invalid", bad); return !bad; }
+function isXUrl(v) {
+  try {
+    const h = new URL(v).hostname.replace(/^www\./, "");
+    return h === "x.com" || h === "twitter.com" || h.endsWith(".x.com") || h.endsWith(".twitter.com");
+  } catch { return false; }
+}
+const isSol = v => /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(v);
+const cleanHandle = v => v.trim().replace(/^@+/, "");
+
+$("xhandle").addEventListener("blur", e => { e.target.value = cleanHandle(e.target.value); });
+$("tghandle").addEventListener("blur", e => { e.target.value = cleanHandle(e.target.value); });
+
+// live clearing: once a flagged field passes, the red goes away immediately
+const fieldTests = {
+  name: v => v.length > 0,
+  xhandle: v => cleanHandle(v).length > 0,
+  followers: v => v.length > 0,
+  avgviews: v => v.length > 0,
+  tghandle: v => cleanHandle(v).length > 0,
+  post1: isXUrl,
+  post2: isXUrl,
+  wallet: v => v === "" || isSol(v)
+};
+Object.entries(fieldTests).forEach(([id, test]) => {
+  const el = $(id);
+  ["input", "change"].forEach(ev => el.addEventListener(ev, () => {
+    if (el.classList.contains("invalid") && test(el.value.trim())) el.classList.remove("invalid");
+  }));
+});
+
+// audience: max 3, Other reveals text
+const audBoxes = [...document.querySelectorAll('input[name="audience"]')];
+function audSync() {
+  const on = audBoxes.filter(b => b.checked);
+  audBoxes.forEach(b => { b.disabled = !b.checked && on.length >= 3; });
+  $("audOtherText").classList.toggle("show", $("audOther").checked);
+  if (on.length) $("audErr").classList.remove("show");
+}
+audBoxes.forEach(b => b.addEventListener("change", audSync));
+
+// availability: Other reveals text
+document.querySelectorAll('input[name="availability"]').forEach(r =>
+  r.addEventListener("change", () => {
+    $("availOtherText").classList.toggle("show", $("availOther").checked);
+    $("availErr").classList.remove("show");
+  }));
+
+function validStep1() {
+  let ok = true, first = null;
+  const req = (el, test) => {
+    const good = mark(el, !test(el.value.trim()));
+    if (!good && !first) first = el;
+    ok = ok && good;
+  };
+  req($("name"), v => v.length > 0);
+  req($("xhandle"), v => cleanHandle(v).length > 0);
+  req($("followers"), v => v.length > 0);
+  req($("avgviews"), v => v.length > 0);
+  req($("tghandle"), v => cleanHandle(v).length > 0);
+  req($("post1"), isXUrl);
+  req($("post2"), isXUrl);
+  if (!audBoxes.some(b => b.checked)) { $("audErr").classList.add("show"); ok = false; first = first || $("audChips"); }
+  if (first && first.focus) first.focus();
+  return ok;
+}
+function validStep3() {
+  let ok = true;
+  const w = $("wallet").value.trim();
+  ok = mark($("wallet"), w.length > 0 && !isSol(w)) && ok;
+  if (!document.querySelector('input[name="availability"]:checked')) {
+    $("availErr").classList.add("show"); ok = false;
+  }
+  return ok;
+}
+
+// -- payload ---------------------------------------------------------------
+function num(id) { const v = $(id).value.trim(); return v === "" ? null : Math.max(0, Math.round(Number(v))); }
+function payload() {
+  const audience = audBoxes.filter(b => b.checked).map(b =>
+    b.value === "Other" ? "Other: " + $("audOtherText").value.trim() : b.value);
+  const avail = document.querySelector('input[name="availability"]:checked');
+  return {
+    name: $("name").value.trim(),
+    x_handle: cleanHandle($("xhandle").value),
+    followers: $("followers").value,
+    avg_views_30d: $("avgviews").value,
+    audience,
+    telegram_handle: cleanHandle($("tghandle").value),
+    telegram_channel: $("tgchannel").value.trim() || null,
+    best_posts: [$("post1").value.trim(), $("post2").value.trim()],
+    rates: {
+      video_30s: num("r_video"), standing_post: num("r_post"), thread: num("r_thread"),
+      quote_tweet: num("r_qt"), retweet: num("r_rt"), comment: num("r_comment"),
+      telegram_post: num("r_tg"), pinned_24h_addon: num("r_pin"), bundle: num("r_bundle")
+    },
+    sol_wallet: $("wallet").value.trim() || null,
+    availability: avail ? (avail.value === "Other" ? "Other: " + $("availOtherText").value.trim() : avail.value) : null,
+    notes: $("notes").value.trim() || null,
+    submitted_at: new Date().toISOString()
+  };
+}
+
+async function submit() {
+  nextBtn.disabled = true; nextBtn.textContent = "sending…";
+  formErr.classList.remove("show");
+  try {
+    const res = await fetch(SUBMIT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload())
+    });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    document.getElementById("done").classList.add("show");
+  } catch {
+    formErr.textContent = "didn't go through. Your answers are safe on this page, hit submit again.";
+    formErr.classList.add("show");
+    nextBtn.disabled = false; nextBtn.textContent = "submit";
+  }
+}
+
+nextBtn.addEventListener("click", () => {
+  if (cur === 0) { if (validStep1()) show(1); }
+  else if (cur === 1) show(2);
+  else if (validStep3()) submit();
+});
+backBtn.addEventListener("click", () => show(Math.max(0, cur - 1)));
+document.getElementById("app").addEventListener("submit", e => e.preventDefault());
+show(0);
+</script>
+</body>
+</html>

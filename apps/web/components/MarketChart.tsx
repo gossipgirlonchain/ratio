@@ -14,8 +14,12 @@ import { useMemo, useRef, useState } from "react";
 
 import type { ChartSeries } from "../lib/fixtures";
 
-const A = "#2E7DBF";
-const B = "#7A9A2E";
+/** Side colours — shared with the matchup header's avatar rings, which
+ * are the chart's key (no text legend). */
+export const SIDE_A_COLOR = "#2E7DBF";
+export const SIDE_B_COLOR = "#7A9A2E";
+const A = SIDE_A_COLOR;
+const B = SIDE_B_COLOR;
 
 const W = 640;
 const LINE_H = 230;
@@ -72,11 +76,6 @@ export function MarketChart({
 
   return (
     <div className="chart-wrap">
-      <div className="chart-legend">
-        <span><i className="chart-swatch" style={{ background: A }} /> @{handleA} likes</span>
-        <span><i className="chart-swatch" style={{ background: B }} /> @{handleB} likes</span>
-        <span className="chart-legend-vol"><i className="chart-swatch chart-swatch-bar" /> money in ↑ · out ↓</span>
-      </div>
       <svg
         ref={svgRef}
         viewBox={`0 0 ${W} ${H_TOTAL}`}
@@ -145,31 +144,35 @@ export function MarketChart({
             <circle cx={x(hover)} cy={yLike(series.likesA[hover]!)} r="3.5" fill={A} stroke="#fff" strokeWidth="1.5" />
             <circle cx={x(hover)} cy={yLike(series.likesB[hover]!)} r="3.5" fill={B} stroke="#fff" strokeWidth="1.5" />
             {(() => {
-              // money split by side, matching the bars' colour encoding;
-              // the out row disappears entirely when the interval had no sells
+              // money split by side, matching the bars' colour encoding.
+              // ONE rule for both directions: a money row exists only when
+              // the interval moved money that way — in and out alike.
+              const inA = Math.round(series.buyA[hover]!);
+              const inB = Math.round(series.buyB[hover]!);
               const outA = Math.round(series.sellA[hover]!);
               const outB = Math.round(series.sellB[hover]!);
-              const hasOut = outA + outB > 0;
+              const rows: Array<[string, string, string]> = [
+                ["like", fmtLikes(series.likesA[hover]!), fmtLikes(series.likesB[hover]!)],
+              ];
+              if (inA + inB > 0) rows.push(["in", `$${inA}`, `$${inB}`]);
+              if (outA + outB > 0) rows.push(["out", `$${outA}`, `$${outB}`]);
               const TIP_W = 158;
-              const TIP_H = hasOut ? 76 : 61;
+              const TIP_H = 22 + rows.length * 15 + 6;
               // flip early enough to clear the y-max label at the right edge
               const tipX = x(hover) + TIP_W + 16 > W - PAD.r ? x(hover) - TIP_W - 12 : x(hover) + 12;
-              const row = (label: string, y: number, va: string, vb: string) => (
-                <g key={label}>
-                  <text x="9" y={y} className="chart-tip-label">{label}</text>
-                  <circle cx="44" cy={y - 3} r="3" fill={A} />
-                  <text x="52" y={y} className="chart-tip-text">{va}</text>
-                  <circle cx="103" cy={y - 3} r="3" fill={B} />
-                  <text x="111" y={y} className="chart-tip-text">{vb}</text>
-                </g>
-              );
               return (
                 <g transform={`translate(${tipX}, ${PAD.top + 12})`}>
                   <rect width={TIP_W} height={TIP_H} rx="8" className="chart-tip" />
                   <text x="9" y="15" className="chart-tip-time">{fmtClock(series.ts[hover]!)}</text>
-                  {row("like", 31, fmtLikes(series.likesA[hover]!), fmtLikes(series.likesB[hover]!))}
-                  {row("in", 46, `$${Math.round(series.buyA[hover]!)}`, `$${Math.round(series.buyB[hover]!)}`)}
-                  {hasOut && row("out", 61, `$${outA}`, `$${outB}`)}
+                  {rows.map(([label, va, vb], r) => (
+                    <g key={label}>
+                      <text x="9" y={31 + r * 15} className="chart-tip-label">{label}</text>
+                      <circle cx="44" cy={28 + r * 15} r="3" fill={A} />
+                      <text x="52" y={31 + r * 15} className="chart-tip-text">{va}</text>
+                      <circle cx="103" cy={28 + r * 15} r="3" fill={B} />
+                      <text x="111" y={31 + r * 15} className="chart-tip-text">{vb}</text>
+                    </g>
+                  ))}
                 </g>
               );
             })()}

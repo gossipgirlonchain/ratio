@@ -405,12 +405,13 @@ body {
   max-width: 1100px; padding: 18px 24px 60px;
 }
 .market-centre { min-width: 0; }
-.match-head { padding: 12px 14px; }
-.match-row { display: flex; align-items: center; gap: 10px; padding: 4px 0; min-width: 0; }
-.match-handle { font-weight: 800; font-size: 13.5px; white-space: nowrap; }
+.match-head { padding: 16px 18px; }
+.match-row { display: flex; align-items: flex-start; gap: 12px; padding: 7px 0; min-width: 0; }
+.match-avatar { width: 36px; height: 36px; border-width: 3px; flex-shrink: 0; }
+.match-body { flex: 1; min-width: 0; }
+.match-handle { font-weight: 800; font-size: 14px; }
 .match-text {
-  color: var(--gunmetal); font-size: 13px; min-width: 0;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; flex: 1;
+  color: var(--gunmetal); font-size: 13.5px; line-height: 1.45; margin-top: 1px;
 }
 .match-likes { font-variant-numeric: tabular-nums; color: var(--gunmetal); font-size: 13px; white-space: nowrap; }
 .match-likes-lead { font-weight: 800; color: var(--carbon); }
@@ -424,10 +425,6 @@ body {
 .chart-card { padding: 14px; }
 .chart-wrap { width: 100%; }
 .chart-svg { width: 100%; height: auto; display: block; }
-.chart-legend { display: flex; gap: 14px; font-size: 11.5px; color: var(--gunmetal); margin-bottom: 6px; }
-.chart-legend span { display: inline-flex; align-items: center; gap: 5px; }
-.chart-swatch { width: 10px; height: 3px; border-radius: 2px; display: inline-block; background: var(--carbon); }
-.chart-swatch-bar { height: 8px; width: 6px; background: var(--gunmetal); }
 .chart-grid { stroke: color-mix(in srgb, var(--carbon) 8%, transparent); stroke-width: 1; }
 .chart-axis { stroke: color-mix(in srgb, var(--carbon) 25%, transparent); stroke-width: 1; }
 .chart-tick { font-size: 10px; fill: var(--gunmetal); }

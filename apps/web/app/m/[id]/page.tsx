@@ -13,7 +13,7 @@ import { useMemo, useState } from "react";
 
 import { quotePayout } from "@ratio/ui";
 
-import { MarketChart } from "../../../components/MarketChart";
+import { MarketChart, SIDE_A_COLOR, SIDE_B_COLOR } from "../../../components/MarketChart";
 import { useAuth } from "../../../lib/auth";
 import {
   chartSeries,
@@ -97,11 +97,19 @@ export default function MarketPage() {
                 : (who === "a") === (data.a.likes >= data.b.likes);
             return (
               <div className="match-row" key={who}>
-                <img className="rs-avatar" src={side.avatarUrl} alt="" />
-                <Link href={`/${side.handle}`} className="match-handle">
-                  @{side.handle}
-                </Link>
-                <span className="match-text">{side.text}</span>
+                {/* the ring IS the chart key — same hue as the side's line */}
+                <img
+                  className="rs-avatar match-avatar"
+                  style={{ borderColor: who === "a" ? SIDE_A_COLOR : SIDE_B_COLOR }}
+                  src={side.avatarUrl}
+                  alt=""
+                />
+                <div className="match-body">
+                  <Link href={`/${side.handle}`} className="match-handle">
+                    @{side.handle}
+                  </Link>
+                  <p className="match-text">{side.text}</p>
+                </div>
                 <span className={leading ? "match-likes match-likes-lead" : "match-likes"}>
                   ♥ {fmtLikes(side.likes)}
                 </span>

@@ -826,3 +826,15 @@ a { text-decoration: none; color: inherit; }
 .page a:hover, .card a:hover, .mod-row a:hover, .side-more:hover,
 .profile-x:hover, .rs-placed-link:hover { text-decoration: underline; }
 
+/* tab views share one grid cell: panel height = the taller tab, always */
+.panel-swap { display: grid; }
+.panel-view { grid-area: 1 / 1; min-width: 0; }
+.panel-view-off { visibility: hidden; pointer-events: none; }
+.buy-custom-row { display: flex; margin-top: 8px; }
+.buy-sign {
+  display: block; width: 100%; margin-top: 8px; padding: 7px 0;
+  border-radius: 999px; font-size: 12.5px; font-weight: 800; cursor: pointer;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.buy-sign:disabled { cursor: default; }
+

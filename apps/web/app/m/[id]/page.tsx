@@ -165,8 +165,10 @@ export default function MarketPage() {
               </button>
             </div>
           )}
-          {tab === "buy" && (
-          <>
+          {/* Both tab views share one grid cell: the panel is always the
+              taller tab's height, so switching never jumps. */}
+          <div className="panel-swap">
+          <div className={tab === "buy" ? "panel-view" : "panel-view panel-view-off"}>
           <div className="trade-sides">
             {(["a", "b"] as const).map((who) => {
               const side = who === "a" ? data.a : data.b;
@@ -202,7 +204,7 @@ export default function MarketPage() {
                   </button>
                 ))}
               </div>
-              <div className="rs-sign-row">
+              <div className="buy-custom-row">
                 {custom === null ? (
                   <button
                     className="rs-custom-btn"
@@ -231,20 +233,24 @@ export default function MarketPage() {
                     }}
                   />
                 )}
-                {/* The outcome lives ON the button — no separate payout
-                    line, nothing to jump. */}
-                <button className={amount && backing ? "rs-sign rs-sign-on" : "rs-sign"} disabled={!amount || !backing} onClick={sign}>
-                  {quote && backing
-                    ? `sign · $${quote.payoutUsd.toFixed(2)} if @${(backing === "a" ? data.a : data.b).handle} wins`
-                    : "sign"}
-                </button>
               </div>
+              {/* Full-width, mirroring the sell confirm: the outcome fits
+                  ON the button, no truncation, no separate payout line. */}
+              <button
+                className={amount && backing ? "rs-sign rs-sign-on buy-sign" : "rs-sign buy-sign"}
+                disabled={!amount || !backing}
+                onClick={sign}
+              >
+                {quote && backing
+                  ? `Sign · $${quote.payoutUsd.toFixed(2)} if @${(backing === "a" ? data.a : data.b).handle} wins`
+                  : "Sign"}
+              </button>
             </>
           )}
-          </>
-          )}
+          </div>
 
-          {tab === "sell" && open && (
+          {open && (
+            <div className={tab === "sell" ? "panel-view" : "panel-view panel-view-off"}>
             <div className="sell-tab">
               {position ? (
                 (() => {
@@ -304,7 +310,9 @@ export default function MarketPage() {
                 </div>
               )}
             </div>
+            </div>
           )}
+          </div>
         </div>
 
         <div className="card mod">

@@ -14,6 +14,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body>
+        {/* theme before first paint: no flash, remembered choice */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `document.documentElement.dataset.theme = localStorage.getItem("ratio-theme") || "dark";`,
+          }}
+        />
         <div className="shell">
           <Sidebar />
           <div className="main-col">

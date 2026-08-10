@@ -6,7 +6,7 @@
  * the count is a count, never a score.
  */
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 import { MarketStrip } from "@ratio/ui";
 
@@ -16,6 +16,7 @@ import { useMounted } from "../../../lib/useMounted";
 export default function PostPage() {
   const mounted = useMounted();
   const params = useParams<{ tweetId: string }>();
+  const router = useRouter();
   if (!mounted) return null;
 
   const list = marketsByPost(params.tweetId);
@@ -47,6 +48,7 @@ export default function PostPage() {
             data={m.data}
             onSign={(side, amount) => console.log(`sign: $${amount} on ${side}`)}
             marketHref={`/m/${m.data.marketId}`}
+            onOpen={() => router.push(`/m/${m.data.marketId}`)}
           />
         ))}
       </div>

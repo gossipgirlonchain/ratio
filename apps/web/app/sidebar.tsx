@@ -18,7 +18,17 @@ export function Sidebar() {
   const { viewer, login } = useAuth();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
-  useEffect(() => setCollapsed(localStorage.getItem(KEY) === "1"), []);
+  const [theme, setTheme] = useState<"dark" | "light">("dark");
+  useEffect(() => {
+    setCollapsed(localStorage.getItem(KEY) === "1");
+    setTheme((localStorage.getItem("ratio-theme") as "dark" | "light") || "dark");
+  }, []);
+  const flipTheme = () => {
+    const next = theme === "dark" ? "light" : "dark";
+    setTheme(next);
+    localStorage.setItem("ratio-theme", next);
+    document.documentElement.dataset.theme = next;
+  };
   const toggle = () => {
     const next = !collapsed;
     setCollapsed(next);
@@ -59,6 +69,9 @@ export function Sidebar() {
             <Link className="sidebar-cta" href="/extension">
               get the extension
             </Link>
+            <button className="side-item" onClick={flipTheme}>
+              {theme === "dark" ? "light mode" : "dark mode"}
+            </button>
             {item("/how", "how it works")}
             {item("/terms", "terms")}
             {item("/privacy", "privacy")}

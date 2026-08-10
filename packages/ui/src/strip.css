@@ -22,6 +22,9 @@
   font-size: 13px;
   line-height: 1.4;
 }
+/* whole-strip click-through: pointer + a hover cue the host can restyle */
+.rs-strip-link { cursor: pointer; }
+.rs-strip-link:hover { border-color: var(--rs-fg); }
 
 /* -- hidden-from-thread: a small inline label, never the loudest thing ---- */
 .rs-hidden-beat {

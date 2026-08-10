@@ -8,27 +8,52 @@
  * greys while the app wears this. Never fork the component for a skin.
  */
 
-:root {
-  --lime: #cef17b;
-  --lime-dark: #b8db6e;
-  --carbon: #111111;
-  --gunmetal: #393d3f;
-  --mint: #c6dbd8;
-  --paper: #ffffff;
-
-  /* strip host variables, app values */
-  --host-bg: var(--paper);
-  --host-fg: var(--carbon);
-  --host-muted: var(--gunmetal);
-  --host-border: var(--carbon);
+/* ============ THEME TOKENS — every colour is a variable ============
+   Two committed modes. Dark: off-black bg, cards slightly lighter, light
+   ink. Light: off-white bg, same-tone cards with borders, dark ink.
+   Never pure #000/#FFF. Chart pairs validated per mode (dataviz six
+   checks): dark #4E97D6/#7FA32E · light #2E7DBF/#7A9A2E. */
+:root, html[data-theme="dark"] {
+  --bg: #131416;
+  --surface: #1E2023;
+  --ink: #E9EAEC;
+  --ink-muted: #A2A8AD;
+  --accent: #CEF17B;
+  --accent-strong: #B8DB6E;
+  --on-accent: #131608;
+  --accent-text: #CEF17B;
+  --accent-2: #8FB0AB;
+  --chart-a: #4E97D6;
+  --chart-b: #7FA32E;
+}
+html[data-theme="light"] {
+  --bg: #F4F3EE;
+  --surface: #FCFCFA;
+  --ink: #17191B;
+  --ink-muted: #4C5155;
+  --accent: #B8DD57;
+  --accent-strong: #A6CB49;
+  --on-accent: #131608;
+  --accent-text: #5F7A1E;
+  --accent-2: #52736D;
+  --chart-a: #2E7DBF;
+  --chart-b: #7A9A2E;
+}
+/* legacy names map onto tokens so every existing rule themes itself */
+:root, html[data-theme] {
+  --lime: var(--accent);
+  --lime-dark: var(--accent-strong);
+  --carbon: var(--ink);
+  --gunmetal: var(--ink-muted);
+  --mint: var(--accent-2);
+  --paper: var(--surface);
+  --host-bg: var(--surface);
+  --host-fg: var(--ink);
+  --host-muted: var(--ink-muted);
+  --host-border: var(--ink);
   --host-radius: 12px;
-  /* the leader's shading — the one differentiator between the rows */
 }
-
-body {
-  background: var(--carbon);
-  color: var(--paper);
-}
+body { background: var(--bg); color: var(--ink); }
 
 /* -- page chrome ---------------------------------------------------------- */
 .masthead {
@@ -95,7 +120,9 @@ body {
 .rs-strip .rs-row-tap:hover { background: color-mix(in srgb, var(--carbon) 6%, transparent); }
 .rs-strip .rs-row-lead { background: color-mix(in srgb, var(--lime) 35%, transparent); }
 .rs-strip[data-picking] .rs-row-lead:not(.rs-row-on) { background: transparent; }
-.rs-strip .rs-row-on, .rs-strip .rs-row-on:hover { background: var(--lime); }
+.rs-strip .rs-row-on, .rs-strip .rs-row-on:hover { background: var(--accent); }
+.rs-strip .rs-row-on .rs-row-handle, .rs-strip .rs-row-on .rs-row-text,
+.rs-strip .rs-row-on .rs-row-likes, .rs-strip .rs-row-on .rs-expand { color: var(--on-accent); }
 .rs-avatar { border: 1.5px solid var(--carbon); }
 
 .rs-divider { border-top-width: 2px; }
@@ -113,8 +140,8 @@ body {
 }
 .rs-preset:hover { transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--carbon); }
 .rs-preset-on {
-  background: var(--lime);
-  color: var(--carbon);
+  background: var(--accent);
+  color: var(--on-accent);
   border-color: var(--carbon);
   box-shadow: 2px 2px 0 var(--carbon);
 }
@@ -124,8 +151,8 @@ body {
 
 .rs-sign { border-width: 2px; }
 .rs-sign-on {
-  background: var(--lime);
-  color: var(--carbon);
+  background: var(--accent);
+  color: var(--on-accent);
   border-color: var(--carbon);
   box-shadow: 3px 3px 0 var(--carbon);
   transition: transform 90ms ease, box-shadow 90ms ease;
@@ -139,12 +166,12 @@ body {
 /* success line: neutral (green stays selection-only), mint accent */
 .rs-placed {
   border-width: 2px;
-  border-color: var(--carbon);
-  background: var(--mint);
-  color: var(--carbon);
+  border-color: var(--ink);
+  background: var(--accent-2);
+  color: var(--on-accent);
   box-shadow: 2px 2px 0 var(--carbon);
 }
-.rs-placed-link { color: var(--carbon); }
+.rs-placed-link { color: var(--on-accent); }
 
 
 .page { max-width: 560px; margin: 0 auto; padding: 18px 16px 80px; }
@@ -161,7 +188,7 @@ body {
 .muted-ink, .page .muted, .card .muted { color: var(--gunmetal); }
 .page a { color: inherit; font-weight: 700; }
 .page-empty { color: var(--mint); font-size: 13px; text-align: center; margin-top: 18px; }
-.page-empty a { color: var(--lime); }
+.page-empty a { color: var(--accent-text); }
 .section-note { font-size: 11.5px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 700; color: var(--mint); margin: 14px 0 8px; }
 .timeline-flush { padding: 0; margin: 0; }
 
@@ -171,7 +198,7 @@ body {
 .table .num { text-align: right; font-variant-numeric: tabular-nums; font-weight: 700; }
 
 /* explainer for strangers */
-.explainer { display: flex; gap: 12px; align-items: flex-start; background: var(--mint); }
+.explainer { display: flex; gap: 12px; align-items: flex-start; background: var(--accent-2); color: var(--on-accent); }
 .explainer-dismiss {
   border: 2px solid var(--carbon); background: var(--paper); color: var(--carbon);
   border-radius: 999px; padding: 4px 12px; font-weight: 700; font-size: 12px;
@@ -189,7 +216,7 @@ body {
 .profile-claim { margin-left: auto; text-align: right; display: flex; flex-direction: column; gap: 6px; }
 .profile-unclaimed { font-weight: 800; font-variant-numeric: tabular-nums; }
 .claim-btn {
-  border: 2px solid var(--carbon); background: var(--lime); color: var(--carbon);
+  border: 2px solid var(--ink); background: var(--accent); color: var(--on-accent);
   border-radius: 999px; padding: 5px 12px; font-weight: 800; font-size: 12px;
   cursor: pointer; box-shadow: 2px 2px 0 var(--carbon);
 }
@@ -202,10 +229,10 @@ body {
 /* leaderboard */
 .tabs { display: flex; gap: 6px; margin-bottom: 14px; }
 .tab {
-  border: 2px solid var(--paper); background: none; color: var(--paper);
+  border: 2px solid var(--ink); background: none; color: var(--ink);
   border-radius: 999px; padding: 4px 12px; font-weight: 700; font-size: 12px; cursor: pointer;
 }
-.tab-on { background: var(--lime); color: var(--carbon); border-color: var(--lime); }
+.tab-on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
 .board-row { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
 .board-rank { font-weight: 900; font-size: 15px; width: 18px; text-align: center; }
 .board-main { display: flex; flex-direction: column; min-width: 0; }
@@ -229,7 +256,7 @@ body {
   padding: 8px 10px; border-radius: 8px; border: 1px solid var(--carbon);
 }
 .copy-btn {
-  border: 2px solid var(--carbon); background: var(--lime); color: var(--carbon);
+  border: 2px solid var(--ink); background: var(--accent); color: var(--on-accent);
   border-radius: 999px; padding: 6px 14px; font-weight: 800; font-size: 12px;
   cursor: pointer; box-shadow: 2px 2px 0 var(--carbon);
 }
@@ -305,7 +332,7 @@ body {
 .sidebar-collapsed { width: 56px; padding: 14px 8px; align-items: center; }
 .sidebar-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .nav-home {
-  background: var(--lime); color: var(--carbon); text-decoration: none;
+  background: var(--accent); color: var(--on-accent); text-decoration: none;
   font-weight: 900; padding: 2px 10px 3px; border-radius: 8px;
   transform: rotate(-1.2deg); font-size: 14px;
 }
@@ -313,26 +340,26 @@ body {
   background: none; border: none; color: var(--gunmetal); cursor: pointer;
   font-size: 14px; font-weight: 800; padding: 2px 4px;
 }
-.sidebar-toggle:hover { color: var(--lime); }
+.sidebar-toggle:hover { color: var(--accent-text); }
 
 .side-nav { display: flex; flex-direction: column; gap: 2px; }
 .side-item {
   display: block; text-align: left; text-decoration: none; cursor: pointer;
   background: none; border: none;
-  color: var(--paper); font-size: 13.5px; font-weight: 700;
+  color: var(--ink); font-size: 13.5px; font-weight: 700;
   padding: 8px 10px; border-radius: 10px;
 }
-.side-item:hover { background: color-mix(in srgb, var(--paper) 8%, transparent); }
-.side-item-on { background: color-mix(in srgb, var(--paper) 12%, transparent); color: var(--lime); }
+.side-item:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
+.side-item-on { background: color-mix(in srgb, var(--ink) 12%, transparent); color: var(--accent-text); }
 
 .sidebar-bottom { margin-top: auto; display: flex; flex-direction: column; gap: 2px; }
 .sidebar-bottom .side-item { color: var(--mint); font-weight: 600; font-size: 12px; padding: 5px 10px; }
 .sidebar-cta {
   display: block; text-align: center; text-decoration: none;
-  background: var(--lime); color: var(--carbon);
-  border: 2px solid var(--carbon); border-radius: 999px;
+  background: var(--accent); color: var(--on-accent);
+  border: 2px solid var(--ink); border-radius: 999px;
   padding: 8px 0; font-weight: 800; font-size: 13px;
-  box-shadow: 2px 2px 0 color-mix(in srgb, var(--paper) 30%, transparent);
+  box-shadow: 2px 2px 0 color-mix(in srgb, var(--ink) 30%, transparent);
   margin-bottom: 10px;
 }
 .sidebar-cta:hover { background: var(--lime-dark); }
@@ -346,7 +373,7 @@ body {
 .nav-search-input {
   width: 100%; box-sizing: border-box;
   border: 2px solid var(--gunmetal); border-radius: 999px;
-  background: none; color: var(--paper);
+  background: none; color: var(--ink);
   padding: 5px 14px; font-size: 12.5px; outline: none;
 }
 .nav-search-input:focus { border-color: var(--lime); }
@@ -364,11 +391,11 @@ body {
 .nav-result-market { font-weight: 600; color: var(--gunmetal); }
 .nav-result-empty { color: var(--gunmetal); font-weight: 400; cursor: default; }
 .nav-login {
-  border: 2px solid var(--lime); background: var(--lime); color: var(--carbon);
+  border: 2px solid var(--accent); background: var(--accent); color: var(--on-accent);
   border-radius: 999px; padding: 4px 14px; font-weight: 800; font-size: 12.5px;
   cursor: pointer;
 }
-.nav-profile { color: var(--lime); text-decoration: none; font-size: 12.5px; font-weight: 700; }
+.nav-profile { color: var(--accent-text); text-decoration: none; font-size: 12.5px; font-weight: 700; }
 
 /* -- home: the FEED is the centred track; the rail floats in the right
    gutter and never pushes the feed off centre ---------------------------- */
@@ -471,7 +498,7 @@ body {
    CARBON = act. Kill the browser focus ring that read as orange. */
 .trade-panel button:focus, .trade-panel input:focus { outline: none; }
 .trade-panel .rs-preset-on {
-  background: var(--lime); color: var(--carbon); border-color: var(--carbon);
+  background: var(--accent); color: var(--on-accent); border-color: var(--ink);
 }
 .trade-panel .rs-sign-on, .sell-confirm {
   background: var(--carbon) !important; color: var(--paper) !important;
@@ -499,7 +526,7 @@ body {
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   box-shadow: none;
 }
-.trade-side-on { background: var(--lime); }
+.trade-side-on { background: var(--accent); color: var(--on-accent); }
 .centre-trades { margin-top: 14px; }
 .trade-side:disabled { color: var(--gunmetal); border-color: var(--gunmetal); cursor: default; }
 .trade-panel .rs-quote { margin-top: 8px; }

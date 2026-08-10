@@ -58,8 +58,14 @@ export interface MarketStripProps {
   onSign?: (side: "a" | "b", amountUsd: number) => boolean | void;
   /** Instrumentation for the preset ladder (tune from real data). */
   onPresetUsed?: (amountUsd: number | "custom") => void;
-  /** Market page link for the post-sign "view market" affordance. */
+  /**
+   * The whole strip clicks through to the market page — tweet text, bar,
+   * clock line, empty space — EXCEPT the two username rows (bet targets)
+   * and the betting panel. `onOpen` handles navigation (app: router push;
+   * extension: new tab); `marketHref` is the fallback via location.assign.
+   */
   marketHref?: string;
+  onOpen?: () => void;
   /** Market page variant: render both tweets in full, no clamp (§2). */
   fullText?: boolean;
 }
@@ -142,7 +148,7 @@ function Row({
   );
 }
 
-export function MarketStrip({ data, nowMs, onSign, onPresetUsed, marketHref, fullText }: MarketStripProps) {
+export function MarketStrip({ data, nowMs, onSign, onPresetUsed, marketHref, onOpen, fullText }: MarketStripProps) {
   const now = nowMs ?? Date.now();
   const [backing, setBacking] = useState<"a" | "b" | null>(null);
   const [amount, setAmount] = useState<number | null>(null);
@@ -202,10 +208,20 @@ export function MarketStrip({ data, nowMs, onSign, onPresetUsed, marketHref, ful
   const total = data.a.potUsd + data.b.potUsd;
   const aPct = total === 0 ? 50 : Math.min(98, Math.max(2, (data.a.potUsd / total) * 100));
 
+  const clickable = Boolean(onOpen || marketHref);
+  const openMarket = (e: React.MouseEvent) => {
+    if (!clickable) return;
+    // bet targets and the betting panel never navigate
+    if ((e.target as HTMLElement).closest(".rs-row-tap, .rs-fold, button, input, a")) return;
+    if (onOpen) onOpen();
+    else if (marketHref) window.location.assign(marketHref);
+  };
+
   return (
     <div
-      className="rs-strip"
+      className={clickable ? "rs-strip rs-strip-link" : "rs-strip"}
       data-status={data.status}
+      onClick={openMarket}
       // While picking, green belongs to the selection: the leader's tint
       // drops so green never means two things at once.
       data-picking={backing ? "" : undefined}
@@ -320,15 +336,11 @@ export function MarketStrip({ data, nowMs, onSign, onPresetUsed, marketHref, ful
       <div className={placed ? "rs-fold rs-fold-open" : "rs-fold"} aria-hidden={!placed}>
         <div>
           {placed && (
+            // no separate view-market link: the strip itself clicks through
             <div className="rs-placed">
               <span className="rs-placed-msg">
                 ✓ ${placed.amountUsd} on @{(placed.side === "a" ? data.a : data.b).handle} placed
               </span>
-              {marketHref && (
-                <a className="rs-placed-link" href={marketHref}>
-                  view market
-                </a>
-              )}
             </div>
           )}
         </div>

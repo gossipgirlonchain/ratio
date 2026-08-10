@@ -14,10 +14,13 @@ import { useMemo, useRef, useState } from "react";
 
 import type { ChartSeries } from "../lib/fixtures";
 
-/** Side colours — shared with the matchup header's avatar rings, which
- * are the chart's key (no text legend). */
-export const SIDE_A_COLOR = "#2E7DBF";
-export const SIDE_B_COLOR = "#7A9A2E";
+/** Side colours — themed CSS variables (validated per mode: dark
+ * #4E97D6/#7FA32E, light #2E7DBF/#7A9A2E). Shared with the matchup
+ * header's avatar rings, which are the chart's key (no text legend).
+ * SVG presentation attributes cannot resolve var(), so every fill and
+ * stroke goes through the style prop. */
+export const SIDE_A_COLOR = "var(--chart-a)";
+export const SIDE_B_COLOR = "var(--chart-b)";
 const A = SIDE_A_COLOR;
 const B = SIDE_B_COLOR;
 
@@ -100,8 +103,8 @@ export function MarketChart({
           {fmtLikes(likeMax / 1.08)}
         </text>
 
-        <path d={pathA} fill="none" stroke={A} strokeWidth="2" strokeLinejoin="round" />
-        <path d={pathB} fill="none" stroke={B} strokeWidth="2" strokeLinejoin="round" />
+        <path d={pathA} fill="none" style={{ stroke: A }} strokeWidth="2" strokeLinejoin="round" />
+        <path d={pathB} fill="none" style={{ stroke: B }} strokeWidth="2" strokeLinejoin="round" />
 
         {/* money, two channels kept separate: DIRECTION is vertical (buys
             stack up from the zero line, sells stack down), COLOUR is side,
@@ -115,13 +118,13 @@ export function MarketChart({
           const bx = x(i) - barW / 2;
           return (
             <g key={i}>
-              {bA > 0 && <rect x={bx} y={zeroY - bA} width={barW} height={bA} rx="1" fill={A} />}
+              {bA > 0 && <rect x={bx} y={zeroY - bA} width={barW} height={bA} rx="1" style={{ fill: A }} />}
               {bB > 0 && (
-                <rect x={bx} y={zeroY - bA - (bA > 0 ? 1 : 0) - bB} width={barW} height={bB} rx="1" fill={B} />
+                <rect x={bx} y={zeroY - bA - (bA > 0 ? 1 : 0) - bB} width={barW} height={bB} rx="1" style={{ fill: B }} />
               )}
-              {sA > 0 && <rect x={bx} y={zeroY + 1} width={barW} height={sA} rx="1" fill={A} />}
+              {sA > 0 && <rect x={bx} y={zeroY + 1} width={barW} height={sA} rx="1" style={{ fill: A }} />}
               {sB > 0 && (
-                <rect x={bx} y={zeroY + 1 + sA + (sA > 0 ? 1 : 0)} width={barW} height={sB} rx="1" fill={B} />
+                <rect x={bx} y={zeroY + 1 + sA + (sA > 0 ? 1 : 0)} width={barW} height={sB} rx="1" style={{ fill: B }} />
               )}
             </g>
           );
@@ -141,8 +144,8 @@ export function MarketChart({
         {hover !== null && (
           <g>
             <line x1={x(hover)} x2={x(hover)} y1={PAD.top} y2={zeroY + VOL_DOWN} className="chart-crosshair" />
-            <circle cx={x(hover)} cy={yLike(series.likesA[hover]!)} r="3.5" fill={A} stroke="#fff" strokeWidth="1.5" />
-            <circle cx={x(hover)} cy={yLike(series.likesB[hover]!)} r="3.5" fill={B} stroke="#fff" strokeWidth="1.5" />
+            <circle cx={x(hover)} cy={yLike(series.likesA[hover]!)} r="3.5" style={{ fill: A, stroke: "var(--surface)" }} strokeWidth="1.5" />
+            <circle cx={x(hover)} cy={yLike(series.likesB[hover]!)} r="3.5" style={{ fill: B, stroke: "var(--surface)" }} strokeWidth="1.5" />
             {(() => {
               // money split by side, matching the bars' colour encoding.
               // All three rows, always — full info at all times, $0 included
@@ -167,9 +170,9 @@ export function MarketChart({
                   {rows.map(([label, va, vb], r) => (
                     <g key={label}>
                       <text x="9" y={31 + r * 15} className="chart-tip-label">{label}</text>
-                      <circle cx="44" cy={28 + r * 15} r="3" fill={A} />
+                      <circle cx="44" cy={28 + r * 15} r="3" style={{ fill: A }} />
                       <text x="52" y={31 + r * 15} className="chart-tip-text">{va}</text>
-                      <circle cx="103" cy={28 + r * 15} r="3" fill={B} />
+                      <circle cx="103" cy={28 + r * 15} r="3" style={{ fill: B }} />
                       <text x="111" y={31 + r * 15} className="chart-tip-text">{vb}</text>
                     </g>
                   ))}

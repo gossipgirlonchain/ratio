@@ -9,7 +9,7 @@
  * tabs, not stacked grey labels.
  */
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { MarketStrip } from "@ratio/ui";
@@ -93,6 +93,7 @@ function WalletModule({
 export default function ProfilePage() {
   const mounted = useMounted();
   const params = useParams<{ handle: string }>();
+  const router = useRouter();
   const { viewer, login } = useAuth();
   const [tab, setTab] = useState<"live" | "history">("live");
   if (!mounted) return null;
@@ -169,7 +170,7 @@ export default function ProfilePage() {
       ) : (
         <div className="profile-strips">
           {shown.map((m) => (
-            <MarketStrip key={m.data.marketId} data={m.data} marketHref={`/m/${m.data.marketId}`} />
+            <MarketStrip key={m.data.marketId} data={m.data} marketHref={`/m/${m.data.marketId}`} onOpen={() => router.push(`/m/${m.data.marketId}`)} />
           ))}
         </div>
       )}

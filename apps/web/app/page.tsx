@@ -6,6 +6,7 @@
  * through to the full page. Strips unchanged.
  */
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 
 import { MarketStrip } from "@ratio/ui";
 
@@ -18,6 +19,7 @@ const fmtUsd = (n: number) =>
 
 export default function Page() {
   const mounted = useMounted();
+  const router = useRouter();
   const { viewer, login } = useAuth();
   if (!mounted) return null;
   return (
@@ -38,6 +40,7 @@ export default function Page() {
               }}
               onPresetUsed={(p) => console.log(`preset used: ${p}`)}
               marketHref={`/m/${data.marketId}`}
+              onOpen={() => router.push(`/m/${data.marketId}`)}
             />
           ))}
         </main>

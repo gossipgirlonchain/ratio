@@ -28,7 +28,7 @@
 }
 html[data-theme="light"] {
   --bg: #F4F3EE;
-  --surface: #FCFCFA;
+  --surface: #F4F3EE; /* same tone as the page — the border does the work */
   --ink: #17191B;
   --ink-muted: #4C5155;
   --accent: #B8DD57;

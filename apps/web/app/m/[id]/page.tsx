@@ -11,6 +11,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
+import { exitFeeBps } from "@ratio/config";
 import { quotePayout } from "@ratio/ui";
 
 import { MarketChart, SIDE_A_COLOR, SIDE_B_COLOR } from "../../../components/MarketChart";
@@ -72,9 +73,9 @@ export default function MarketPage() {
           yourSideUsd: (backing === "a" ? data.a : data.b).potUsd,
         })
       : null;
-  // DEMO ramp display only — the real shape is undecided (config TODO).
-  const elapsed = 1 - Math.max(0, data.settlesAtMs - Date.now()) / (24 * 3_600_000);
-  const exitFeePct = Math.round(75 * Math.max(0, Math.min(1, elapsed)));
+  // The real curve: floor for 12h, smoothstep to the ceiling at close.
+  const elapsedMs = 24 * 3_600_000 - Math.max(0, data.settlesAtMs - Date.now());
+  const exitFeePct = exitFeeBps(elapsedMs) / 100;
 
   const sign = () => {
     if (!backing || !amount) return;

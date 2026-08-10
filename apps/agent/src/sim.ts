@@ -6,6 +6,8 @@ import assert from "node:assert/strict";
 
 import {
   BOT_HANDLE,
+  EXIT_FEE_MAX_BPS,
+  EXIT_FEE_RAMP_START_MS,
   FEE_SHARE_BPS,
   FRESHNESS_WINDOW_MS,
   HEALTH_CHECK_AT_FRACTION,
@@ -14,6 +16,8 @@ import {
   MAX_STAKE_USD,
   MIN_STAKE_USD,
   SWAP_FEE_BPS,
+  exitFeeBps,
+  exitFeeSurchargeBps,
   marketUrl,
 } from "@ratio/config";
 
@@ -537,6 +541,45 @@ const feed2 = await store.listMarketsByVolume({ sinceMs: windowStart, limit: 10 
 const deadRank = feed2.findIndex((m) => m.id === deadId);
 const aliveRank = feed2.findIndex((m) => m.id === (mAlive.sideB.tweetId));
 assert.ok(aliveRank < deadRank, "net ranking: intact $50 beats drained $200");
+
+// ---------------------------------------------------------------------------
+// 17. Exit-fee curve + ramp-start instrumentation
+// ---------------------------------------------------------------------------
+scenario("17. exit fee: floor, smooth ramp, ceiling, ramp-start metric");
+const HOUR_MS = 60 * 60 * 1000;
+// floor holds through the first 12h
+assert.equal(exitFeeBps(0), SWAP_FEE_BPS);
+assert.equal(exitFeeBps(6 * HOUR_MS), SWAP_FEE_BPS);
+assert.equal(exitFeeBps(EXIT_FEE_RAMP_START_MS), SWAP_FEE_BPS);
+// smooth start: minutes past the ramp the fee has barely moved (no cliff)
+assert.ok(exitFeeBps(EXIT_FEE_RAMP_START_MS + 30 * 60_000) < SWAP_FEE_BPS + 60,
+  "no step at the ramp start");
+// monotone to the ceiling, ceiling is TOTAL (floor included)
+let prevFee = 0;
+for (let h = 0; h <= 24; h++) {
+  const f = exitFeeBps(h * HOUR_MS);
+  assert.ok(f >= prevFee, "fee never decreases");
+  prevFee = f;
+}
+assert.equal(exitFeeBps(24 * HOUR_MS), EXIT_FEE_MAX_BPS);
+assert.equal(exitFeeSurchargeBps(24 * HOUR_MS), EXIT_FEE_MAX_BPS - SWAP_FEE_BPS);
+
+// ramp-start metric: sells 10m before and 10m after m15's hour-12 mark
+const m15rec = (await store.getMarketByTweet(m15.sideB.tweetId))!;
+const rampAt = m15rec.createdAtMs + EXIT_FEE_RAMP_START_MS;
+await store.saveBet({
+  marketId: m15rec.id, xUserId: "u:dave", handle: "dave", side: 1,
+  direction: "sell", amountUsd: 20, tokensOut: 1, placedAtMs: rampAt - 10 * 60_000,
+});
+await store.saveBet({
+  marketId: m15rec.id, xUserId: "u:erin", handle: "erin", side: 1,
+  direction: "sell", amountUsd: 15, tokensOut: 1, placedAtMs: rampAt + 10 * 60_000,
+});
+const nearRamp = await store.sellsNearRampStart({
+  rampStartMs: EXIT_FEE_RAMP_START_MS,
+  windowMs: 30 * 60_000,
+});
+assert.ok(nearRamp.justBefore >= 1 && nearRamp.justAfter >= 1, "ramp-start metric counts both sides");
 
 // ---------------------------------------------------------------------------
 scenario("instrumentation: void rate by side-B age bucket (3h)");

@@ -65,21 +65,45 @@ export const FEE_SHARE_BPS = {
 } as const;
 
 /**
- * Exit fee (§7b): app-layer, custody-enforced (embedded wallets only — and
- * §11 means that is ALL wallets). Ramps with elapsed time to this ceiling
- * at the close, split the SAME FIVE WAYS as every other fee (it does not
- * refill the pot; it makes the losing side's mid-market run irrational).
- * Composed into the atomic sell tx as transfers per FEE_SHARE_BPS.
- * INVARIANTS: zero for voided markets (refunds are not exits); disclosed
- * in the sell quote before commitment, current rate + amount.
+ * Exit fee (§7b, shape decided 2026-08-03): TIME-BASED ONLY — never the
+ * like gap, or closing the gap becomes the cheap-exit strategy, which is
+ * the brigading attack wearing a new hat.
+ *
+ * The on-chain 1.25% swap fee is the FLOOR (locked at launch, charged in
+ * both directions). Total exit fee sits at the floor for the first
+ * RAMP_START hours (early exits are price discovery, and the pot has time
+ * to refill), then rises SMOOTHLY to EXIT_FEE_MAX_BPS *total* (inclusive
+ * of the floor) at the close — a late exit walks the prize out with
+ * nothing to replace it. Smoothstep, not a step: its slope is zero at the
+ * start point, so there is no hour-12 cliff to pile out in front of
+ * (track sells around the start point anyway — Store.sellsNearRampStart).
+ *
+ * Everything above the floor is charged at the app layer (custody makes
+ * it enforceable; no connect-wallet means custody covers everyone) and is
+ * split the SAME FIVE WAYS, transfers composed into the atomic sell tx.
+ * INVARIANTS: zero above-floor fee on voided markets (refunds are not
+ * exits); the sell quote discloses rate AND dollars before commitment.
+ *
+ * Start, end, and ceiling are guesses — tune from real markets.
  */
-export const EXIT_FEE_MAX_BPS = 7_500; // 75% at close
-/**
- * TODO(exit-fee): the RAMP SHAPE is the real decision and is undecided —
- * flat-then-steep vs linear-from-open produce very different behaviour,
- * and the first hours must stay cheap (early exit liquidity is why people
- * enter). Do not implement a shape until it is chosen.
- */
+export const EXIT_FEE_RAMP_START_MS = 12 * 60 * 60 * 1000;
+export const EXIT_FEE_RAMP_END_MS = MARKET_DURATION_MS;
+export const EXIT_FEE_MAX_BPS = 7_500; // 75% TOTAL at close, floor included
+
+/** Total exit fee in bps at a given market age. Floor = SWAP_FEE_BPS. */
+export function exitFeeBps(elapsedMs: number): number {
+  const t = Math.min(
+    1,
+    Math.max(0, (elapsedMs - EXIT_FEE_RAMP_START_MS) / (EXIT_FEE_RAMP_END_MS - EXIT_FEE_RAMP_START_MS)),
+  );
+  const eased = t * t * (3 - 2 * t); // smoothstep: zero slope at both ends
+  return Math.round(SWAP_FEE_BPS + (EXIT_FEE_MAX_BPS - SWAP_FEE_BPS) * eased);
+}
+
+/** The slice our app collects on a sell: total minus the on-chain floor. */
+export function exitFeeSurchargeBps(elapsedMs: number): number {
+  return exitFeeBps(elapsedMs) - SWAP_FEE_BPS;
+}
 
 /** Market page URL for the one linked post per market. */
 export const marketUrl = (marketId: string): string =>

@@ -164,6 +164,13 @@ export interface Store {
   listMarketsByVolume(opts: { sinceMs: number; limit: number; openOnly?: boolean }): Promise<MarketRecord[]>;
   /** Open positions for a user, net of sells, derived from trade records. */
   openPositionsByUser(xUserId: string): Promise<PositionView[]>;
+  /**
+   * Instrumentation for the exit-fee ramp: sells inside ±windowMs of each
+   * market's ramp start (createdAt + rampStartMs). The smoothstep curve
+   * has no cliff to front-run, but if people pile out just before the
+   * ramp anyway, this is where it shows.
+   */
+  sellsNearRampStart(opts: { rampStartMs: number; windowMs: number }): Promise<{ justBefore: number; justAfter: number }>;
   /** Instrumentation for the freshness-window decision (9-12h keep or cut). */
   voidRateByAgeBucket(bucketMs: number): Promise<Map<number, { total: number; voided: number }>>;
 }
@@ -321,6 +328,19 @@ export class InMemoryStore implements Store {
       byKey.set(key, p);
     }
     return [...byKey.values()].filter((p) => p.tokens > 1e-9);
+  }
+  async sellsNearRampStart({ rampStartMs, windowMs }: { rampStartMs: number; windowMs: number }) {
+    let justBefore = 0;
+    let justAfter = 0;
+    for (const t of this.bets) {
+      if (t.direction !== "sell") continue;
+      const m = this.markets.get(t.marketId);
+      if (!m) continue;
+      const delta = t.placedAtMs - (m.createdAtMs + rampStartMs);
+      if (delta >= -windowMs && delta < 0) justBefore += 1;
+      else if (delta >= 0 && delta <= windowMs) justAfter += 1;
+    }
+    return { justBefore, justAfter };
   }
   async voidRateByAgeBucket(bucketMs: number) {
     const out = new Map<number, { total: number; voided: number }>();

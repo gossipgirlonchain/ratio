@@ -145,17 +145,17 @@ export function MarketChart({
             <circle cx={x(hover)} cy={yLike(series.likesB[hover]!)} r="3.5" fill={B} stroke="#fff" strokeWidth="1.5" />
             {(() => {
               // money split by side, matching the bars' colour encoding.
-              // ONE rule for both directions: a money row exists only when
-              // the interval moved money that way — in and out alike.
+              // All three rows, always — full info at all times, $0 included
+              // (winny 2026-08-10; supersedes the omit-when-zero rule).
               const inA = Math.round(series.buyA[hover]!);
               const inB = Math.round(series.buyB[hover]!);
               const outA = Math.round(series.sellA[hover]!);
               const outB = Math.round(series.sellB[hover]!);
               const rows: Array<[string, string, string]> = [
                 ["like", fmtLikes(series.likesA[hover]!), fmtLikes(series.likesB[hover]!)],
+                ["in", `$${inA}`, `$${inB}`],
+                ["out", `$${outA}`, `$${outB}`],
               ];
-              if (inA + inB > 0) rows.push(["in", `$${inA}`, `$${inB}`]);
-              if (outA + outB > 0) rows.push(["out", `$${outA}`, `$${outB}`]);
               const TIP_W = 158;
               const TIP_H = 22 + rows.length * 15 + 6;
               // flip early enough to clear the y-max label at the right edge

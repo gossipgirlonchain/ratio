@@ -10,7 +10,8 @@
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
-    "e2e": "tsx scripts/e2e-devnet.ts"
+    "e2e": "tsx scripts/e2e-devnet.ts",
+    "sell-size": "tsx scripts/e2e-sell-size.ts"
   },
   "dependencies": {
     "@solana-program/system": "^0.12.2",

@@ -34,7 +34,8 @@ html[data-theme="light"] {
   --bg: #F4F3EE;
   --surface: #F4F3EE; /* same tone as the page — the border does the work */
   --ink: #17191B;
-  --ink-muted: #4C5155;
+  /* dark enough to read as body text, not a grey wash. Was #4C5155. */
+  --ink-muted: #33383D;
   --edge: var(--ink); /* dark-on-light borders read like print — keep */
   --accent: #B8DD57;
   --accent-strong: #A6CB49;

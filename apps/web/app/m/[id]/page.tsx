@@ -11,7 +11,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
-import { exitFeeBps } from "@ratio/config";
+import { exitFeeBps, SELLS_ENABLED } from "@ratio/config";
 import { quotePayout } from "@ratio/ui";
 
 import { MarketChart, SIDE_A_COLOR, SIDE_B_COLOR } from "../../../components/MarketChart";
@@ -156,7 +156,7 @@ export default function MarketPage() {
 
       <aside className="market-rail">
         <div className="card trade-panel">
-          {open && (
+          {open && SELLS_ENABLED && (
             <div className="panel-tabs">
               <button className={tab === "buy" ? "panel-tab panel-tab-on" : "panel-tab"} onClick={() => setTab("buy")}>
                 Buy
@@ -250,7 +250,7 @@ export default function MarketPage() {
           )}
           </div>
 
-          {open && (
+          {open && SELLS_ENABLED && (
             <div className={tab === "sell" ? "panel-view" : "panel-view panel-view-off"}>
             <div className="sell-tab">
               {position ? (

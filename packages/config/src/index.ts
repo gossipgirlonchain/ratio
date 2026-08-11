@@ -65,6 +65,20 @@ export const FEE_SHARE_BPS = {
 } as const;
 
 /**
+ * SELLS: OFF. Devnet-proven 2026-08-11 (e2e-hook-gating.ts): the
+ * prediction hook rejects sells in EVERY state — unresolved AND
+ * finalized — and rejects buys once finalized. Trading is buy-only
+ * until resolution, then halts. Positions are locked from purchase to
+ * claim. Flip this only if Doppler changes the hook.
+ */
+export const SELLS_ENABLED = false;
+
+/**
+ * SHELVED, NOT DELETED (winny 2026-08-11): with sells impossible there is
+ * no exit rush and this ramp has no job. The curve, config, and
+ * instrumentation stay so it can come straight back if Doppler opens
+ * sells up.
+ *
  * Exit fee (§7b, shape decided 2026-08-03): TIME-BASED ONLY — never the
  * like gap, or closing the gap becomes the cheap-exit strategy, which is
  * the brigading attack wearing a new hat.

@@ -119,19 +119,6 @@ textarea { min-height: 96px; resize: vertical; }
 #audOtherText { margin-top: 8px; display: none; }
 #audOtherText.show { display: block; }
 
-/* radio list (availability) */
-.radios { display: flex; flex-direction: column; gap: 8px; }
-.radio { position: relative; }
-.radio input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; margin: 0; }
-.radio span {
-  display: block; border: 2px solid var(--ink); border-radius: 10px;
-  padding: 9px 12px; font-size: 13.5px; font-weight: 700; cursor: pointer;
-}
-.radio input:checked + span { background: var(--accent); color: var(--on-accent); }
-.radio input:focus-visible + span { box-shadow: 2px 2px 0 var(--accent); }
-#availOtherText { display: none; margin-top: 8px; }
-#availOtherText.show { display: block; }
-
 /* rate card: a menu, not a survey */
 .menu-note { color: var(--ink-muted); font-size: 13px; line-height: 1.5; margin-bottom: 14px; }
 .rate-row {
@@ -334,17 +321,6 @@ textarea { min-height: 96px; resize: vertical; }
       <p class="err-msg">that doesn't look like a Solana address</p>
     </div>
     <div class="field">
-      <span class="q" id="availLabel">Launch-week availability</span>
-      <div class="radios" role="radiogroup" aria-labelledby="availLabel" id="availRadios">
-        <label class="radio"><input type="radio" name="availability" value="Locked in for launch day"><span>Locked in for launch day</span></label>
-        <label class="radio"><input type="radio" name="availability" value="Launch week, flexible on the day"><span>Launch week, flexible on the day</span></label>
-        <label class="radio"><input type="radio" name="availability" value="Tight, can fit one or two deliverables"><span>Tight, can fit one or two deliverables</span></label>
-        <label class="radio"><input type="radio" name="availability" value="Other" id="availOther"><span>Other</span></label>
-      </div>
-      <input type="text" id="availOtherText" placeholder="tell us" aria-label="Other availability">
-      <p class="err-msg" id="availErr">pick one</p>
-    </div>
-    <div class="field">
       <label for="notes">Anything else we should know?</label>
       <span class="hint">optional. Past paid campaigns, other platforms you're big on, ideas for the launch.</span>
       <textarea id="notes" name="notes" style="margin-top:6px"></textarea>
@@ -366,6 +342,8 @@ textarea { min-height: 96px; resize: vertical; }
 <script>
 // Point this at a Tally webhook, Apps Script, or your own API.
 const SUBMIT_URL = "https://example.com/submit";
+// ?preview=1 → skip validation + fake the submit (for clicking through)
+const PREVIEW = new URLSearchParams(location.search).has("preview");
 
 const steps = [1, 2, 3].map(n => document.getElementById("step" + n));
 const labels = ["you & your audience", "set your prices", "logistics"];
@@ -428,13 +406,6 @@ function audSync() {
 }
 audBoxes.forEach(b => b.addEventListener("change", audSync));
 
-// availability: Other reveals text
-document.querySelectorAll('input[name="availability"]').forEach(r =>
-  r.addEventListener("change", () => {
-    $("availOtherText").classList.toggle("show", $("availOther").checked);
-    $("availErr").classList.remove("show");
-  }));
-
 function validStep1() {
   let ok = true, first = null;
   const req = (el, test) => {
@@ -454,13 +425,8 @@ function validStep1() {
   return ok;
 }
 function validStep3() {
-  let ok = true;
   const w = $("wallet").value.trim();
-  ok = mark($("wallet"), w.length > 0 && !isSol(w)) && ok;
-  if (!document.querySelector('input[name="availability"]:checked')) {
-    $("availErr").classList.add("show"); ok = false;
-  }
-  return ok;
+  return mark($("wallet"), w.length > 0 && !isSol(w));
 }
 
 // -- payload ---------------------------------------------------------------
@@ -468,7 +434,6 @@ function num(id) { const v = $(id).value.trim(); return v === "" ? null : Math.m
 function payload() {
   const audience = audBoxes.filter(b => b.checked).map(b =>
     b.value === "Other" ? "Other: " + $("audOtherText").value.trim() : b.value);
-  const avail = document.querySelector('input[name="availability"]:checked');
   return {
     name: $("name").value.trim(),
     x_handle: cleanHandle($("xhandle").value),
@@ -484,7 +449,6 @@ function payload() {
       telegram_post: num("r_tg"), pinned_24h_addon: num("r_pin"), bundle: num("r_bundle")
     },
     sol_wallet: $("wallet").value.trim() || null,
-    availability: avail ? (avail.value === "Other" ? "Other: " + $("availOtherText").value.trim() : avail.value) : null,
     notes: $("notes").value.trim() || null,
     submitted_at: new Date().toISOString()
   };
@@ -509,8 +473,9 @@ async function submit() {
 }
 
 nextBtn.addEventListener("click", () => {
-  if (cur === 0) { if (validStep1()) show(1); }
+  if (cur === 0) { if (PREVIEW || validStep1()) show(1); }
   else if (cur === 1) show(2);
+  else if (PREVIEW) document.getElementById("done").classList.add("show");
   else if (validStep3()) submit();
 });
 backBtn.addEventListener("click", () => show(Math.max(0, cur - 1)));

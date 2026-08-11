@@ -4,7 +4,8 @@
  * "the OP is winning". A post with six markets renders six strips.
  */
 
-export type StripStatus = "open" | "settled" | "voided";
+/** No voids exist: unreadable sides forfeit, seeding kills zero-winner. */
+export type StripStatus = "open" | "settled" | "forfeited";
 
 export interface StripSide {
   handle: string;

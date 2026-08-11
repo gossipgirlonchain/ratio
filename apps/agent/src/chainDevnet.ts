@@ -10,8 +10,6 @@
  * - PairMarketRefs are kept in an in-process map keyed by the engine's
  *   marketId. The Supabase store serializes them alongside the market row
  *   when it lands (R4); the sim does not restart mid-run.
- * - void() is deliberately a no-op on-chain: never finalize, curves stay
- *   open, bettors sell back out. The store carries the void status.
  */
 import { address, type TransactionSigner } from "@solana/kit";
 
@@ -116,7 +114,4 @@ export class DopplerMarketChain implements MarketChain {
     });
   }
 
-  async void(_refs: ChainRefs): Promise<void> {
-    // Never finalize. Curves allow sells; bettors exit on the curve.
-  }
 }

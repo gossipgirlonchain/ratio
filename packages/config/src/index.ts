@@ -24,8 +24,25 @@ export const FRESHNESS_WINDOW_MS = 12 * 60 * 60 * 1000;
 /** Every market runs created_at + 24h, settled on absolute like counts. */
 export const MARKET_DURATION_MS = 24 * 60 * 60 * 1000;
 
-/** Mid-window tweet health check runs once past this fraction of the window. */
-export const HEALTH_CHECK_AT_FRACTION = 0.5;
+/**
+ * Treasury seed (2026-08-11): at creation, BEFORE the bot posts the card,
+ * the treasury buys this much on EACH side. With sells impossible, a
+ * winning side with no money hits ZeroClaimableSupply and nothing can
+ * refund — seeding makes that state unreachable, and it fixes the odds
+ * display (no more $125-vs-$0 full bar). Treasury keeps seed winnings,
+ * eats seed losses; ~break-even at scale, worst case ~= this per market.
+ * Seed positions are plumbing: excluded from who's-in and positions.
+ */
+export const SEED_PER_SIDE_USD = 1;
+
+/**
+ * Likes sampling cadence for open markets. This replaced the mid-window
+ * void health check (voids are deleted; unreadable sides settle as
+ * forfeits at settlement time): same periodic tweet fetch, but now the
+ * like counts are RECORDED — they are the chart's likes series, which
+ * exists nowhere else.
+ */
+export const LIKES_SAMPLE_INTERVAL_MS = 60 * 60 * 1000;
 
 /** Stake caps ported from cue-wire launch sizing ($5 keeps confirms margin-positive). */
 export const MIN_STAKE_USD = 5;

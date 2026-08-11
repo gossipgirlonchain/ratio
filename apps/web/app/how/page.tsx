@@ -37,9 +37,8 @@ export default function HowPage() {
           between your quote and your transaction landing.
         </p>
         <p>
-          you can sell out of an open market at the current curve price. an
-          exit fee ramps up as the clock runs down, so leaving early is
-          cheap and leaving late is not.
+          positions are held to settlement. once you are in, you are in
+          until the clock runs out.
         </p>
       </section>
 
@@ -55,11 +54,16 @@ export default function HowPage() {
       </section>
 
       <section className="card">
-        <h2>voids</h2>
+        <h2>forfeits</h2>
         <p>
-          if either tweet is deleted, either account goes private or gets
-          suspended, or the winning tweet ends up with no money on it, the
-          market voids and everyone exits at the curve. no fee on that.
+          if a tweet is deleted, or its account goes private or gets
+          suspended, that side forfeits. the market settles for the side
+          still standing and its backers get paid like any other win.
+          deleting the tweet is losing the argument.
+        </p>
+        <p>
+          every market opens with a small treasury stake on both sides, so
+          the winning side always has backers to pay.
         </p>
       </section>
     </main>

@@ -6,9 +6,10 @@
  *   - side B = the reply/QT, side A = the tweet it references; one code path
  *   - anyone can tag; no allowlist; rejected mentions get ONE reply, never retried
  *   - higher absolute like count at created_at + 24h wins; exact tie -> side A
- *   - voids: either tweet unreadable (deleted/suspended/private/blocked), or
- *     no money on the winning side (ZeroClaimableSupply guard, ported)
- *   - mid-window health check so voids surface before settlement
+ *   - no voids: an unreadable side (deleted/suspended/private/blocked)
+ *     FORFEITS at settlement time; treasury seeds $1/side at creation so a
+ *     moneyless winning side cannot exist
+ *   - likes sampler cron records the chart's likes series
  *
  * Ported from cue-wire verbatim where the spec says to: mention idempotency,
  * late-stake rejection, min/max caps, the pre-migration odds snapshot, the
@@ -22,7 +23,7 @@ import {
   marketCard,
   recap,
   rejection,
-  voidNotice,
+  forfeitRecap,
   type RejectionReason,
 } from "@ratio/config/copy";
 
@@ -36,7 +37,8 @@ export interface EngineConfig {
   botHandle: string;
   freshnessWindowMs: number; // side B under this old at mention time
   marketDurationMs: number; // 24h
-  healthCheckAtFraction: number; // 0.5 = midpoint
+  seedPerSideUsd: number; // treasury seed per side at creation
+  likesSampleIntervalMs: number; // chart likes-series cadence
   minStakeUsd: number;
   maxStakeUsd: number;
   /** Independent reporters required before the hidden badge goes live. */
@@ -249,6 +251,30 @@ export class RatioEngine {
     };
     await this.store.saveMarket(record);
 
+    // Treasury seed, BEFORE the card posts so nobody can bet first: $SEED
+    // on each side. With sells impossible, a winning side with no money is
+    // unrefundable — seeding makes that state unreachable, and the odds
+    // display prices from the first second. Plumbing, not a participant.
+    for (const side of [0, 1] as const) {
+      const result = await this.chain.placeBet({
+        refs: chainRefs,
+        side,
+        amountUsd: this.config.seedPerSideUsd,
+        bettor: this.config.protocolWallet,
+      });
+      await this.store.saveBet({
+        marketId: record.id,
+        xUserId: "ratio:treasury",
+        handle: "ratio",
+        side,
+        direction: "buy",
+        amountUsd: this.config.seedPerSideUsd,
+        tokensOut: result.tokensOut,
+        placedAtMs: now,
+        isSeed: true,
+      });
+    }
+
     // The ONE linked post per market — the market card, in side B's thread.
     const card = await this.x.postReply({
       inReplyTo: sideB.tweetId,
@@ -350,13 +376,17 @@ export class RatioEngine {
   // Crons
   // -------------------------------------------------------------------------
 
-  /** Mid-window health check: surface voids before settlement, not at it. */
-  async healthCheckDueMarkets(): Promise<void> {
+  /**
+   * Likes sampler (replaced the void health check, 2026-08-11): the chart's
+   * likes series exists nowhere else, so open markets get their counts
+   * recorded every interval. Unreadable sides are NOT acted on here —
+   * forfeits are decided at settlement time, because suspensions and
+   * privacy flips can reverse before the clock runs out.
+   */
+  async sampleLikesDueMarkets(): Promise<void> {
     const now = this.config.now();
-    const due = await this.store.listOpenMarketsNeedingHealthCheck(
-      (m) =>
-        m.createdAtMs +
-        (m.settlesAtMs - m.createdAtMs) * this.config.healthCheckAtFraction,
+    const due = await this.store.listOpenMarketsNeedingLikesSample(
+      this.config.likesSampleIntervalMs,
       now,
     );
     for (const record of due) {
@@ -365,14 +395,21 @@ export class RatioEngine {
           this.x.getTweet(record.tweetAId),
           this.x.getTweet(record.tweetBId),
         ]);
-        // Mark checked only after a successful read: a transient API failure
-        // leaves the flag unset so the next tick retries the check.
-        await this.store.updateMarket(record.id, { healthCheckedAtMs: now });
-        if (!a || !b)
-          await this.voidMarket(record, "a side went unreadable mid market");
+        // Mark sampled only after a successful read: a transient failure
+        // leaves the cadence untouched so the next tick retries.
+        await this.store.updateMarket(record.id, { lastLikesSampleAtMs: now });
+        if (a && b) {
+          await this.store.saveLikeSample({
+            marketId: record.id,
+            atMs: now,
+            likesA: a.likeCount,
+            likesB: b.likeCount,
+          });
+        }
+        // One side unreadable: no sample, no action — settlement decides.
       } catch (err) {
         console.error(
-          `  health check ${record.id} deferred:`,
+          `  likes sample ${record.id} deferred:`,
           (err as Error).message,
         );
       }
@@ -401,61 +438,73 @@ export class RatioEngine {
       this.x.getTweet(record.tweetAId),
       this.x.getTweet(record.tweetBId),
     ]);
-    if (!a || !b) {
-      return this.voidMarket(record, "a side went unreadable before settlement");
-    }
 
-    // Absolute counts, no age normalisation. Exact tie: side A held the line.
-    const winner: "a" | "b" = b.likeCount > a.likeCount ? "b" : "a";
+    // An unreadable side (deleted, suspended, private, blocked) FORFEITS:
+    // nobody deletes their way out of losing. Decided at settlement time —
+    // suspensions can reverse mid-window. Both unreadable: the original
+    // holds by the same convention as an exact tie.
+    const forfeit = !a || !b;
+    const winner: "a" | "b" = forfeit
+      ? a
+        ? "a"
+        : b
+          ? "b"
+          : "a"
+      : b!.likeCount > a!.likeCount
+        ? "b"
+        : "a";
     const winnerSide: 0 | 1 = winner === "a" ? 0 : 1;
+
+    // Last-known counts for the record when a side is gone (creation
+    // snapshot is the floor; the sampler usually has something fresher).
+    const samples = await this.store.listLikeSamples(record.id);
+    const lastSample = samples.at(-1);
+    const likesA = a?.likeCount ?? lastSample?.likesA ?? record.likesAAtCreate;
+    const likesB = b?.likeCount ?? lastSample?.likesB ?? record.likesBAtCreate;
 
     // Snapshot BEFORE settle: vaults drain at migration, and the recap is
     // the distribution loop — without this it has nothing to say.
     const odds = await this.chain.getOdds(record.chainRefs);
     const snapshot = {
-      likesAFinal: a.likeCount,
-      likesBFinal: b.likeCount,
+      likesAFinal: likesA,
+      likesBFinal: likesB,
       finalImpliedA: odds.impliedA,
       finalPotUsd: odds.raisedUsd[0] + odds.raisedUsd[1],
     };
 
-    // Ported ZeroClaimableSupply guard: nobody holds the winning side ->
-    // on-chain migration throws. Void; bettors exit on the open curve.
+    // Treasury seeding makes a moneyless winning side unreachable. If it
+    // happens anyway the invariant is broken somewhere — never settle into
+    // an on-chain ZeroClaimableSupply throw; hold the market and shout.
     if (odds.raisedUsd[winnerSide] === 0) {
-      await this.store.updateMarket(record.id, snapshot);
-      return this.voidMarket(record, "the winning side had no money on it");
+      console.error(
+        `  INVARIANT VIOLATED: market ${record.id} winning side has no money despite seeding — settlement held`,
+      );
+      return;
     }
 
     await this.chain.settle({ refs: record.chainRefs, winner: winnerSide });
     await this.store.updateMarket(record.id, {
-      status: "settled",
+      status: forfeit ? "forfeited" : "settled",
       winner,
       ...snapshot,
     });
     await this.x.postReply({
-      inReplyTo: record.tweetBId,
-      text: recap({
-        winner,
-        likesA: a.likeCount,
-        likesB: b.likeCount,
-        moneyImpliedAPct: Math.round(odds.impliedA * 100),
-        tie: a.likeCount === b.likeCount,
-        sideAHandle: record.authorAHandle,
-        sideBHandle: record.authorBHandle,
-      }),
-    });
-  }
-
-  private async voidMarket(record: MarketRecord, reason: string): Promise<void> {
-    await this.chain.void(record.chainRefs);
-    await this.store.updateMarket(record.id, {
-      status: "voided",
-      voidReason: reason,
-    });
-    // Side B may be the tweet that vanished — the card is ours, always safe.
-    await this.x.postReply({
-      inReplyTo: record.cardTweetId ?? record.tweetBId,
-      text: voidNotice(reason),
+      // A forfeited side's thread may be gone — the card is ours, always safe.
+      inReplyTo: forfeit ? (record.cardTweetId ?? record.tweetBId) : record.tweetBId,
+      text: forfeit
+        ? forfeitRecap({
+            winnerHandle: winner === "a" ? record.authorAHandle : record.authorBHandle,
+            loserHandle: winner === "a" ? record.authorBHandle : record.authorAHandle,
+          })
+        : recap({
+            winner,
+            likesA,
+            likesB,
+            moneyImpliedAPct: Math.round(odds.impliedA * 100),
+            tie: likesA === likesB,
+            sideAHandle: record.authorAHandle,
+            sideBHandle: record.authorBHandle,
+          }),
     });
   }
 }

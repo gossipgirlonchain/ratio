@@ -83,8 +83,17 @@ export const recap = (opts: {
   }. winners claim at ratio.wtf`;
 };
 
-export const voidNotice = (reason: string): string =>
-  `market voided: ${reason}. everyone exits at the curve, sell your tokens back to get out.`;
+/**
+ * Forfeit recap: a side became unreadable (deleted, suspended, private,
+ * blocked) and the market settles for the side that is still standing.
+ * Observation wording — state what happened, never why. Nobody deletes
+ * their way out of losing.
+ */
+export const forfeitRecap = (opts: {
+  winnerHandle: string;
+  loserHandle: string;
+}): string =>
+  `@${opts.loserHandle}'s side is no longer public. @${opts.winnerHandle} takes it by forfeit. winners claim at ratio.wtf`;
 
 /**
  * Posted once when the hidden badge goes live. Guardrail: OBSERVATION, not

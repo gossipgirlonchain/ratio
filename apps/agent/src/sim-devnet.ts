@@ -13,7 +13,8 @@ import {
   BOT_HANDLE,
   FEE_SHARE_BPS,
   FRESHNESS_WINDOW_MS,
-  HEALTH_CHECK_AT_FRACTION,
+  LIKES_SAMPLE_INTERVAL_MS,
+  SEED_PER_SIDE_USD,
   HIDDEN_REPORT_THRESHOLD,
   MARKET_DURATION_MS,
   MAX_STAKE_USD,
@@ -60,7 +61,8 @@ async function main() {
   const chain = new DopplerMarketChain(clients, marketClient, {
     swapFeeBps: SWAP_FEE_BPS,
     lamportsPerUsd: LAMPORTS_PER_USD,
-    signerFor: (addr) => wallets.signerFor(addr),
+    signerFor: (addr) =>
+      addr === operator.address ? operator : wallets.signerFor(addr),
   });
   const x = new MockXClient(clock);
   const store = new InMemoryStore();
@@ -68,11 +70,13 @@ async function main() {
     botHandle: BOT_HANDLE,
     freshnessWindowMs: FRESHNESS_WINDOW_MS,
     marketDurationMs: MARKET_DURATION_MS,
-    healthCheckAtFraction: HEALTH_CHECK_AT_FRACTION,
+    seedPerSideUsd: SEED_PER_SIDE_USD,
+    likesSampleIntervalMs: LIKES_SAMPLE_INTERVAL_MS,
     minStakeUsd: MIN_STAKE_USD,
     maxStakeUsd: MAX_STAKE_USD,
     hiddenReportThreshold: HIDDEN_REPORT_THRESHOLD,
-    protocolWallet: protocolWallet.address,
+    // operator doubles as treasury on devnet: seeds sign + fund from it
+    protocolWallet: operator.address,
     dopplerWallet: dopplerWallet.address,
     feeShareBps: FEE_SHARE_BPS,
     marketUrl,

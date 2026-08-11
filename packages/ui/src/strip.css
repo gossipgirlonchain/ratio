@@ -132,7 +132,8 @@
   gap: 10px; font-size: 12px; min-height: 16px;
 }
 .rs-rule { color: var(--rs-muted); }
-.rs-strip[data-status="settled"] .rs-rule { color: var(--rs-fg); font-weight: 700; }
+.rs-strip[data-status="settled"] .rs-rule,
+.rs-strip[data-status="forfeited"] .rs-rule { color: var(--rs-fg); font-weight: 700; }
 
 /* -- fold: the betting panel (and the success line) open smoothly --------- */
 /* grid-rows 0fr -> 1fr animates height without measuring; visibility keeps

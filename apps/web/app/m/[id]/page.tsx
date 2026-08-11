@@ -120,8 +120,8 @@ export default function MarketPage() {
           <div className="match-rule">
             {data.status === "settled" && data.winner
               ? `@${(data.winner === "a" ? data.a : data.b).handle} won`
-              : data.status === "voided"
-                ? "voided · stakes refunded"
+              : data.status === "forfeited" && data.winner
+                ? `@${(data.winner === "a" ? data.a : data.b).handle} wins by forfeit`
                 : `most likes in ${timeLeft(data.settlesAtMs)} wins`}
             <span className="match-staked">{fmtUsd(data.a.potUsd + data.b.potUsd)} staked</span>
           </div>

@@ -12,8 +12,12 @@
 import { FEE_SHARE_BPS, SWAP_FEE_BPS } from "@ratio/config";
 
 export type PairType = "quote" | "reply";
-/** `forfeited` is reserved in the schema; nothing sets it in v1 (no hide detection). */
-export type MarketStatus = "open" | "settled" | "voided" | "forfeited";
+/**
+ * No `voided` status exists (deleted 2026-08-11): treasury seeding makes
+ * zero-winner impossible, and an unreadable side settles as a FORFEIT for
+ * the side still standing. Every market ends `settled` or `forfeited`.
+ */
+export type MarketStatus = "open" | "settled" | "forfeited";
 
 export interface MarketRecord {
   /** = tweet_b_id (a reply/QT references exactly one tweet, so B keys the pair). */
@@ -35,11 +39,11 @@ export interface MarketRecord {
   winner: "a" | "b" | null;
   likesAFinal?: number;
   likesBFinal?: number;
-  voidReason?: string;
   /** Pre-migration odds snapshot — vaults drain at migration (cue-wire keep). */
   finalImpliedA?: number;
   finalPotUsd?: number;
-  healthCheckedAtMs?: number;
+  /** Last likes sample time — drives the sampling cadence (chart series). */
+  lastLikesSampleAtMs?: number;
   /**
    * Hidden-reply badge (display only, NEVER settlement input). Reports come
    * from extension clients; the flag goes live at the corroboration
@@ -99,6 +103,17 @@ export interface BetRecord {
   amountUsd: number;
   tokensOut: number;
   placedAtMs: number;
+  /** Treasury creation seed: plumbing, not a participant. Excluded from
+   * who's-in, positions, and default listBets; counted in staked totals. */
+  isSeed?: boolean;
+}
+
+/** One point of the chart's likes series — sampled, it exists nowhere else. */
+export interface LikeSampleRecord {
+  marketId: string;
+  atMs: number;
+  likesA: number;
+  likesB: number;
 }
 
 /** A user's net standing in one open market, derived from trade records. */
@@ -121,9 +136,13 @@ export interface Store {
   saveMarket(market: MarketRecord): Promise<void>;
   updateMarket(id: string, patch: Partial<MarketRecord>): Promise<void>;
   saveBet(bet: BetRecord): Promise<void>;
+  /** Participant trades only — seeds are excluded (plumbing). */
   listBets(marketId: string): Promise<BetRecord[]>;
+  saveLikeSample(sample: LikeSampleRecord): Promise<void>;
+  listLikeSamples(marketId: string): Promise<LikeSampleRecord[]>;
   listOpenMarketsDue(nowMs: number): Promise<MarketRecord[]>;
-  listOpenMarketsNeedingHealthCheck(cutoffFractionMs: (m: MarketRecord) => number, nowMs: number): Promise<MarketRecord[]>;
+  /** Open markets whose last likes sample is older than the interval. */
+  listOpenMarketsNeedingLikesSample(intervalMs: number, nowMs: number): Promise<MarketRecord[]>;
   /**
    * Post view: every market sharing this side A. A primary read path —
    * `tweet_a_id` is INDEXED in every implementation (Supabase: btree).
@@ -171,14 +190,14 @@ export interface Store {
    * ramp anyway, this is where it shows.
    */
   sellsNearRampStart(opts: { rampStartMs: number; windowMs: number }): Promise<{ justBefore: number; justAfter: number }>;
-  /** Instrumentation for the freshness-window decision (9-12h keep or cut). */
-  voidRateByAgeBucket(bucketMs: number): Promise<Map<number, { total: number; voided: number }>>;
+
 }
 
 export class InMemoryStore implements Store {
   private mentions = new Set<string>();
   private markets = new Map<string, MarketRecord>();
   private bets: BetRecord[] = [];
+  private likeSamples: LikeSampleRecord[] = [];
   /** The in-memory analogue of the tweet_a_id index. */
   private byPost = new Map<string, string[]>();
 
@@ -216,23 +235,27 @@ export class InMemoryStore implements Store {
     this.bets.push(bet);
   }
   async listBets(marketId: string) {
-    return this.bets.filter((b) => b.marketId === marketId);
+    return this.bets.filter((b) => b.marketId === marketId && !b.isSeed);
+  }
+  async saveLikeSample(sample: LikeSampleRecord) {
+    this.likeSamples.push(sample);
+  }
+  async listLikeSamples(marketId: string) {
+    return this.likeSamples
+      .filter((sm) => sm.marketId === marketId)
+      .sort((x, y) => x.atMs - y.atMs);
   }
   async listOpenMarketsDue(nowMs: number) {
     return [...this.markets.values()].filter(
       (m) => m.status === "open" && m.settlesAtMs <= nowMs,
     );
   }
-  async listOpenMarketsNeedingHealthCheck(
-    cutoff: (m: MarketRecord) => number,
-    nowMs: number,
-  ) {
+  async listOpenMarketsNeedingLikesSample(intervalMs: number, nowMs: number) {
     return [...this.markets.values()].filter(
       (m) =>
         m.status === "open" &&
-        m.healthCheckedAtMs === undefined &&
-        nowMs >= cutoff(m) &&
-        nowMs < m.settlesAtMs,
+        nowMs < m.settlesAtMs &&
+        nowMs - (m.lastLikesSampleAtMs ?? m.createdAtMs) >= intervalMs,
     );
   }
   async listMarketsByPost(tweetAId: string) {
@@ -341,16 +364,5 @@ export class InMemoryStore implements Store {
       else if (delta >= 0 && delta <= windowMs) justAfter += 1;
     }
     return { justBefore, justAfter };
-  }
-  async voidRateByAgeBucket(bucketMs: number) {
-    const out = new Map<number, { total: number; voided: number }>();
-    for (const m of this.markets.values()) {
-      const bucket = Math.floor(m.tweetBAgeAtCreateMs / bucketMs);
-      const row = out.get(bucket) ?? { total: 0, voided: 0 };
-      row.total += 1;
-      if (m.status === "voided") row.voided += 1;
-      out.set(bucket, row);
-    }
-    return out;
   }
 }

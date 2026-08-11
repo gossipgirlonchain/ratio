@@ -16,7 +16,7 @@
  *    No back button, no cancel affordance, no "backing @x" line — the
  *    selected row already says all of that.
  *  - ONE line of explanatory copy: "most likes in <time> wins".
- *    Settled/voided replace it with the fewest possible words.
+ *    Settled/forfeited replace it with the fewest possible words.
  *  - No status vocabulary anywhere. The clock says whether it is open.
  *  - Money: never the word "pot". A one-sided market must LOOK lopsided —
  *    the empty side renders as a sliver, never as a full/solid bar.
@@ -156,10 +156,11 @@ export function MarketStrip({ data, nowMs, onSign, onPresetUsed, marketHref, onO
   const [placed, setPlaced] = useState<{ side: "a" | "b"; amountUsd: number } | null>(null);
 
   const open = data.status === "open" && now < data.settlesAtMs;
+  const decided = data.status === "settled" || data.status === "forfeited";
   const tappable = open && Boolean(onSign);
   // Exact tie renders A leading — never said aloud. Settled shades the winner.
   const leading: "a" | "b" =
-    data.status === "settled" && data.winner
+    decided && data.winner
       ? data.winner
       : data.a.likes >= data.b.likes
         ? "a"
@@ -195,12 +196,12 @@ export function MarketStrip({ data, nowMs, onSign, onPresetUsed, marketHref, onO
     setCustom(null);
   };
 
-  // The ONE line of copy. Settled/voided replace it with the outcome.
+  // The ONE line of copy. Settled/forfeited replace it with the outcome.
   const rule =
     data.status === "settled" && data.winner
       ? `@${(data.winner === "a" ? data.a : data.b).handle} won`
-      : data.status === "voided"
-        ? "voided · stakes refunded"
+      : data.status === "forfeited" && data.winner
+        ? `@${(data.winner === "a" ? data.a : data.b).handle} wins by forfeit`
         : `most likes in ${timeLeft(data.settlesAtMs, now)} wins`;
 
   // Bar: each side keeps a visible share; an empty side is a SLIVER, so a

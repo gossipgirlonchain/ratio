@@ -9,7 +9,6 @@
  *                 tokens per USDC — time-priority pricing within a side)
  *   settle:       finalize(winner) -> migrate both entries -> pot
  *                 (finalize GATES migrate; parimutuel pot split at claim)
- *   void:         never finalize — curves stay open, bettors sell back out
  *
  * MockMarketChain reproduces those semantics in memory for the sim; the real
  * devnet client ports cue-wire's packages/doppler behind this same interface.
@@ -54,7 +53,6 @@ export interface MarketChain {
   }): Promise<{ tokensOut: number; feeUsd: number }>;
   getOdds(refs: ChainRefs): Promise<Odds>;
   settle(opts: { refs: ChainRefs; winner: 0 | 1 }): Promise<void>;
-  void(refs: ChainRefs): Promise<void>;
 }
 
 // ---------------------------------------------------------------------------
@@ -72,7 +70,7 @@ interface MockMarket {
   sides: [MockSide, MockSide];
   feeBeneficiaries: FeeBeneficiary[];
   feesUsd: number;
-  state: "open" | "settled" | "voided";
+  state: "open" | "settled";
   winner?: 0 | 1;
 }
 
@@ -161,15 +159,11 @@ export class MockMarketChain implements MarketChain {
     const m = this.market(opts.refs);
     if (m.state !== "open") throw new Error("market not open");
     // Mirrors on-chain ZeroClaimableSupply: migration throws when nobody
-    // holds the winning side. The engine must guard and void instead.
+    // holds the winning side. Treasury seeding makes this unreachable;
+    // the engine treats it as a held invariant, never a settle path.
     if (m.sides[opts.winner].tokensOut === 0) throw new Error("ZeroClaimableSupply");
     m.state = "settled";
     m.winner = opts.winner;
-  }
-
-  async void(refs: ChainRefs): Promise<void> {
-    const m = this.market(refs);
-    m.state = "voided"; // never finalized; curves allow sells, bettors exit
   }
 
   /**

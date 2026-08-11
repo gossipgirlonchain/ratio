@@ -10,11 +10,12 @@ import {
   EXIT_FEE_RAMP_START_MS,
   FEE_SHARE_BPS,
   FRESHNESS_WINDOW_MS,
-  HEALTH_CHECK_AT_FRACTION,
+  LIKES_SAMPLE_INTERVAL_MS,
   HIDDEN_REPORT_THRESHOLD,
   MARKET_DURATION_MS,
   MAX_STAKE_USD,
   MIN_STAKE_USD,
+  SEED_PER_SIDE_USD,
   SWAP_FEE_BPS,
   exitFeeBps,
   exitFeeSurchargeBps,
@@ -42,7 +43,8 @@ const engine = new RatioEngine(x, store, wallets, chain, {
   botHandle: BOT_HANDLE,
   freshnessWindowMs: FRESHNESS_WINDOW_MS,
   marketDurationMs: MARKET_DURATION_MS,
-  healthCheckAtFraction: HEALTH_CHECK_AT_FRACTION,
+  seedPerSideUsd: SEED_PER_SIDE_USD,
+  likesSampleIntervalMs: LIKES_SAMPLE_INTERVAL_MS,
   minStakeUsd: MIN_STAKE_USD,
   maxStakeUsd: MAX_STAKE_USD,
   hiddenReportThreshold: HIDDEN_REPORT_THRESHOLD,
@@ -110,7 +112,7 @@ for (const id of ["u:scout", "u:alice", "u:bob"])
 betOn(m1.sideB.tweetId, "carol", "$100 on B");
 betOn(m1.sideB.tweetId, "dave", "$20 A");
 await engine.tick();
-assert.equal((await store.listBets(rec.id)).length, 2);
+assert.equal((await store.listBets(rec.id)).length, 2, "seeds excluded from participant trades");
 
 advance(MARKET_DURATION_MS + 1);
 x.setLikes(m1.sideA.tweetId, 300);
@@ -196,33 +198,51 @@ assert.equal(rec!.status, "settled");
 assert.equal(rec!.winner, "a", "tie: side A held the line");
 
 // ---------------------------------------------------------------------------
-// 6. One-sided market: winner has no money -> void, never settle
+// 6. One-sided market: the treasury seed makes it settleable (voids are gone)
 // ---------------------------------------------------------------------------
-scenario("6. ZeroClaimableSupply guard");
+scenario("6. seed makes a one-sided market settleable");
 const m6 = seedPair({ type: "quoted", a: "liam", b: "mona", likesA: 100 });
 tagOn(m6.sideB.tweetId, "scout");
 await engine.tick();
-betOn(m6.sideB.tweetId, "carol", "$40 B"); // only money is on the loser
+betOn(m6.sideB.tweetId, "carol", "$40 B"); // all participant money on the loser
 await engine.tick();
 advance(MARKET_DURATION_MS + 1);
 await engine.resolveDueMarkets();
 rec = await store.getMarketByTweet(m6.sideB.tweetId);
-assert.equal(rec!.status, "voided");
-assert.match(rec!.voidReason!, /no money/);
+assert.equal(rec!.status, "settled", "seed on the winner side prevents ZeroClaimableSupply");
+assert.equal(rec!.winner, "a");
+assert.ok(rec!.finalPotUsd! > 40, "pot includes the loser's money for the seed to win");
 
 // ---------------------------------------------------------------------------
-// 7. Mid-window deletion -> health check voids before settlement
+// 7. Deletion mid-window -> FORFEIT at settlement; sampler records likes
 // ---------------------------------------------------------------------------
-scenario("7. mid-window health check");
-const m7 = seedPair({ type: "replied_to", a: "nina", b: "oscar" });
+scenario("7. deletion forfeits; likes sampler records the series");
+const m7 = seedPair({ type: "replied_to", a: "nina", b: "oscar", likesA: 50, likesB: 10 });
 tagOn(m7.sideB.tweetId, "scout");
 await engine.tick();
-advance(MARKET_DURATION_MS * 0.6);
+const m7id = (await store.getMarketByTweet(m7.sideB.tweetId))!.id;
+// sampler records a point mid-window (the chart's likes series)
+advance(MARKET_DURATION_MS * 0.3);
+x.setLikes(m7.sideA.tweetId, 60);
+await engine.sampleLikesDueMarkets();
+const m7samples = await store.listLikeSamples(m7id);
+assert.equal(m7samples.length, 1);
+assert.equal(m7samples[0]!.likesA, 60, "sampler recorded fresh counts");
+// side A deletes mid-window: nothing happens until the clock runs out —
+// then the surviving side takes it by forfeit. No deleting your way out.
+advance(MARKET_DURATION_MS * 0.3);
 x.deleteTweet(m7.sideA.tweetId);
-await engine.healthCheckDueMarkets();
+await engine.sampleLikesDueMarkets(); // unreadable: no sample, no action
+assert.equal((await store.listLikeSamples(m7id)).length, 1);
 rec = await store.getMarketByTweet(m7.sideB.tweetId);
-assert.equal(rec!.status, "voided");
-assert.match(rec!.voidReason!, /mid market/);
+assert.equal(rec!.status, "open", "sampler never settles anything");
+advance(MARKET_DURATION_MS);
+await engine.resolveDueMarkets();
+rec = await store.getMarketByTweet(m7.sideB.tweetId);
+assert.equal(rec!.status, "forfeited");
+assert.equal(rec!.winner, "b", "the side still standing wins");
+assert.equal(rec!.likesAFinal, 60, "last sampled count kept for the record");
+assert.match(x.posted.at(-1)!.text, /no longer public.*takes it by forfeit/);
 
 // ---------------------------------------------------------------------------
 // 8. Eligibility rejections
@@ -269,31 +289,31 @@ rec = await store.getMarketByPair(orig.tweetId, authorQt.tweetId);
 assert.ok(rec, "author-path market created");
 assert.equal(rec.taggerXId, "u:uma");
 assert.equal(rec.authorBXId, "u:uma", "tagger is also side B");
-// clear the board: run scenario 9's market to its (moneyless) void so
-// scenario 10's failure injection targets exactly one open market
+// clear the board: settle scenario 9's market (the seed carries the
+// winning side) so scenario 10's failure injection targets one market
 advance(MARKET_DURATION_MS + 1);
 await engine.resolveDueMarkets();
 
 // ---------------------------------------------------------------------------
 // 10. Transient X API failure -> defer and retry, never void (R2)
 // ---------------------------------------------------------------------------
-scenario("10. transient API failure retries, does not void");
+scenario("10. transient API failure defers and retries");
 const m10 = seedPair({ type: "quoted", a: "vera", b: "walt", likesA: 5, likesB: 9 });
 tagOn(m10.sideB.tweetId, "scout");
 await engine.tick();
 betOn(m10.sideB.tweetId, "carol", "$25 B");
 await engine.tick();
 
-// health check hits a flaky API: check must re-arm, not mark done
+// likes sampler hits a flaky API: cadence must re-arm, not mark sampled
 advance(MARKET_DURATION_MS * 0.6);
 x.failNextGets = 2;
-await engine.healthCheckDueMarkets();
+await engine.sampleLikesDueMarkets();
 rec = await store.getMarketByTweet(m10.sideB.tweetId);
 assert.equal(rec!.status, "open");
-assert.equal(rec!.healthCheckedAtMs, undefined, "failed check re-arms");
-await engine.healthCheckDueMarkets();
+assert.equal(rec!.lastLikesSampleAtMs, undefined, "failed sample re-arms");
+await engine.sampleLikesDueMarkets();
 rec = await store.getMarketByTweet(m10.sideB.tweetId);
-assert.ok(rec!.healthCheckedAtMs, "retry completed the check");
+assert.ok(rec!.lastLikesSampleAtMs, "retry completed the sample");
 
 // settlement hits a flaky API: market stays open, next tick settles it
 advance(MARKET_DURATION_MS);
@@ -413,12 +433,13 @@ assert.ok(
   "each market self-contained, keyed to the post",
 );
 const trending = await store.trendingPosts(10);
+const SEEDS = 2 * SEED_PER_SIDE_USD; // per-market treasury seed, part of staked
 assert.equal(trending[0]!.tweetAId, postQ.tweetId, "volume outranks count");
 assert.equal(trending[0]!.marketCount, 1);
-assert.equal(trending[0]!.stakedVolumeUsd, 200);
+assert.equal(trending[0]!.stakedVolumeUsd, 200 + SEEDS);
 const pRow = trending.find((t) => t.tweetAId === postP.tweetId)!;
 assert.equal(pRow.marketCount, 3, "count surfaces for display");
-assert.equal(pRow.stakedVolumeUsd, 30, "three cheap markets rank below one big one");
+assert.equal(pRow.stakedVolumeUsd, 30 + 3 * SEEDS, "three cheap markets rank below one big one");
 
 // ---------------------------------------------------------------------------
 // 14. Handle-based stakes (§4: people, not letters) with A/B fallback
@@ -465,13 +486,17 @@ betOn(m15.sideB.tweetId, "dave", "$60 @yanni");
 await engine.tick();
 
 const board = await store.feeLeaderboard({ sinceMs: windowStart });
-// $160 volume × 1.25% = $2 fees; sides 18% each = $0.36, tagger 11.5% = $0.23
+// volume incl. seeds; fees split by FEE_SHARE_BPS — computed, not hardcoded
+const m15Volume = 160 + 2 * SEED_PER_SIDE_USD;
+const m15Fees = (m15Volume * SWAP_FEE_BPS) / 10_000;
+const expectSideA = (m15Fees * FEE_SHARE_BPS.sideA) / 10_000;
+const expectTagger = (m15Fees * FEE_SHARE_BPS.tagger) / 10_000;
 const by = (h: string) => board.find((r) => r.handle === h)!;
 assert.equal(board.length, 3, "window isolates the fresh market's three earners");
-assert.ok(Math.abs(by("zara").totalFeeUsd - 0.36) < 1e-9);
-assert.ok(Math.abs(by("zara").byRole.sideA - 0.36) < 1e-9, "role breakdown: all from being the original");
-assert.ok(Math.abs(by("yanni").byRole.sideB - 0.36) < 1e-9);
-assert.ok(Math.abs(by("scout2").byRole.tagger - 0.23) < 1e-9, "tagger slice");
+assert.ok(Math.abs(by("zara").totalFeeUsd - expectSideA) < 1e-9);
+assert.ok(Math.abs(by("zara").byRole.sideA - expectSideA) < 1e-9, "role breakdown: all from being the original");
+assert.ok(Math.abs(by("yanni").byRole.sideB - expectSideA) < 1e-9);
+assert.ok(Math.abs(by("scout2").byRole.tagger - expectTagger) < 1e-9, "tagger slice");
 assert.ok(by("zara").totalFeeUsd >= by("scout2").totalFeeUsd, "ranked by total");
 
 const allTime = await store.feeLeaderboard({ sinceMs: 0 });
@@ -581,11 +606,5 @@ const nearRamp = await store.sellsNearRampStart({
 });
 assert.ok(nearRamp.justBefore >= 1 && nearRamp.justAfter >= 1, "ramp-start metric counts both sides");
 
-// ---------------------------------------------------------------------------
-scenario("instrumentation: void rate by side-B age bucket (3h)");
-for (const [bucket, row] of await store.voidRateByAgeBucket(3 * HOUR))
-  console.log(
-    `   ${bucket * 3}-${bucket * 3 + 3}h: ${row.voided}/${row.total} voided`,
-  );
 
 console.log("\n✅ all R1+R2 scenarios passed");

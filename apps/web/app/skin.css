@@ -15,9 +15,13 @@
    checks): dark #4E97D6/#7FA32E · light #2E7DBF/#7A9A2E. */
 :root, html[data-theme="dark"] {
   --bg: #131416;
-  --surface: #1E2023;
-  --ink: #E9EAEC;
-  --ink-muted: #A2A8AD;
+  --surface: #131416; /* same tone as the page — the border does the work */
+  --ink: #EDEEF0;
+  /* muted still reads as body text at 13px on #131416 — grey label, not
+     grey haze. Was #A2A8AD (too dim for the tweet text it carries). */
+  --ink-muted: #C6CACE;
+  /* the card edge: fat but not luminous. Full ink glows on a dark page. */
+  --edge: #4A5056;
   --accent: #CEF17B;
   --accent-strong: #B8DB6E;
   --on-accent: #131608;
@@ -31,6 +35,7 @@ html[data-theme="light"] {
   --surface: #F4F3EE; /* same tone as the page — the border does the work */
   --ink: #17191B;
   --ink-muted: #4C5155;
+  --edge: var(--ink); /* dark-on-light borders read like print — keep */
   --accent: #B8DD57;
   --accent-strong: #A6CB49;
   --on-accent: #131608;
@@ -50,7 +55,7 @@ html[data-theme="light"] {
   --host-bg: var(--surface);
   --host-fg: var(--ink);
   --host-muted: var(--ink-muted);
-  --host-border: var(--ink);
+  --host-border: var(--edge);
   --host-radius: 12px;
 }
 body { background: var(--bg); color: var(--ink); }
@@ -108,8 +113,8 @@ body { background: var(--bg); color: var(--ink); }
 }
 .rs-strip[data-status="settled"] { box-shadow: 4px 4px 0 var(--mint); }
 .rs-strip[data-status="settled"]:hover { box-shadow: 6px 6px 0 var(--mint); }
-.rs-strip[data-status="voided"] { box-shadow: 4px 4px 0 var(--gunmetal); }
-.rs-strip[data-status="voided"]:hover { box-shadow: 6px 6px 0 var(--gunmetal); }
+.rs-strip[data-status="forfeited"] { box-shadow: 4px 4px 0 var(--gunmetal); }
+.rs-strip[data-status="forfeited"]:hover { box-shadow: 6px 6px 0 var(--gunmetal); }
 
 /* rows: the LEADER wears green at rest (the incentive on display); once a
    row is picked, green transfers to the selection ([data-picking] drops
@@ -123,7 +128,7 @@ body { background: var(--bg); color: var(--ink); }
 .rs-strip .rs-row-on, .rs-strip .rs-row-on:hover { background: var(--accent); }
 .rs-strip .rs-row-on .rs-row-handle, .rs-strip .rs-row-on .rs-row-text,
 .rs-strip .rs-row-on .rs-row-likes, .rs-strip .rs-row-on .rs-expand { color: var(--on-accent); }
-.rs-avatar { border: 1.5px solid var(--carbon); }
+.rs-avatar { border: 1.5px solid var(--edge); }
 
 .rs-divider { border-top-width: 2px; }
 
@@ -178,7 +183,7 @@ body { background: var(--bg); color: var(--ink); }
 .page-title { font-size: 22px; font-weight: 900; letter-spacing: -0.02em; margin-bottom: 14px; }
 .card {
   background: var(--paper); color: var(--carbon);
-  border: 2px solid var(--carbon); border-radius: 12px;
+  border: 2px solid var(--edge); border-radius: 12px;
   box-shadow: 4px 4px 0 var(--lime);
   padding: 14px 16px; margin-bottom: 16px;
 }
@@ -200,7 +205,7 @@ body { background: var(--bg); color: var(--ink); }
 /* explainer for strangers */
 .explainer { display: flex; gap: 12px; align-items: flex-start; background: var(--accent-2); color: var(--on-accent); }
 .explainer-dismiss {
-  border: 2px solid var(--carbon); background: var(--paper); color: var(--carbon);
+  border: 2px solid var(--edge); background: var(--paper); color: var(--carbon);
   border-radius: 999px; padding: 4px 12px; font-weight: 700; font-size: 12px;
   cursor: pointer; white-space: nowrap; box-shadow: 2px 2px 0 var(--carbon);
 }
@@ -211,12 +216,12 @@ body { background: var(--bg); color: var(--ink); }
 
 /* profile */
 .profile-head { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
-.profile-avatar { width: 44px; height: 44px; border-radius: 999px; border: 2px solid var(--carbon); }
+.profile-avatar { width: 44px; height: 44px; border-radius: 999px; border: 2px solid var(--edge); }
 .profile-id h1 { font-size: 18px; font-weight: 900; }
 .profile-claim { margin-left: auto; text-align: right; display: flex; flex-direction: column; gap: 6px; }
 .profile-unclaimed { font-weight: 800; font-variant-numeric: tabular-nums; }
 .claim-btn {
-  border: 2px solid var(--ink); background: var(--accent); color: var(--on-accent);
+  border: 2px solid var(--edge); background: var(--accent); color: var(--on-accent);
   border-radius: 999px; padding: 5px 12px; font-weight: 800; font-size: 12px;
   cursor: pointer; box-shadow: 2px 2px 0 var(--carbon);
 }
@@ -229,7 +234,7 @@ body { background: var(--bg); color: var(--ink); }
 /* leaderboard */
 .tabs { display: flex; gap: 6px; margin-bottom: 14px; }
 .tab {
-  border: 2px solid var(--ink); background: none; color: var(--ink);
+  border: 2px solid var(--edge); background: none; color: var(--ink);
   border-radius: 999px; padding: 4px 12px; font-weight: 700; font-size: 12px; cursor: pointer;
 }
 .tab-on { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
@@ -242,7 +247,7 @@ body { background: var(--bg); color: var(--ink); }
 /* search */
 .search-input {
   width: 100%; box-sizing: border-box; margin-bottom: 14px;
-  border: 2px solid var(--carbon); border-radius: 999px; padding: 9px 16px;
+  border: 2px solid var(--edge); border-radius: 999px; padding: 9px 16px;
   font-size: 14px; background: var(--paper); color: var(--carbon); outline: none;
   box-shadow: 3px 3px 0 var(--lime);
 }
@@ -253,10 +258,10 @@ body { background: var(--bg); color: var(--ink); }
 .deposit-address {
   flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis;
   font-size: 12px; background: color-mix(in srgb, var(--carbon) 6%, transparent);
-  padding: 8px 10px; border-radius: 8px; border: 1px solid var(--carbon);
+  padding: 8px 10px; border-radius: 8px; border: 1px solid var(--edge);
 }
 .copy-btn {
-  border: 2px solid var(--ink); background: var(--accent); color: var(--on-accent);
+  border: 2px solid var(--edge); background: var(--accent); color: var(--on-accent);
   border-radius: 999px; padding: 6px 14px; font-weight: 800; font-size: 12px;
   cursor: pointer; box-shadow: 2px 2px 0 var(--carbon);
 }
@@ -311,7 +316,7 @@ body { background: var(--bg); color: var(--ink); }
 .wallet-amount { font-weight: 900; font-size: 16px; font-variant-numeric: tabular-nums; }
 .wallet-actions { margin-left: auto; display: flex; gap: 6px; }
 .wallet-toggle {
-  border: 2px solid var(--carbon); background: none; color: var(--carbon);
+  border: 2px solid var(--edge); background: none; color: var(--carbon);
   border-radius: 999px; padding: 3px 12px; font-weight: 700; font-size: 12px; cursor: pointer;
 }
 .wallet-toggle-on { background: var(--carbon); color: var(--paper); }
@@ -360,7 +365,7 @@ body { background: var(--bg); color: var(--ink); }
 .sidebar-cta {
   display: block; text-align: center; text-decoration: none;
   background: var(--accent); color: var(--on-accent);
-  border: 2px solid var(--ink); border-radius: 999px;
+  border: 2px solid var(--edge); border-radius: 999px;
   padding: 8px 0; font-weight: 800; font-size: 13px;
   box-shadow: 2px 2px 0 color-mix(in srgb, var(--ink) 30%, transparent);
   margin-bottom: 10px;
@@ -382,7 +387,7 @@ body { background: var(--bg); color: var(--ink); }
 .nav-search-input:focus { border-color: var(--lime); }
 .nav-results {
   position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 30;
-  background: var(--paper); border: 2px solid var(--carbon); border-radius: 10px;
+  background: var(--paper); border: 2px solid var(--edge); border-radius: 10px;
   box-shadow: 3px 3px 0 var(--lime); overflow: hidden;
   display: flex; flex-direction: column;
 }
@@ -470,7 +475,7 @@ body { background: var(--bg); color: var(--ink); }
    inside .rs-strip — define them at the panel root or buttons render as
    bare text. Rail buttons are FLAT: no offset shadows off-strip. */
 .trade-panel {
-  --rs-border: var(--carbon);
+  --rs-border: var(--edge);
   --rs-fg: var(--carbon);
   --rs-bg: var(--paper);
   --rs-muted: var(--gunmetal);
@@ -483,14 +488,14 @@ body { background: var(--bg); color: var(--ink); }
 .trade-panel .rs-custom-input {
   box-shadow: none !important;
   transform: none !important;
-  border: 2px solid var(--carbon);
+  border: 2px solid var(--edge);
 }
 .trade-panel .rs-sign:disabled { border-color: var(--gunmetal); color: var(--gunmetal); }
 .trade-panel .rs-custom-btn { color: var(--gunmetal); }
 /* segmented control: one bordered track, the active segment fills — a
    mode switch, not two actions */
 .panel-tabs {
-  display: flex; border: 2px solid var(--carbon); border-radius: 999px;
+  display: flex; border: 2px solid var(--edge); border-radius: 999px;
   padding: 2px; margin-bottom: 12px;
 }
 .panel-tab {
@@ -526,7 +531,7 @@ body { background: var(--bg); color: var(--ink); }
 .trunc { max-width: 150px; }
 .trade-sides { display: flex; gap: 6px; margin-bottom: 10px; }
 .trade-side {
-  flex: 1; border: 2px solid var(--carbon); border-radius: 999px; background: none;
+  flex: 1; border: 2px solid var(--edge); border-radius: 999px; background: none;
   color: var(--carbon); font-weight: 800; font-size: 12.5px; padding: 7px 0; cursor: pointer;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   box-shadow: none;
@@ -539,7 +544,7 @@ body { background: var(--bg); color: var(--ink); }
 
 .position-mod { border-top: 1px solid color-mix(in srgb, var(--carbon) 15%, transparent); margin-top: 12px; padding-top: 8px; }
 .sell-btn {
-  width: 100%; margin-top: 8px; border: 2px solid var(--carbon); border-radius: 999px;
+  width: 100%; margin-top: 8px; border: 2px solid var(--edge); border-radius: 999px;
   background: none; color: var(--carbon); font-weight: 800; font-size: 12.5px;
   padding: 6px 0; cursor: pointer;
 }
@@ -557,7 +562,7 @@ body { background: var(--bg); color: var(--ink); }
 /* -- profile: one header, full width -------------------------------------- */
 .profile-wide { max-width: 1000px; padding: 18px 0 60px; }
 .profile-header { display: flex; gap: 18px; align-items: flex-start; padding: 18px 20px; }
-.profile-avatar-lg { width: 72px; height: 72px; border-radius: 999px; border: 2px solid var(--carbon); flex-shrink: 0; }
+.profile-avatar-lg { width: 72px; height: 72px; border-radius: 999px; border: 2px solid var(--edge); flex-shrink: 0; }
 .profile-main { flex: 1; min-width: 0; }
 .profile-name-row { display: flex; align-items: baseline; gap: 12px; }
 .profile-name-row h1 { font-size: 24px; font-weight: 900; letter-spacing: -0.02em; }

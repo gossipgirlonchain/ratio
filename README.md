@@ -11,11 +11,25 @@ handle is unregistered — `BOT_HANDLE` in `@ratio/config` drives it everywhere.
 
 - **R1 — done.** Eligibility gate, pair resolution (QT + reply, one code
   path), market creation, 24h settlement on absolute like counts, tie to
-  side A, mid-window health check, ZeroClaimableSupply void guard. All
-  against mocks: `npm run sim`.
-- **R2 — done.** Mid-window health check, transient-vs-gone distinction
-  (API failures defer and retry; only definitive unreadability voids). No
-  forfeit; `forfeited` stays reserved in the schema.
+  side A. All against mocks: `npm run sim`.
+- **R2 — done, then superseded (2026-08-11): voids are DELETED.** No void
+  status, no void reasons, no refund path (none exists on-chain anyway —
+  the prediction hook rejects every sell and the IDLs have no
+  cancel/refund instruction, so a voided market would strand funds).
+  Instead: every market is seeded `SEED_PER_SIDE_USD` ($1) per side from
+  the treasury at creation, before the card posts — ZeroClaimableSupply
+  becomes an unreachable invariant (logged loudly, never a settle path) —
+  and an unreadable side (deleted / private / suspended) settles as a
+  FORFEIT for the surviving side (both gone → side A by tie convention).
+  Seeds are plumbing: excluded from `listBets`, participant displays, and
+  the who's-in list. Transient-vs-gone distinction survives: API failures
+  still defer and retry; only definitive unreadability forfeits. The
+  mid-window health check was repurposed, not deleted: it is now the
+  likes sampler (`LIKES_SAMPLE_INTERVAL_MS`), recording per-side like
+  counts for open markets — the chart's likes series, which exists
+  nowhere else and cannot be backfilled. Sells are disabled
+  (`SELLS_ENABLED=false`, devnet-proven hook rejection); the exit-fee
+  ramp is shelved in config, not deleted.
 - **Hidden-reply badge — done (agent side).** The extension reports side B
   missing from its thread; at `HIDDEN_REPORT_THRESHOLD` independent
   reporters the badge goes live and the bot posts once ("this reply is no
@@ -56,7 +70,7 @@ handle is unregistered — `BOT_HANDLE` in `@ratio/config` drives it everywhere.
   rows with identical treatment (the OP is a competitor, not context);
   like counts 13px at the right of each row; the leader is a shaded row
   with a bold count and nothing else; zero ? hints; ONE line of copy
-  ("most likes in <time> wins" / "@x won" / "voided · stakes refunded");
+  ("most likes in <time> wins" / "@x won" / "@x wins by forfeit");
   12-13px throughout; tap a row to back someone; the amount grid appears
   only after a pick, swapping with the whole body in one grid cell (no
   reserved dead space, height provably constant). One strip one market (no
@@ -92,7 +106,7 @@ handle is unregistered — `BOT_HANDLE` in `@ratio/config` drives it everywhere.
 
 ## Layout
 
-- `apps/agent` — mention loop, engine, settlement + health-check crons, sim
+- `apps/agent` — mention loop, engine, settlement + likes-sampler crons, sim
 - `packages/config` — every knob and every copy template (handle-parameterized)
 - `packages/doppler` — `RatioMarketClient` on doppler-sol (prediction
   migrator); `npm run e2e -w @ratio/doppler` runs the devnet lifecycle

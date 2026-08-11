@@ -97,7 +97,8 @@ export const markets: FixtureMarket[] = [
       a: { handle: "deleter", avatarUrl: av("deleter"), text: "watch me say it anyway", likes: 950, potUsd: 75 },
       b: { handle: "witness", avatarUrl: av("witness"), text: "he is absolutely going to delete this", likes: 430, potUsd: 40 },
       settlesAtMs: NOW - H,
-      status: "voided",
+      status: "forfeited",
+      winner: "b",
     },
   },
 ];
@@ -193,7 +194,11 @@ export interface ProfileFixture {
 export const profileFor = (handle: string): ProfileFixture => {
   const mine = marketsByParticipant(handle);
   const row = leaderboard.all.find((r) => r.handle === handle);
-  const settled = mine.filter((m) => m.data.status === "settled");
+  // Forfeits are decided markets: they count toward wins, losses, and
+  // times ratio'd exactly like a likes win.
+  const settled = mine.filter(
+    (m) => m.data.status === "settled" || m.data.status === "forfeited",
+  );
   const won = settled.filter((m) => {
     const winner = m.data.winner === "a" ? m.data.a.handle : m.data.b.handle;
     return winner === handle;
@@ -280,7 +285,7 @@ export function chartSeries(m: FixtureMarket): ChartSeries {
 /** Demo position for the trade panel: what the viewer holds, if anything. */
 export const positionFor = (viewer: string | null, marketId: string) =>
   viewer === "bigaccount" && marketId === "m2"
-    ? { side: "a" as const, tokens: 1_180, netStakedUsd: 1_200 }
+    ? { side: "a" as "a" | "b", tokens: 1_180, netStakedUsd: 1_200 }
     : null;
 
 export const allHandles = (): string[] => {

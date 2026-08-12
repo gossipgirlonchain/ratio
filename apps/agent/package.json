@@ -6,7 +6,7 @@
   "description": "ratio agent: X mentions -> two-tweet like markets on Doppler -> 24h settlement.",
   "scripts": {
     "sim": "tsx src/sim.ts",
-    "sim:devnet": "tsx src/sim-devnet.ts",
+    "sim:devnet": "tsx --env-file-if-exists=../../.env src/sim-devnet.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

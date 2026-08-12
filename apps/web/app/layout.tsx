@@ -3,6 +3,7 @@ import "@ratio/ui/strip.css";
 import "./skin.css";
 
 import { Nav } from "./nav";
+import { Providers } from "./providers";
 import { Sidebar } from "./sidebar";
 
 export const metadata = {
@@ -20,13 +21,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             __html: `document.documentElement.dataset.theme = localStorage.getItem("ratio-theme") || "dark";`,
           }}
         />
-        <div className="shell">
-          <Sidebar />
-          <div className="main-col">
-            <Nav />
-            {children}
+        <Providers>
+          <div className="shell">
+            <Sidebar />
+            <div className="main-col">
+              <Nav />
+              {children}
+            </div>
           </div>
-        </div>
+        </Providers>
       </body>
     </html>
   );

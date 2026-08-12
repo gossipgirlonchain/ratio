@@ -162,11 +162,11 @@ export interface Store {
    */
   trendingPosts(limit: number): Promise<PostView[]>;
   /**
-   * Combined fee board over trades since `sinceMs` (fees accrue at swap
-   * time in BOTH directions — buys and sells both pay the five recipients,
-   * fees earn on churn). Rolling windows: all-time = 0, 24h = now − 24h,
-   * weekly = now − 7d. Protocol and Doppler wallets are not rows — this is
-   * a user leaderboard.
+   * Combined fee board over trades since `sinceMs`. Fees accrue on ENTRY
+   * only — sells are protocol-impossible (see SELLS_ENABLED), so every
+   * fee event is a buy at swap time. Rolling windows: all-time = 0, 24h =
+   * now − 24h, weekly = now − 7d. Protocol and Doppler wallets are not
+   * rows — this is a user leaderboard.
    */
   feeLeaderboard(opts: { sinceMs: number; limit?: number }): Promise<FeeLeaderboardRow[]>;
   /** Profile page: every market this X id touched, in any of the three roles. */

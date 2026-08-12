@@ -136,7 +136,9 @@ export const tradesByMarket: Record<string, TradeFixture[]> = {
     { handle: "carol", side: "a", direction: "buy", amountUsd: 1_200, atMs: NOW - 13 * H },
     { handle: "dave", side: "a", direction: "buy", amountUsd: 760, atMs: NOW - 9 * H },
     { handle: "erin", side: "b", direction: "buy", amountUsd: 400, atMs: NOW - 11 * H },
-    { handle: "gina", side: "b", direction: "sell", amountUsd: 160, atMs: NOW - 5 * H },
+    // No sell fixtures: sells are protocol-impossible (SELLS_ENABLED).
+    // The direction field stays — recorded, unbackfillable, costs nothing.
+    { handle: "gina", side: "b", direction: "buy", amountUsd: 160, atMs: NOW - 5 * H },
     { handle: "fred", side: "b", direction: "buy", amountUsd: 240, atMs: NOW - 2 * H },
   ],
   m1: [{ handle: "gary", side: "a", direction: "buy", amountUsd: 125, atMs: NOW - 20 * 60_000 }],

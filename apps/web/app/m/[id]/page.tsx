@@ -11,7 +11,6 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
-import { exitFeeBps, SELLS_ENABLED } from "@ratio/config";
 import { quotePayout } from "@ratio/ui";
 
 import { MarketChart, SIDE_A_COLOR, SIDE_B_COLOR } from "../../../components/MarketChart";
@@ -41,11 +40,9 @@ export default function MarketPage() {
   const mounted = useMounted();
   const params = useParams<{ id: string }>();
   const { viewer, login } = useAuth();
-  const [tab, setTab] = useState<"buy" | "sell">("buy");
   const [backing, setBacking] = useState<"a" | "b" | null>(null);
   const [amount, setAmount] = useState<number | null>(null);
   const [custom, setCustom] = useState<string | null>(null);
-  const [sellFrac, setSellFrac] = useState<25 | 50 | 100>(100);
 
   const market = marketById(params.id);
   const series = useMemo(
@@ -73,10 +70,6 @@ export default function MarketPage() {
           yourSideUsd: (backing === "a" ? data.a : data.b).potUsd,
         })
       : null;
-  // The real curve: floor for 12h, smoothstep to the ceiling at close.
-  const elapsedMs = 24 * 3_600_000 - Math.max(0, data.settlesAtMs - Date.now());
-  const exitFeePct = exitFeeBps(elapsedMs) / 100;
-
   const sign = () => {
     if (!backing || !amount) return;
     if (!viewer) {
@@ -156,20 +149,9 @@ export default function MarketPage() {
 
       <aside className="market-rail">
         <div className="card trade-panel">
-          {open && SELLS_ENABLED && (
-            <div className="panel-tabs">
-              <button className={tab === "buy" ? "panel-tab panel-tab-on" : "panel-tab"} onClick={() => setTab("buy")}>
-                Buy
-              </button>
-              <button className={tab === "sell" ? "panel-tab panel-tab-on" : "panel-tab"} onClick={() => setTab("sell")}>
-                Sell
-              </button>
-            </div>
-          )}
-          {/* Both tab views share one grid cell: the panel is always the
-              taller tab's height, so switching never jumps. */}
-          <div className="panel-swap">
-          <div className={tab === "buy" ? "panel-view" : "panel-view panel-view-off"}>
+          {/* Buy-only by PROTOCOL: the prediction hook rejects every sell,
+              confirmed by Doppler. Positions lock from purchase to claim —
+              no tabs, no sell view, ever. */}
           <div className="trade-sides">
             {(["a", "b"] as const).map((who) => {
               const side = who === "a" ? data.a : data.b;
@@ -235,8 +217,8 @@ export default function MarketPage() {
                   />
                 )}
               </div>
-              {/* Full-width, mirroring the sell confirm: the outcome fits
-                  ON the button, no truncation, no separate payout line. */}
+              {/* Full width: the outcome fits ON the button, no truncation,
+                  no separate payout line. */}
               <button
                 className={amount && backing ? "rs-sign rs-sign-on buy-sign" : "rs-sign buy-sign"}
                 disabled={!amount || !backing}
@@ -248,72 +230,16 @@ export default function MarketPage() {
               </button>
             </>
           )}
-          </div>
-
-          {open && SELLS_ENABLED && (
-            <div className={tab === "sell" ? "panel-view" : "panel-view panel-view-off"}>
-            <div className="sell-tab">
-              {position ? (
-                (() => {
-                  const posHandle = position.side === "a" ? data.a.handle : data.b.handle;
-                  const frac = sellFrac / 100;
-                  const gross = position.netStakedUsd * 0.96 * frac; // demo curve value
-                  const feeUsd = gross * (exitFeePct / 100);
-                  const net = gross - feeUsd;
-                  const ifWins = quotePayout({
-                    stakeUsd: position.netStakedUsd,
-                    potAUsd: data.a.potUsd - (position.side === "a" ? position.netStakedUsd : 0),
-                    potBUsd: data.b.potUsd - (position.side === "b" ? position.netStakedUsd : 0),
-                    yourSideUsd:
-                      (position.side === "a" ? data.a.potUsd : data.b.potUsd) - position.netStakedUsd,
-                  }).payoutUsd;
-                  return (
-                    <>
-                      {/* the number being decided on — the largest thing here */}
-                      <div className="sell-now">
-                        <span className="sell-now-num">{fmtUsd2(net)}</span>
-                        <span className="sell-now-label">you get, after the exit fee</span>
-                      </div>
-                      {/* the fee is the most consequential number: rate AND dollars */}
-                      <div className="exit-fee-callout">
-                        exit fee {exitFeePct}% · −{fmtUsd2(feeUsd)}
-                      </div>
-                      <div className="mod-row">
-                        <span className="mod-quiet">position</span>
-                        <span className="mod-strong">
-                          {position.tokens.toLocaleString()} on @{posHandle}
-                        </span>
-                      </div>
-                      <div className="mod-row">
-                        <span className="mod-quiet trunc">if @{posHandle} wins</span>
-                        <span className="mod-strong">{fmtUsd2(ifWins)}</span>
-                      </div>
-                      <div className="sell-fracs">
-                        {([25, 50, 100] as const).map((f) => (
-                          <button
-                            key={f}
-                            className={sellFrac === f ? "rs-preset rs-preset-on" : "rs-preset"}
-                            onClick={() => setSellFrac(f)}
-                          >
-                            {f}%
-                          </button>
-                        ))}
-                      </div>
-                      <button className="rs-sign rs-sign-on sell-confirm" onClick={() => console.log(`sell ${sellFrac}%`)}>
-                        sell for {fmtUsd2(net)}
-                      </button>
-                    </>
-                  );
-                })()
-              ) : (
-                <div className="mod-row">
-                  <span className="mod-quiet">no position in this market</span>
-                </div>
-              )}
-            </div>
+          {position && (
+            <div className="mod-row position-mod">
+              <span className="mod-quiet">
+                your position · locked until settlement
+              </span>
+              <span className="mod-strong">
+                {position.tokens.toLocaleString()} on @{position.side === "a" ? data.a.handle : data.b.handle}
+              </span>
             </div>
           )}
-          </div>
         </div>
 
         <div className="card mod">

@@ -18,7 +18,6 @@ import {
   SEED_PER_SIDE_USD,
   SWAP_FEE_BPS,
   exitFeeBps,
-  exitFeeSurchargeBps,
   marketUrl,
 } from "@ratio/config";
 
@@ -568,7 +567,8 @@ const aliveRank = feed2.findIndex((m) => m.id === (mAlive.sideB.tweetId));
 assert.ok(aliveRank < deadRank, "net ranking: intact $50 beats drained $200");
 
 // ---------------------------------------------------------------------------
-// 17. Exit-fee curve + ramp-start instrumentation
+// 17. Exit-fee curve + ramp-start instrumentation (DORMANT: sells are
+// protocol-impossible; the curve is kept as a record, wired to nothing)
 // ---------------------------------------------------------------------------
 scenario("17. exit fee: floor, smooth ramp, ceiling, ramp-start metric");
 const HOUR_MS = 60 * 60 * 1000;
@@ -587,7 +587,6 @@ for (let h = 0; h <= 24; h++) {
   prevFee = f;
 }
 assert.equal(exitFeeBps(24 * HOUR_MS), EXIT_FEE_MAX_BPS);
-assert.equal(exitFeeSurchargeBps(24 * HOUR_MS), EXIT_FEE_MAX_BPS - SWAP_FEE_BPS);
 
 // ramp-start metric: sells 10m before and 10m after m15's hour-12 mark
 const m15rec = (await store.getMarketByTweet(m15.sideB.tweetId))!;

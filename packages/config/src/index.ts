@@ -82,46 +82,38 @@ export const FEE_SHARE_BPS = {
 } as const;
 
 /**
- * SELLS: OFF. Devnet-proven 2026-08-11 (e2e-hook-gating.ts): the
- * prediction hook rejects sells in EVERY state — unresolved AND
- * finalized — and rejects buys once finalized. Trading is buy-only
- * until resolution, then halts. Positions are locked from purchase to
- * claim. Flip this only if Doppler changes the hook.
+ * SELLS: PERMANENTLY OFF — a PROTOCOL CONSTRAINT, not a product choice.
+ * Do not flip this. Devnet-proven 2026-08-11 (e2e-hook-gating.ts) and
+ * confirmed by the Doppler team 2026-08-12: the prediction hook rejects
+ * sells in EVERY oracle state and this is not changing; `allowSell:
+ * true` is dead config beneath it. The only lifecycle is buy while
+ * unresolved → finalize → migrate → claim. Positions are locked from
+ * purchase to settlement, and fees accrue on ENTRY only.
  */
 export const SELLS_ENABLED = false;
 
 /**
- * SHELVED, NOT DELETED (winny 2026-08-11): with sells impossible there is
- * no exit rush and this ramp has no job. The curve, config, and
- * instrumentation stay so it can come straight back if Doppler opens
- * sells up.
+ * SHELVED AND DORMANT: sells are permanently off (see SELLS_ENABLED), so
+ * this ramp is wired to NOTHING. The curve, these constants, and
+ * Store.sellsNearRampStart stay only as a record of the decided shape.
+ * The app-layer surcharge design that once accompanied it (atomic
+ * split-at-source sell tx, beneficiary-wallet reads at build time,
+ * surcharge fee events) is DELETED, not shelved — it only existed to
+ * enforce a fee above the on-chain 1.25%, and there is no sell to
+ * charge it on.
  *
- * Exit fee (§7b, shape decided 2026-08-03): TIME-BASED ONLY — never the
- * like gap, or closing the gap becomes the cheap-exit strategy, which is
- * the brigading attack wearing a new hat.
- *
- * The on-chain 1.25% swap fee is the FLOOR (locked at launch, charged in
- * both directions). Total exit fee sits at the floor for the first
- * RAMP_START hours (early exits are price discovery, and the pot has time
- * to refill), then rises SMOOTHLY to EXIT_FEE_MAX_BPS *total* (inclusive
- * of the floor) at the close — a late exit walks the prize out with
- * nothing to replace it. Smoothstep, not a step: its slope is zero at the
- * start point, so there is no hour-12 cliff to pile out in front of
- * (track sells around the start point anyway — Store.sellsNearRampStart).
- *
- * Everything above the floor is charged at the app layer (custody makes
- * it enforceable; no connect-wallet means custody covers everyone) and is
- * split the SAME FIVE WAYS, transfers composed into the atomic sell tx.
- * INVARIANTS: zero above-floor fee on voided markets (refunds are not
- * exits); the sell quote discloses rate AND dollars before commitment.
- *
- * Start, end, and ceiling are guesses — tune from real markets.
+ * Shape, for the record (decided 2026-08-03): TIME-BASED ONLY — never
+ * the like gap, or closing the gap becomes the cheap-exit strategy,
+ * which is the brigading attack wearing a new hat. Floor = the on-chain
+ * 1.25%; flat through RAMP_START, then smoothstep (zero slope at the
+ * start, no cliff to front-run) to EXIT_FEE_MAX_BPS total at close.
  */
 export const EXIT_FEE_RAMP_START_MS = 12 * 60 * 60 * 1000;
 export const EXIT_FEE_RAMP_END_MS = MARKET_DURATION_MS;
 export const EXIT_FEE_MAX_BPS = 7_500; // 75% TOTAL at close, floor included
 
-/** Total exit fee in bps at a given market age. Floor = SWAP_FEE_BPS. */
+/** Total exit fee in bps at a given market age. Floor = SWAP_FEE_BPS.
+ * Dormant: nothing calls this in the product (sells are off for good). */
 export function exitFeeBps(elapsedMs: number): number {
   const t = Math.min(
     1,
@@ -129,11 +121,6 @@ export function exitFeeBps(elapsedMs: number): number {
   );
   const eased = t * t * (3 - 2 * t); // smoothstep: zero slope at both ends
   return Math.round(SWAP_FEE_BPS + (EXIT_FEE_MAX_BPS - SWAP_FEE_BPS) * eased);
-}
-
-/** The slice our app collects on a sell: total minus the on-chain floor. */
-export function exitFeeSurchargeBps(elapsedMs: number): number {
-  return exitFeeBps(elapsedMs) - SWAP_FEE_BPS;
 }
 
 /** Market page URL for the one linked post per market. */

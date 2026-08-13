@@ -653,3 +653,10 @@ a { text-decoration: none; color: inherit; }
 .profile-positions-title { margin: 0 0 6px; }
 .profile-pos { text-decoration: none; }
 .profile-pos:hover .mod-strong:first-child { text-decoration: underline; }
+
+/* leaderboard: the two boards sit SIDE BY SIDE — different populations
+   (bettors vs bet-on), parallel reads. Stack only when narrow. */
+.page-boards { max-width: 1000px; }
+.board-duo { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
+.board-duo .board-heading { margin-top: 4px; }
+@media (max-width: 1150px) { .board-duo { grid-template-columns: 1fr; } }

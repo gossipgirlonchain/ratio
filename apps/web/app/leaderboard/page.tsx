@@ -31,7 +31,7 @@ export default function LeaderboardPage() {
   const traders = traderBoard(win);
 
   return (
-    <main className="page">
+    <main className="page page-boards">
       <h1 className="page-title">leaderboard</h1>
       <div className="board-top">
         <div className="tabs">
@@ -47,6 +47,8 @@ export default function LeaderboardPage() {
         </div>
       </div>
 
+      <div className="board-duo">
+      <section>
       <h2 className="board-heading">top traders · profit</h2>
       <div className="board">
         {traders.length === 0 ? (
@@ -70,6 +72,8 @@ export default function LeaderboardPage() {
         )}
       </div>
 
+      </section>
+      <section>
       <h2 className="board-heading">fees earned</h2>
       <div className="legend board-legend">
         <span><i className="swatch swatch-original" /> original</span>
@@ -95,6 +99,8 @@ export default function LeaderboardPage() {
             </div>
           );
         })}
+      </div>
+      </section>
       </div>
     </main>
   );

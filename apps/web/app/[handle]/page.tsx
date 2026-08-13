@@ -94,13 +94,17 @@ export default function ProfilePage() {
   const mounted = useMounted();
   const params = useParams<{ handle: string }>();
   const router = useRouter();
-  const { viewer, login } = useAuth();
+  const { viewer, avatarUrl, login } = useAuth();
   const [tab, setTab] = useState<"live" | "history">("live");
   if (!mounted) return null;
 
   const handle = decodeURIComponent(params.handle);
   const mine = marketsByParticipant(handle);
-  if (mine.length === 0) {
+  const isOwn = viewer === handle;
+  // YOUR profile always renders in full — wallet, zeroed record, empty
+  // tabs — even before your first market. Strangers' empty profiles stay
+  // a one-liner (permissionless profiles exist per market touched).
+  if (mine.length === 0 && !isOwn) {
     return (
       <main className="page">
         <p className="page-empty">
@@ -118,7 +122,11 @@ export default function ProfilePage() {
   return (
     <main className="profile-wide">
       <header className="card profile-header">
-        <img className="profile-avatar-lg" src={`https://i.pravatar.cc/96?u=${handle}`} alt="" />
+        <img
+          className="profile-avatar-lg"
+          src={isOwn && avatarUrl ? avatarUrl : `https://i.pravatar.cc/96?u=${handle}`}
+          alt=""
+        />
         <div className="profile-main">
           <div className="profile-name-row">
             <h1>@{handle}</h1>
@@ -188,7 +196,11 @@ export default function ProfilePage() {
       </div>
 
       {shown.length === 0 ? (
-        <p className="page-empty">nothing here yet.</p>
+        <p className="page-empty">
+          {isOwn && mine.length === 0
+            ? "no markets yet. tag @ratio under a reply on x and your first one opens here."
+            : "nothing here yet."}
+        </p>
       ) : (
         <div className="profile-strips">
           {shown.map((m) => (

@@ -15,6 +15,8 @@ import { useEffect, useState } from "react";
 export function useAuth(): {
   viewer: string | null;
   xUserId: string | null;
+  /** The real X profile picture, when Privy has it. */
+  avatarUrl: string | null;
   ready: boolean;
   login: () => void;
   logout: () => void;
@@ -35,6 +37,7 @@ export function useAuth(): {
     return {
       viewer: demo,
       xUserId: `demo:${demo}`,
+      avatarUrl: null,
       ready: true,
       login: () => {},
       logout: () => {
@@ -46,6 +49,7 @@ export function useAuth(): {
   return {
     viewer: authenticated && twitter ? (twitter.username ?? null) : null,
     xUserId: authenticated && twitter ? twitter.subject : null,
+    avatarUrl: authenticated && twitter ? (twitter.profilePictureUrl ?? null) : null,
     ready,
     login,
     logout: () => {

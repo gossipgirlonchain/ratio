@@ -606,4 +606,28 @@ const nearRamp = await store.sellsNearRampStart({
 assert.ok(nearRamp.justBefore >= 1 && nearRamp.justAfter >= 1, "ramp-start metric counts both sides");
 
 
+// ---------------------------------------------------------------------------
+// 18. Trader leaderboard: winners profit, losers bleed, seeds invisible
+// ---------------------------------------------------------------------------
+scenario("18. trader board: profit ranking, seeds excluded");
+const traders = await store.traderLeaderboard({ sinceMs: 0 });
+assert.ok(traders.length > 0, "board has rows once markets settle");
+assert.ok(
+  traders.every((t) => t.xUserId !== "ratio:treasury"),
+  "the treasury is not a trader",
+);
+// ranked by profit, descending
+for (let i = 1; i < traders.length; i++) {
+  assert.ok(traders[i - 1]!.profitUsd >= traders[i]!.profitUsd, "sorted by profit");
+}
+// every decided bet lands in exactly one of wins/losses
+for (const t of traders) {
+  assert.ok(t.wins + t.losses > 0, "rows only for people with decided bets");
+  assert.ok(t.winRate >= 0 && t.winRate <= 1, "win rate is a rate");
+}
+// zero-sum sanity: total profit across traders = -(fees + seed dilution),
+// never positive (the house cannot pay out more than went in)
+const totalProfit = traders.reduce((sum, t) => sum + t.profitUsd, 0);
+assert.ok(totalProfit <= 0.01, `traders in aggregate cannot beat the fee: ${totalProfit}`);
+
 console.log("\n✅ all R1+R2 scenarios passed");

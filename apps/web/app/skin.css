@@ -609,3 +609,47 @@ a { text-decoration: none; color: inherit; }
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .buy-sign:disabled { cursor: default; }
+
+/* -- sidebar live positions: the number you watch while locked in ------- */
+.side-positions {
+  margin: 18px 6px 0;
+  padding: 10px 12px;
+  border: 2px solid var(--edge);
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.side-positions-head {
+  font-size: 10.5px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.06em; color: var(--gunmetal);
+}
+.side-pos {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 8px; font-size: 12.5px; text-decoration: none; color: var(--ink);
+}
+.side-pos:hover .side-pos-handle { text-decoration: underline; }
+.side-pos-handle { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.side-pos-gap { font-variant-numeric: tabular-nums; font-weight: 700; white-space: nowrap; }
+.side-pos-gap-down { color: var(--gunmetal); font-weight: 600; }
+.side-positions-note { font-size: 10.5px; color: var(--gunmetal); }
+
+/* -- optimistic placement ------------------------------------------------ */
+.trade-failed span { color: var(--ink); font-size: 12px; }
+.trade-failed { border-left: 3px solid var(--gunmetal); padding-left: 8px; }
+.chart-marker-label { font-size: 9.5px; font-weight: 700; fill: var(--ink); }
+
+/* -- leaderboard: two boards, one switcher ------------------------------- */
+.board-heading {
+  font-size: 12px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.06em; margin: 18px 0 8px; color: var(--ink);
+}
+.board-heading:first-of-type { margin-top: 4px; }
+.board-sub { font-size: 11.5px; color: var(--gunmetal); display: block; }
+.board-legend { margin: 0 0 8px; }
+
+/* -- profile: what this person backs right now --------------------------- */
+.profile-positions { display: flex; flex-direction: column; gap: 2px; }
+.profile-positions-title { margin: 0 0 6px; }
+.profile-pos { text-decoration: none; }
+.profile-pos:hover .mod-strong:first-child { text-decoration: underline; }

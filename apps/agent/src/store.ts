@@ -84,6 +84,22 @@ export interface FeeLeaderboardRow {
   byRole: { sideA: number; sideB: number; tagger: number };
 }
 
+/**
+ * Trader leaderboard row: the OTHER board — people good at BETTING, not
+ * people being bet on. Different populations, never merged with fees.
+ * Profit uses the token-weighted claim: payout = tokens/claimableSupply
+ * × pot for winners, minus stake; losers forfeit their stake. Seeds are
+ * plumbing and never appear (the treasury is not a trader).
+ */
+export interface TraderLeaderboardRow {
+  xUserId: string;
+  handle: string; // display cache
+  wins: number;
+  losses: number;
+  winRate: number;
+  profitUsd: number;
+}
+
 export type TradeDirection = "buy" | "sell";
 
 /**
@@ -169,6 +185,10 @@ export interface Store {
    * rows — this is a user leaderboard.
    */
   feeLeaderboard(opts: { sinceMs: number; limit?: number }): Promise<FeeLeaderboardRow[]>;
+  /** Trader board over decided markets, ranked by profit; same rolling
+   * windows as the fee board. Rows link to profiles (copy-trading is the
+   * point: find someone good, see what they back now). */
+  traderLeaderboard(opts: { sinceMs: number; limit?: number }): Promise<TraderLeaderboardRow[]>;
   /** Profile page: every market this X id touched, in any of the three roles. */
   listMarketsByParticipant(xUserId: string): Promise<MarketRecord[]>;
   /**
@@ -304,6 +324,42 @@ export class InMemoryStore implements Store {
     }
     return [...rows.values()]
       .sort((x, y) => y.totalFeeUsd - x.totalFeeUsd)
+      .slice(0, limit);
+  }
+  async traderLeaderboard({ sinceMs, limit = 100 }: { sinceMs: number; limit?: number }) {
+    const rows = new Map<string, TraderLeaderboardRow>();
+    for (const m of this.markets.values()) {
+      if (m.status === "open" || !m.winner || m.finalPotUsd === undefined) continue;
+      const winnerSide = m.winner === "a" ? 0 : 1;
+      const bets = this.bets.filter(
+        (b) => b.marketId === m.id && !b.isSeed && b.direction === "buy" && b.placedAtMs >= sinceMs,
+      );
+      if (bets.length === 0) continue;
+      // claimableSupply INCLUDES seed tokens (they hold real tokens on
+      // chain and dilute payouts like anyone else) — only the rows hide.
+      const claimable = this.bets
+        .filter((b) => b.marketId === m.id && b.side === winnerSide && b.direction === "buy")
+        .reduce((sum, b) => sum + b.tokensOut, 0);
+      for (const b of bets) {
+        const row =
+          rows.get(b.xUserId) ??
+          ({ xUserId: b.xUserId, handle: b.handle, wins: 0, losses: 0, winRate: 0, profitUsd: 0 } satisfies TraderLeaderboardRow);
+        if (b.side === winnerSide) {
+          row.wins += 1;
+          const payout = claimable > 0 ? (b.tokensOut / claimable) * m.finalPotUsd : 0;
+          row.profitUsd += payout - b.amountUsd;
+        } else {
+          row.losses += 1;
+          row.profitUsd -= b.amountUsd;
+        }
+        rows.set(b.xUserId, row);
+      }
+    }
+    for (const row of rows.values()) {
+      row.winRate = row.wins + row.losses === 0 ? 0 : row.wins / (row.wins + row.losses);
+    }
+    return [...rows.values()]
+      .sort((x, y) => y.profitUsd - x.profitUsd)
       .slice(0, limit);
   }
   async listMarketsByParticipant(xUserId: string) {

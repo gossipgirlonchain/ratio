@@ -49,12 +49,12 @@ export const markets: FixtureMarket[] = [
   {
     postId: "p-cereal",
     taggerHandle: "dave",
-    volumeUsd: 620,
-    netStakedUsd: 620,
+    volumeUsd: 680,
+    netStakedUsd: 680,
     data: {
       marketId: "m3",
       a: { handle: "opinionhaver", avatarUrl: av("opinionhaver"), text: "cereal is a soup", likes: 3_100, potUsd: 240 },
-      b: { handle: "quietkid", avatarUrl: av("quietkid"), text: "no.", likes: 7_450, potUsd: 380 },
+      b: { handle: "quietkid", avatarUrl: av("quietkid"), text: "no.", likes: 7_450, potUsd: 440 },
       settlesAtMs: NOW + 4 * H + 51 * 60_000,
       status: "open",
     },
@@ -133,7 +133,7 @@ export interface TradeFixture {
 /** Trade list for the market page — buys and sells both. */
 export const tradesByMarket: Record<string, TradeFixture[]> = {
   m2: [
-    { handle: "carol", side: "a", direction: "buy", amountUsd: 1_200, atMs: NOW - 13 * H },
+    { handle: "bigaccount", side: "a", direction: "buy", amountUsd: 1_200, atMs: NOW - 13 * H },
     { handle: "dave", side: "a", direction: "buy", amountUsd: 760, atMs: NOW - 9 * H },
     { handle: "erin", side: "b", direction: "buy", amountUsd: 400, atMs: NOW - 11 * H },
     // No sell fixtures: sells are protocol-impossible (SELLS_ENABLED).
@@ -145,6 +145,19 @@ export const tradesByMarket: Record<string, TradeFixture[]> = {
   m3: [
     { handle: "carol", side: "a", direction: "buy", amountUsd: 240, atMs: NOW - 6 * H },
     { handle: "erin", side: "b", direction: "buy", amountUsd: 380, atMs: NOW - 5 * H },
+    { handle: "bigaccount", side: "b", direction: "buy", amountUsd: 60, atMs: NOW - 5 * H },
+  ],
+  // Decided markets keep their trades: the trader board and profile
+  // records are computed from these, exactly like the store will.
+  m5: [
+    { handle: "carol", side: "a", direction: "buy", amountUsd: 1_400, atMs: NOW - 24 * H },
+    { handle: "dave", side: "a", direction: "buy", amountUsd: 1_000, atMs: NOW - 22 * H },
+    { handle: "erin", side: "b", direction: "buy", amountUsd: 700, atMs: NOW - 21 * H },
+    { handle: "fred", side: "b", direction: "buy", amountUsd: 450, atMs: NOW - 20 * H },
+  ],
+  m6: [
+    { handle: "gary", side: "a", direction: "buy", amountUsd: 75, atMs: NOW - 23 * H },
+    { handle: "erin", side: "b", direction: "buy", amountUsd: 40, atMs: NOW - 22 * H },
   ],
   m4: [
     { handle: "dave", side: "a", direction: "buy", amountUsd: 410, atMs: NOW - 4 * H },
@@ -275,20 +288,128 @@ export function chartSeries(m: FixtureMarket): ChartSeries {
     const spikeB = wob(i, 4.7);
     buyA.push(spikeA > 0.78 ? (m.data.a.potUsd / 6) * spikeA : 0);
     buyB.push(spikeB > 0.82 ? (m.data.b.potUsd / 5) * spikeB : 0);
-    // sells: sparser, smaller, later in the window
-    const dumpA = wob(i, 5.9);
-    const dumpB = wob(i, 6.7);
-    sellA.push(i > points * 0.4 && dumpA > 0.9 ? (m.data.a.potUsd / 14) * dumpA : 0);
-    sellB.push(i > points * 0.3 && dumpB > 0.88 ? (m.data.b.potUsd / 12) * dumpB : 0);
+    // sells are protocol-impossible (SELLS_ENABLED): always zero. The
+    // channel stays because the encoding is permanent and recorded.
+    sellA.push(0);
+    sellB.push(0);
   }
   return { ts, likesA, likesB, buyA, buyB, sellA, sellB };
 }
 
+// --- positions --------------------------------------------------------------
+
+export interface OpenPosition {
+  marketId: string;
+  side: "a" | "b";
+  sideHandle: string;
+  otherHandle: string;
+  netStakedUsd: number;
+  tokens: number;
+  /** First buy: entry time for the like-gap read. */
+  enteredAtMs: number;
+}
+
+/** Open positions for any handle, derived from trades — visible to every
+ * visitor (profiles are permissionless, positions are public record). */
+export const openPositionsFor = (handle: string | null): OpenPosition[] => {
+  if (!handle) return [];
+  const out: OpenPosition[] = [];
+  for (const m of markets) {
+    if (m.data.status !== "open") continue;
+    const trades = (tradesByMarket[m.data.marketId] ?? []).filter(
+      (t) => t.handle === handle && t.direction === "buy",
+    );
+    for (const side of ["a", "b"] as const) {
+      const mine = trades.filter((t) => t.side === side);
+      if (mine.length === 0) continue;
+      const staked = mine.reduce((s, t) => s + t.amountUsd, 0);
+      out.push({
+        marketId: m.data.marketId,
+        side,
+        sideHandle: (side === "a" ? m.data.a : m.data.b).handle,
+        otherHandle: (side === "a" ? m.data.b : m.data.a).handle,
+        netStakedUsd: staked,
+        tokens: Math.round(staked * 0.983),
+        enteredAtMs: Math.min(...mine.map((t) => t.atMs)),
+      });
+    }
+  }
+  return out;
+};
+
+/**
+ * Like gap movement since entry: OUR live PnL. Money cannot move while a
+ * position is locked, but the like counts move for 24 hours straight —
+ * "your side is up 400 likes since you signed" is the number to watch.
+ * Entry likes are sampled from the recorded series (the likes sampler is
+ * the only source of historical likes; nothing else can backfill it).
+ */
+export const likeGapSince = (pos: OpenPosition): number => {
+  const m = marketById(pos.marketId);
+  if (!m) return 0;
+  const s = chartSeries(m);
+  let i = 0;
+  while (i < s.ts.length - 1 && s.ts[i]! < pos.enteredAtMs) i++;
+  const gapAt = (a: number, b: number) => (pos.side === "a" ? a - b : b - a);
+  const entryGap = gapAt(s.likesA[i]!, s.likesB[i]!);
+  const nowGap = gapAt(m.data.a.likes, m.data.b.likes);
+  return nowGap - entryGap;
+};
+
 /** Demo position for the trade panel: what the viewer holds, if anything. */
-export const positionFor = (viewer: string | null, marketId: string) =>
-  viewer === "bigaccount" && marketId === "m2"
-    ? { side: "a" as "a" | "b", tokens: 1_180, netStakedUsd: 1_200 }
-    : null;
+export const positionFor = (viewer: string | null, marketId: string) => {
+  const p = openPositionsFor(viewer).find((x) => x.marketId === marketId);
+  return p ? { side: p.side, tokens: p.tokens, netStakedUsd: p.netStakedUsd } : null;
+};
+
+// --- trader board -----------------------------------------------------------
+
+export interface TraderRow {
+  handle: string;
+  wins: number;
+  losses: number;
+  winRate: number;
+  profitUsd: number;
+}
+
+/**
+ * The OTHER leaderboard: people good at BETTING, not people being bet on.
+ * Computed from trades on decided markets, exactly the store query's
+ * shape: winners split the pot minus the 1.25% fee token-weighted,
+ * losers forfeit their stake. Ranked by profit so a visitor can find
+ * someone worth copying and click through to what they're backing now.
+ */
+export const traderBoard = (win: "all" | "day" | "week"): TraderRow[] => {
+  const sinceMs = win === "day" ? NOW - 24 * H : win === "week" ? NOW - 7 * 24 * H : 0;
+  const acc = new Map<string, { wins: number; losses: number; profitUsd: number }>();
+  for (const m of markets) {
+    if (m.data.status === "open" || !m.data.winner) continue;
+    const trades = (tradesByMarket[m.data.marketId] ?? []).filter(
+      (t) => t.direction === "buy" && t.atMs >= sinceMs,
+    );
+    if (trades.length === 0) continue;
+    const pot = (m.data.a.potUsd + m.data.b.potUsd) * (1 - 0.0125);
+    const winnerPot = (m.data.winner === "a" ? m.data.a : m.data.b).potUsd || 1;
+    for (const t of trades) {
+      const row = acc.get(t.handle) ?? { wins: 0, losses: 0, profitUsd: 0 };
+      if (t.side === m.data.winner) {
+        row.wins += 1;
+        row.profitUsd += t.amountUsd * (pot / winnerPot) - t.amountUsd;
+      } else {
+        row.losses += 1;
+        row.profitUsd -= t.amountUsd;
+      }
+      acc.set(t.handle, row);
+    }
+  }
+  return [...acc.entries()]
+    .map(([handle, r]) => ({
+      handle,
+      ...r,
+      winRate: r.wins + r.losses === 0 ? 0 : r.wins / (r.wins + r.losses),
+    }))
+    .sort((x, y) => y.profitUsd - x.profitUsd);
+};
 
 export const allHandles = (): string[] => {
   const set = new Set<string>();

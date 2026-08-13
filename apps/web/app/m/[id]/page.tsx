@@ -18,9 +18,11 @@ import { useAuth } from "../../../lib/auth";
 import {
   chartSeries,
   marketById,
+  openPositionsFor,
   positionFor,
   tradesByMarket,
 } from "../../../lib/fixtures";
+import { placeBet, usePendingBets } from "../../../lib/trade";
 import { useMounted } from "../../../lib/useMounted";
 
 const PRESETS = [1, 5, 25, 100, 250, 500] as const;
@@ -45,6 +47,7 @@ export default function MarketPage() {
   const [custom, setCustom] = useState<string | null>(null);
 
   const market = marketById(params.id);
+  const pending = usePendingBets(params.id);
   const series = useMemo(
     () => (market ? chartSeries(market) : null),
     [market],
@@ -59,15 +62,32 @@ export default function MarketPage() {
   }
   const { data } = market;
   const open = data.status === "open";
-  const trades = (tradesByMarket[data.marketId] ?? []).sort((x, y) => y.amountUsd - x.amountUsd);
   const position = positionFor(viewer, data.marketId);
+
+  // Optimistic layer: pending bets fold into every number BEFORE the
+  // chain answers. Failure removes them and the numbers roll back.
+  const live = pending.filter((b) => b.state !== "failed");
+  const failed = pending.find((b) => b.state === "failed");
+  const pendUsd = (side: "a" | "b") =>
+    live.filter((b) => b.side === side).reduce((s, b) => s + b.amountUsd, 0);
+  const potA = data.a.potUsd + pendUsd("a");
+  const potB = data.b.potUsd + pendUsd("b");
+  const trades = (tradesByMarket[data.marketId] ?? []).sort((x, y) => y.amountUsd - x.amountUsd);
+  const myEntries = viewer
+    ? [
+        ...openPositionsFor(viewer)
+          .filter((p) => p.marketId === data.marketId)
+          .map((p) => ({ atMs: p.enteredAtMs, side: p.side })),
+        ...live.map((b) => ({ atMs: b.atMs, side: b.side })),
+      ]
+    : [];
   const quote =
     backing && amount
       ? quotePayout({
           stakeUsd: amount,
-          potAUsd: data.a.potUsd,
-          potBUsd: data.b.potUsd,
-          yourSideUsd: (backing === "a" ? data.a : data.b).potUsd,
+          potAUsd: potA,
+          potBUsd: potB,
+          yourSideUsd: (backing === "a" ? { potUsd: potA } : { potUsd: potB }).potUsd,
         })
       : null;
   const sign = () => {
@@ -76,7 +96,11 @@ export default function MarketPage() {
       login();
       return;
     }
-    console.log(`sign: $${amount} on ${backing}`);
+    // Optimistic: placed NOW, reconciled when the chain answers.
+    placeBet({ marketId: data.marketId, side: backing, amountUsd: amount });
+    setBacking(null);
+    setAmount(null);
+    setCustom(null);
   };
 
   return (
@@ -116,18 +140,27 @@ export default function MarketPage() {
               : data.status === "forfeited" && data.winner
                 ? `@${(data.winner === "a" ? data.a : data.b).handle} wins by forfeit`
                 : `most likes in ${timeLeft(data.settlesAtMs)} wins`}
-            <span className="match-staked">{fmtUsd(data.a.potUsd + data.b.potUsd)} staked</span>
+            <span className="match-staked">{fmtUsd(potA + potB)} staked</span>
           </div>
         </div>
 
         <div className="card chart-card">
-          <MarketChart series={series} handleA={data.a.handle} handleB={data.b.handle} />
+          <MarketChart series={series} handleA={data.a.handle} handleB={data.b.handle} markers={myEntries} />
         </div>
 
         {/* trades live under the chart — that is where people look.
             Sells are trades too: shown signed, newest first. */}
         <div className="card mod centre-trades">
-          {trades.length === 0 ? (
+          {live.map((b) => (
+            <div className="mod-row" key={b.id}>
+              <span>@{viewer}</span>
+              <span className="mod-quiet">on @{b.side === "a" ? data.a.handle : data.b.handle}</span>
+              <span className="mod-strong">
+                {fmtUsd(b.amountUsd)}{b.state === "confirming" ? " · confirming" : " ✓"}
+              </span>
+            </div>
+          ))}
+          {trades.length === 0 && live.length === 0 ? (
             <div className="mod-row"><span className="mod-quiet">nobody in yet</span></div>
           ) : (
             [...trades]
@@ -230,14 +263,33 @@ export default function MarketPage() {
               </button>
             </>
           )}
-          {position && (
-            <div className="mod-row position-mod">
-              <span className="mod-quiet">
-                your position · locked until settlement
-              </span>
-              <span className="mod-strong">
-                {position.tokens.toLocaleString()} on @{position.side === "a" ? data.a.handle : data.b.handle}
-              </span>
+          {failed && (
+            <div className="mod-row position-mod trade-failed">
+              <span>did not go through: {failed.reason}. nothing was taken.</span>
+            </div>
+          )}
+          {(position || live.length > 0) && (
+            <div className="position-mod">
+              {position && (
+                <div className="mod-row">
+                  <span className="mod-quiet">
+                    your position · locked until settlement
+                  </span>
+                  <span className="mod-strong">
+                    {position.tokens.toLocaleString()} on @{position.side === "a" ? data.a.handle : data.b.handle}
+                  </span>
+                </div>
+              )}
+              {live.map((b) => (
+                <div className="mod-row" key={b.id}>
+                  <span className="mod-quiet">
+                    {b.state === "confirming" ? "confirming on chain" : "placed ✓"}
+                  </span>
+                  <span className="mod-strong">
+                    {fmtUsd(b.amountUsd)} on @{b.side === "a" ? data.a.handle : data.b.handle}
+                  </span>
+                </div>
+              ))}
             </div>
           )}
         </div>
@@ -245,7 +297,7 @@ export default function MarketPage() {
         <div className="card mod">
           <div className="mod-row">
             <span className="mod-quiet">staked</span>
-            <span className="mod-strong">{fmtUsd(data.a.potUsd + data.b.potUsd)}</span>
+            <span className="mod-strong">{fmtUsd(potA + potB)}</span>
           </div>
           <div className="mod-row">
             <span className="mod-quiet">settles</span>

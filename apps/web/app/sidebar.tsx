@@ -10,18 +10,64 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
+import { LIKES_SAMPLE_INTERVAL_MS } from "@ratio/config";
+
 import { useAuth } from "../lib/auth";
+import { likeGapSince, openPositionsFor } from "../lib/fixtures";
+import { setSoundEnabled, soundEnabled } from "../lib/sound";
+import { usePendingBets } from "../lib/trade";
 
 const KEY = "ratio-sidebar-collapsed";
+
+/**
+ * Live positions, on every page. Sells are off, so there is nothing to DO
+ * with a position — but there is something to WATCH: the like gap. Money
+ * cannot move until settlement; the likes move all 24 hours. Refreshes on
+ * the likes-sampler cadence (that is when the number can change) and
+ * instantly when an optimistic placement lands.
+ */
+function SidePositions({ viewer }: { viewer: string | null }) {
+  const pending = usePendingBets();
+  const [, tick] = useState(0);
+  useEffect(() => {
+    const t = setInterval(() => tick((n) => n + 1), LIKES_SAMPLE_INTERVAL_MS);
+    return () => clearInterval(t);
+  }, []);
+  if (!viewer) return null;
+  const positions = openPositionsFor(viewer);
+  const confirming = pending.filter((b) => b.state === "confirming").length;
+  if (positions.length === 0 && confirming === 0) return null;
+  return (
+    <div className="side-positions">
+      <div className="side-positions-head">
+        positions ({positions.length}{confirming > 0 ? ` +${confirming}` : ""})
+      </div>
+      {positions.map((p) => {
+        const gap = likeGapSince(p);
+        return (
+          <Link className="side-pos" href={`/m/${p.marketId}`} key={`${p.marketId}${p.side}`}>
+            <span className="side-pos-handle">@{p.sideHandle}</span>
+            <span className={gap >= 0 ? "side-pos-gap" : "side-pos-gap side-pos-gap-down"}>
+              {gap >= 0 ? "▲" : "▼"} {Math.abs(gap).toLocaleString("en-US")} likes
+            </span>
+          </Link>
+        );
+      })}
+      <div className="side-positions-note">like gap since you signed</div>
+    </div>
+  );
+}
 
 export function Sidebar() {
   const { viewer, login } = useAuth();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [theme, setTheme] = useState<"dark" | "light">("dark");
+  const [sound, setSound] = useState(false);
   useEffect(() => {
     setCollapsed(localStorage.getItem(KEY) === "1");
     setTheme((localStorage.getItem("ratio-theme") as "dark" | "light") || "dark");
+    setSound(soundEnabled());
   }, []);
   const flipTheme = () => {
     const next = theme === "dark" ? "light" : "dark";
@@ -65,12 +111,22 @@ export function Sidebar() {
               </button>
             )}
           </nav>
+          <SidePositions viewer={viewer} />
           <div className="sidebar-bottom">
             <Link className="sidebar-cta" href="/extension">
               get the extension
             </Link>
             <button className="side-item" onClick={flipTheme}>
               {theme === "dark" ? "light mode" : "dark mode"}
+            </button>
+            <button
+              className="side-item"
+              onClick={() => {
+                setSoundEnabled(!sound);
+                setSound(!sound);
+              }}
+            >
+              sound: {sound ? "on" : "off"}
             </button>
             {item("/how", "how it works")}
             {item("/terms", "terms")}

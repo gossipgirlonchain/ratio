@@ -15,7 +15,7 @@ import { useState } from "react";
 import { MarketStrip } from "@ratio/ui";
 
 import { useAuth } from "../../lib/auth";
-import { marketsByParticipant, profileFor } from "../../lib/fixtures";
+import { likeGapSince, marketsByParticipant, openPositionsFor, profileFor } from "../../lib/fixtures";
 import { useMounted } from "../../lib/useMounted";
 
 const DEMO_ADDRESS = "ratio1DemoWa11etAddre55Repl4cedByPrivyR4";
@@ -155,6 +155,28 @@ export default function ProfilePage() {
         </div>
         <WalletModule owner={viewer === handle} unclaimedUsd={p.unclaimedUsd} onLogin={login} />
       </header>
+
+      {(() => {
+        const positions = openPositionsFor(handle);
+        if (positions.length === 0) return null;
+        return (
+          <div className="card profile-positions">
+            <span className="section-note profile-positions-title">currently backing</span>
+            {positions.map((pos) => {
+              const gap = likeGapSince(pos);
+              return (
+                <Link className="mod-row profile-pos" href={`/m/${pos.marketId}`} key={pos.marketId + pos.side}>
+                  <span className="mod-strong">@{pos.sideHandle}</span>
+                  <span className="mod-quiet">over @{pos.otherHandle} · {fmtUsd0(pos.netStakedUsd)}</span>
+                  <span className="mod-strong">
+                    {gap >= 0 ? "▲" : "▼"} {Math.abs(gap).toLocaleString("en-US")} likes
+                  </span>
+                </Link>
+              );
+            })}
+          </div>
+        );
+      })()}
 
       <div className="tabs profile-tabs">
         <button className={tab === "live" ? "tab tab-on" : "tab"} onClick={() => setTab("live")}>

@@ -44,10 +44,14 @@ export function MarketChart({
   series,
   handleA,
   handleB,
+  markers = [],
 }: {
   series: ChartSeries;
   handleA: string;
   handleB: string;
+  /** The viewer's entries: a ringed dot on their side's line at entry
+   * time, labelled "you". Optimistic placements land here instantly. */
+  markers?: Array<{ atMs: number; side: "a" | "b" }>;
 }) {
   const [hover, setHover] = useState<number | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -138,6 +142,24 @@ export function MarketChart({
         <text x={W - PAD.r} y={H_TOTAL - 6} className="chart-tick" textAnchor="end">
           now
         </text>
+
+        {/* the viewer's entries: dot pinned to their side's like line at
+            the moment they signed — "this is where you got in" */}
+        {markers.map((mk, k) => {
+          let i = 0;
+          while (i < n - 1 && series.ts[i]! < mk.atMs) i++;
+          const cy = yLike((mk.side === "a" ? series.likesA : series.likesB)[i]!);
+          const col = mk.side === "a" ? A : B;
+          return (
+            <g key={`mk${k}`}>
+              <circle cx={x(i)} cy={cy} r="5" style={{ fill: "var(--surface)", stroke: col }} strokeWidth="2" />
+              <circle cx={x(i)} cy={cy} r="1.8" style={{ fill: col }} />
+              <text x={x(i)} y={cy - 10} textAnchor="middle" className="chart-marker-label">
+                you
+              </text>
+            </g>
+          );
+        })}
 
         {/* crosshair + tooltip: light surface, three short lines, flips
             sides so it never leaves the plot */}

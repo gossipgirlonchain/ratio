@@ -103,6 +103,11 @@ handle is unregistered — `BOT_HANDLE` in `@ratio/config` drives it everywhere.
 - **R4.** Privy server wallets keyed on numeric X id, ATA creation in the
   sponsored-gas path, unclaimed-fee notifications.
 - **R5.** PWA -> extension -> Telegram.
+- **Backlog (ordered): extension -> OG images -> market scanner.** The
+  scanner is spec'd in docs/scanner-spec.md — standing alert rules
+  evaluated on the likes-sampler cadence, fire-once per rule per market,
+  alerts only (auto-execution explicitly out of scope pending the Privy
+  policy engine and real scanner usage).
 
 ## Layout
 

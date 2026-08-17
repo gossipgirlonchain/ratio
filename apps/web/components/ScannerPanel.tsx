@@ -301,17 +301,17 @@ export function ScannerPanel() {
         </div>
       )}
 
-      {!showBuilder && (
-        <button
-          className="scanner-new-rule"
-          onClick={() => {
-            builderOpen = true;
-            syncBuilder((n) => n + 1);
-          }}
-        >
-          + new rule
-        </button>
-      )}
+      {/* the toggle works BOTH ways: open to build, hide to focus on
+          results — saving is not the only way out */}
+      <button
+        className="scanner-new-rule"
+        onClick={() => {
+          builderOpen = !showBuilder;
+          syncBuilder((n) => n + 1);
+        }}
+      >
+        {showBuilder ? "hide rule builder" : "+ new rule"}
+      </button>
 
       {showBuilder && (
       <>

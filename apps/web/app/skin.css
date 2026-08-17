@@ -669,7 +669,7 @@ a { text-decoration: none; color: inherit; }
   bottom: 0;
   right: max(16px, calc((100vw - 1300px) / 2));
   width: 350px;
-  max-height: 58vh;
+  max-height: min(76vh, 660px);
   display: flex;
   flex-direction: column;
   background: var(--bg);
@@ -678,7 +678,11 @@ a { text-decoration: none; color: inherit; }
   border-radius: 12px 12px 0 0;
   z-index: 50;
   font-size: 12.5px;
+  overflow: hidden;
 }
+/* every section owns its shrink behaviour: scrollers shrink to a
+   readable minimum, chrome never shrinks — nothing overlaps, ever */
+.scanner-head, .scanner-footer, .scanner-presets, .scanner-new-rule { flex-shrink: 0; }
 .scanner-closed {
   width: auto;
   max-height: none;
@@ -709,7 +713,13 @@ a { text-decoration: none; color: inherit; }
 }
 
 /* alerts: the market leads, the rule is the footnote */
-.scanner-alerts { overflow-y: auto; max-height: 180px; border-bottom: 1px solid var(--edge); }
+.scanner-alerts {
+  overflow-y: auto;
+  max-height: 170px;
+  min-height: 56px;
+  flex: 0 1 auto;
+  border-bottom: 1px solid var(--edge);
+}
 .scanner-alert {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -734,7 +744,13 @@ a { text-decoration: none; color: inherit; }
 }
 
 /* rules: the manager half */
-.scanner-rules { border-bottom: 1px solid var(--edge); max-height: 120px; overflow-y: auto; }
+.scanner-rules {
+  border-bottom: 1px solid var(--edge);
+  max-height: 96px;
+  min-height: 30px;
+  flex: 0 1 auto;
+  overflow-y: auto;
+}
 .scanner-rule {
   display: flex; justify-content: space-between; align-items: baseline;
   gap: 8px; padding: 6px 12px;
@@ -746,7 +762,15 @@ a { text-decoration: none; color: inherit; }
 }
 
 /* knobs: one row per condition — mode select + number, nothing prose */
-.scanner-knobs { padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; }
+.scanner-knobs {
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
 .scanner-knob { display: flex; align-items: center; gap: 6px; }
 .scanner-knob-label {
   width: 64px; flex-shrink: 0;
@@ -787,7 +811,13 @@ a { text-decoration: none; color: inherit; }
 .scanner-save:disabled { background: none; color: var(--gunmetal); cursor: default; }
 
 /* presets: the empty state is suggestions, never a blank box */
-.scanner-presets { display: flex; flex-wrap: wrap; gap: 5px; padding: 8px 12px 10px; border-top: 1px solid var(--edge); }
+.scanner-presets {
+  display: flex; flex-wrap: wrap; gap: 5px;
+  padding: 8px 12px 10px;
+  border-top: 1px solid var(--edge);
+  max-height: 118px;
+  overflow-y: auto;
+}
 .scanner-preset {
   padding: 4px 10px; border-radius: 999px; border: 1.5px solid var(--edge);
   background: none; color: var(--ink); font-size: 11px; cursor: pointer;

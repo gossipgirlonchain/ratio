@@ -64,6 +64,10 @@ const BLANK: Knobs = {
 };
 
 let knobDraft: Knobs = { ...BLANK };
+/** Builder visibility, module-level. null = auto: open only while the
+ * user has no rules. After a save it minimises — the panel's job
+ * becomes showing results, not the form. */
+let builderOpen: boolean | null = null;
 
 const num = (raw: string): number | undefined => {
   const n = parseFloat(raw.replace(/[$,\s]/g, ""));
@@ -157,6 +161,7 @@ export function ScannerPanel() {
   const { viewer, login } = useAuth();
   const [, bump] = useState(0);
   const [open, setOpen] = useState(true);
+  const [, syncBuilder] = useState(0);
   const [knobs, setKnobsState] = useState<Knobs>(knobDraft);
   const setKnobs = (patch: Partial<Knobs>) => {
     knobDraft = { ...knobDraft, ...patch };
@@ -196,7 +201,11 @@ export function ScannerPanel() {
     scannerStore.saveRule(conditions);
     knobDraft = { ...BLANK };
     setKnobsState(knobDraft);
+    // minimise the builder: from here the panel is about results
+    builderOpen = false;
+    syncBuilder((n) => n + 1);
   };
+  const showBuilder = builderOpen ?? scannerStore.get().rules.length === 0;
 
   if (!open) {
     return (
@@ -292,6 +301,20 @@ export function ScannerPanel() {
         </div>
       )}
 
+      {!showBuilder && (
+        <button
+          className="scanner-new-rule"
+          onClick={() => {
+            builderOpen = true;
+            syncBuilder((n) => n + 1);
+          }}
+        >
+          + new rule
+        </button>
+      )}
+
+      {showBuilder && (
+      <>
       <div className="scanner-knobs">
         <div className="scanner-knob">
           <span className="scanner-knob-label">like gap</span>
@@ -374,23 +397,21 @@ export function ScannerPanel() {
         </button>
       </div>
 
-      {/* always visible: presets are starting points for the NEXT rule
-          too, not just the empty state */}
-      {(
-        <div className="scanner-presets">
-          {SCANNER_PRESETS.map((p) => (
-            <button
-              key={p.label}
-              className="scanner-preset"
-              onClick={() => {
-                knobDraft = conditionsToKnobs(p.conditions);
-                setKnobsState(knobDraft);
-              }}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
+      <div className="scanner-presets">
+        {SCANNER_PRESETS.map((p) => (
+          <button
+            key={p.label}
+            className="scanner-preset"
+            onClick={() => {
+              knobDraft = conditionsToKnobs(p.conditions);
+              setKnobsState(knobDraft);
+            }}
+          >
+            {p.label}
+          </button>
+        ))}
+      </div>
+      </>
       )}
     </aside>
   );

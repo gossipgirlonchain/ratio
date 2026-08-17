@@ -55,13 +55,19 @@ space is empty on every page.
   before saving; nothing qualitative, nothing parsed from prose.
 - The panel is builder AND manager: it lists active rules with a match
   count on each, and alerts appear in the same panel as they fire — each
-  leading with the market and a direct way to bet.
+  leading with the market and a direct way to bet. Once a rule is saved
+  the builder MINIMISES behind a "+ new rule" button: the panel's job
+  becomes showing results, not the form. Time-left wording is always
+  "ends in", never "closing" (word-family collision with the old
+  "close markets" label).
 - Presets are concrete knob settings — one tap fills the controls, the
   user still reviews and saves. Always visible (not just the empty
   state), each one a thesis:
-  - "close markets over 5k likes" (gap within 15% + likes over 5k)
+  - "neck and neck over 5k likes" (gap within 15% + likes over 5k;
+    renamed from "close markets" — close-the-adjective next to a time
+    condition reads as close-the-verb)
   - "one side barely funded" (money 5x lopsided)
-  - "closing in under an hour" (time left under 1h)
+  - "final hour" (time left under 1h)
   - "big fight, tiny pot" (likes over 10k + staked under $200)
   - "photo finish" (gap within 5% + closing under 2h)
   - "whale market" (staked over $2,000)

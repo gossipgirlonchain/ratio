@@ -88,7 +88,7 @@ export function buildSummary(c: RuleConditions): string {
   if (c.stakedMax !== undefined) parts.push(`under $${fmtN(c.stakedMax)} staked`);
   if (c.imbalanceRatioMin !== undefined) parts.push(`money ${c.imbalanceRatioMin}x lopsided`);
   if (c.minsLeftMax !== undefined)
-    parts.push(`closing in under ${c.minsLeftMax >= 60 ? `${c.minsLeftMax / 60}h` : `${c.minsLeftMax}m`}`);
+    parts.push(`ends in under ${c.minsLeftMax >= 60 ? `${c.minsLeftMax / 60}h` : `${c.minsLeftMax}m`}`);
   if (c.minsLeftMin !== undefined)
     parts.push(`more than ${c.minsLeftMin >= 60 ? `${c.minsLeftMin / 60}h` : `${c.minsLeftMin}m`} left`);
   return parts.join(" \u00b7 ");
@@ -279,9 +279,11 @@ export const scannerStore = {
  * user still reviews and saves. Never a blank builder. Each one is a
  * thesis, not a demo: the label says why you'd want the alert. */
 export const SCANNER_PRESETS: Array<{ label: string; conditions: RuleConditions }> = [
-  { label: "close markets over 5k likes", conditions: { gapRatioMax: 1.15, likesMin: 5_000 } },
+  // "neck and neck", never "close": close-the-adjective next to a time
+  // condition reads as close-the-verb (winny 2026-08-14)
+  { label: "neck and neck over 5k likes", conditions: { gapRatioMax: 1.15, likesMin: 5_000 } },
   { label: "one side barely funded", conditions: { imbalanceRatioMin: 5 } },
-  { label: "closing in under an hour", conditions: { minsLeftMax: 60 } },
+  { label: "final hour", conditions: { minsLeftMax: 60 } },
   // high attention, cheap entry: the crowd is watching but not betting yet
   { label: "big fight, tiny pot", conditions: { likesMin: 10_000, stakedMax: 200 } },
   // dead even at the wire: maximum uncertainty, maximum payout swing

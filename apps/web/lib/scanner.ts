@@ -164,7 +164,22 @@ const load = () => {
     if (raw) {
       const p = JSON.parse(raw) as Persisted;
       state.rules = p.rules ?? [];
-      state.alerts = p.alerts ?? [];
+      // MIGRATION: alerts saved before the scoreline shape lack the
+      // per-side numbers and would crash the render. Backfill from the
+      // market when it still exists; drop the alert when it doesn't.
+      // Never trust persisted shapes to match the current code.
+      state.alerts = (p.alerts ?? []).flatMap((a) => {
+        if (typeof a.likesA === "number" && typeof a.potAUsd === "number") return [a];
+        const m = marketById(a.marketId);
+        if (!m) return [];
+        return [{
+          ...a,
+          likesA: m.data.a.likes,
+          likesB: m.data.b.likes,
+          potAUsd: m.data.a.potUsd,
+          potBUsd: m.data.b.potUsd,
+        }];
+      });
       state.metrics = p.metrics ?? state.metrics;
       state.lastAlertClick = p.lastAlertClick;
     }

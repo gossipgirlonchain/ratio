@@ -301,21 +301,33 @@ export function ScannerPanel() {
         </div>
       )}
 
-      {/* the toggle works BOTH ways: open to build, hide to focus on
-          results — saving is not the only way out */}
-      <button
-        className="scanner-new-rule"
-        onClick={() => {
-          builderOpen = !showBuilder;
-          syncBuilder((n) => n + 1);
-        }}
-      >
-        {showBuilder ? "hide rule builder" : "+ new rule"}
-      </button>
+      {!showBuilder && (
+        <button
+          className="scanner-new-rule"
+          onClick={() => {
+            builderOpen = true;
+            syncBuilder((n) => n + 1);
+          }}
+        >
+          + new rule
+        </button>
+      )}
 
       {showBuilder && (
       <>
       <div className="scanner-knobs">
+        {/* one small ×, not a bar: closing the builder is an escape
+            hatch, not an action worth real estate */}
+        <button
+          className="scanner-x scanner-build-x"
+          aria-label="hide rule builder"
+          onClick={() => {
+            builderOpen = false;
+            syncBuilder((n) => n + 1);
+          }}
+        >
+          ×
+        </button>
         <div className="scanner-knob">
           <span className="scanner-knob-label">like gap</span>
           {sel(knobs.gapMode, (v) => setKnobs({ gapMode: v as Knobs["gapMode"] }), [

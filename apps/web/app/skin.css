@@ -763,7 +763,8 @@ a { text-decoration: none; color: inherit; }
 
 /* knobs: one row per condition — mode select + number, nothing prose */
 .scanner-knobs {
-  padding: 8px 12px;
+  position: relative;
+  padding: 8px 30px 8px 12px;
   display: flex;
   flex-direction: column;
   gap: 6px;
@@ -826,6 +827,13 @@ a { text-decoration: none; color: inherit; }
 
 
 @media (max-width: 900px) { .scanner { display: none; } }
+
+.scanner-build-x {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 15px;
+}
 
 /* builder minimised after save: results lead, the form is one tap away */
 .scanner-new-rule {

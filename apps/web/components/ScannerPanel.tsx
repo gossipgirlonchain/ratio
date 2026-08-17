@@ -26,6 +26,7 @@ import {
 import { useMounted } from "../lib/useMounted";
 
 const fmtUsd = (n: number) => `$${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
+const fmtLikes = (n: number) => (n >= 1_000 ? `${(n / 1_000).toFixed(1)}K` : String(n));
 const fmtLeft = (mins: number) =>
   mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m`;
 
@@ -255,33 +256,53 @@ export function ScannerPanel() {
 
       {alerts.length > 0 && (
         <div className="scanner-alerts">
-          {alerts.map((a) => (
-            <div className="scanner-alert" key={a.id}>
+          {alerts.map((a) => {
+            // the pre-read IS the scoreline: likes and money per side,
+            // so the likes-leader vs money-leader mismatch is visible
+            // before the click. Leader wears a bold count, nothing else
+            // (the strip's law).
+            const aLeads = a.likesA >= a.likesB;
+            return (
               <Link
+                className="scanner-alert"
                 href={`/m/${a.marketId}`}
-                className="scanner-alert-market"
+                key={a.id}
                 onClick={() => scannerStore.noteAlertClick(a.marketId)}
               >
-                @{a.handleA} vs @{a.handleB}
+                {([
+                  [a.handleA, a.likesA, a.potAUsd, aLeads],
+                  [a.handleB, a.likesB, a.potBUsd, !aLeads],
+                ] as Array<[string, number, number, boolean]>).map(([h, likes, pot, leads]) => (
+                  <span className="scanner-side" key={h}>
+                    <span className="scanner-side-handle">@{h}</span>
+                    <span className={leads ? "scanner-side-likes scanner-side-lead" : "scanner-side-likes"}>
+                      ♥ {fmtLikes(likes)}
+                    </span>
+                    <span className="scanner-side-pot">{fmtUsd(pot)}</span>
+                  </span>
+                ))}
+                <span className="scanner-alert-foot">
+                  <span className="scanner-alert-meta">
+                    {fmtLeft(a.minsLeft)} left · {a.ruleSummary}
+                  </span>
+                  <span className="scanner-alert-actions">
+                    <span className="scanner-bet">bet</span>
+                    <button
+                      className="scanner-x"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        scannerStore.dismissAlert(a.id);
+                      }}
+                      aria-label="dismiss alert"
+                    >
+                      ×
+                    </button>
+                  </span>
+                </span>
               </Link>
-              <span className="scanner-alert-meta">
-                {fmtUsd(a.stakedUsd)} staked · {fmtLeft(a.minsLeft)} left
-              </span>
-              <span className="scanner-alert-rule">{a.ruleSummary}</span>
-              <span className="scanner-alert-actions">
-                <Link
-                  href={`/m/${a.marketId}`}
-                  className="scanner-bet"
-                  onClick={() => scannerStore.noteAlertClick(a.marketId)}
-                >
-                  bet
-                </Link>
-                <button className="scanner-x" onClick={() => scannerStore.dismissAlert(a.id)} aria-label="dismiss alert">
-                  ×
-                </button>
-              </span>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

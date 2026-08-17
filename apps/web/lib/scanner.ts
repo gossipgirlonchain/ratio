@@ -66,7 +66,13 @@ export interface ScannerAlert {
   marketId: string;
   handleA: string;
   handleB: string;
-  stakedUsd: number;
+  /** The scoreline at fire time — likes AND money per side. The whole
+   * pre-read is the mismatch between them (likes leader vs money
+   * leader); totals alone hide it. */
+  likesA: number;
+  likesB: number;
+  potAUsd: number;
+  potBUsd: number;
   minsLeft: number;
   atMs: number;
 }
@@ -233,7 +239,10 @@ export const scannerStore = {
           marketId: m.data.marketId,
           handleA: m.data.a.handle,
           handleB: m.data.b.handle,
-          stakedUsd: m.data.a.potUsd + m.data.b.potUsd,
+          likesA: m.data.a.likes,
+          likesB: m.data.b.likes,
+          potAUsd: m.data.a.potUsd,
+          potBUsd: m.data.b.potUsd,
           minsLeft: Math.max(0, Math.round((m.data.settlesAtMs - nowMs) / 60_000)),
           atMs: nowMs,
         });

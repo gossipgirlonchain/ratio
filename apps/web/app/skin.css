@@ -721,17 +721,40 @@ a { text-decoration: none; color: inherit; }
   border-bottom: 1px solid var(--edge);
 }
 .scanner-alert {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 1px 8px;
+  display: block;
   padding: 8px 12px;
+  text-decoration: none;
+  color: var(--ink);
 }
+.scanner-alert:hover { background: color-mix(in srgb, var(--edge) 18%, transparent); }
 .scanner-alert + .scanner-alert { border-top: 1px solid color-mix(in srgb, var(--edge) 45%, transparent); }
-.scanner-alert-market { font-weight: 800; color: var(--ink); text-decoration: none; }
-.scanner-alert-market:hover { text-decoration: underline; }
-.scanner-alert-meta { grid-row: 2; color: var(--gunmetal); font-size: 11.5px; }
-.scanner-alert-rule { grid-row: 3; grid-column: 1 / -1; color: var(--gunmetal); font-size: 10.5px; }
-.scanner-alert-actions { grid-row: 1 / 3; grid-column: 2; display: flex; align-items: center; gap: 8px; }
+/* the scoreline: handle · likes · money, one row per side. The likes
+   leader gets the bold count — spotting likes-leader vs money-leader
+   mismatch is the whole point of the card. */
+.scanner-side { display: flex; align-items: baseline; gap: 8px; }
+.scanner-side + .scanner-side { margin-top: 1px; }
+.scanner-side-handle {
+  flex: 1; min-width: 0; font-weight: 700;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.scanner-side-likes {
+  color: var(--gunmetal); font-size: 11.5px;
+  font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.scanner-side-lead { color: var(--ink); font-weight: 800; }
+.scanner-side-pot {
+  width: 52px; text-align: right; color: var(--gunmetal);
+  font-size: 11.5px; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.scanner-alert-foot {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 8px; margin-top: 4px;
+}
+.scanner-alert-meta {
+  color: var(--gunmetal); font-size: 10.5px; min-width: 0;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.scanner-alert-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
 .scanner-bet {
   padding: 3px 12px; border-radius: 999px;
   background: var(--accent); color: var(--on-accent);

@@ -103,11 +103,17 @@ handle is unregistered — `BOT_HANDLE` in `@ratio/config` drives it everywhere.
 - **R4.** Privy server wallets keyed on numeric X id, ATA creation in the
   sponsored-gas path, unclaimed-fee notifications.
 - **R5.** PWA -> extension -> Telegram.
-- **Backlog (ordered): extension -> OG images -> market scanner.** The
-  scanner is spec'd in docs/scanner-spec.md — standing alert rules
-  evaluated on the likes-sampler cadence, fire-once per rule per market,
-  alerts only (auto-execution explicitly out of scope pending the Privy
-  policy engine and real scanner usage).
+- **Scanner — in-app panel BUILT (2026-08-14, pulled forward).** Chat
+  rule builder docked to the rail column on every page (module-level
+  state survives navigation): plain-English parser for the seven
+  AND-able conditions with a one-clarifying-question fallback, confirm
+  then save, fire-once per rule per market on the likes-sampler cadence,
+  alerts lead with the market + bet link, presets as prompts, logged-out
+  point-of-action gate, rules/alerts/alert-led-bets instrumented
+  (localStorage ratio-scanner-v1). Spec: docs/scanner-spec.md. Still
+  pending: server-side evaluation, extension push, Telegram. NO
+  auto-execution without its own workstream.
+- **Backlog (ordered): extension -> OG images.**
 
 ## Layout
 

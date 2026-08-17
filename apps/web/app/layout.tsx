@@ -2,6 +2,7 @@ import "./globals.css";
 import "@ratio/ui/strip.css";
 import "./skin.css";
 
+import { ScannerPanel } from "../components/ScannerPanel";
 import { Nav } from "./nav";
 import { Providers } from "./providers";
 import { Sidebar } from "./sidebar";
@@ -29,6 +30,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               {children}
             </div>
           </div>
+          {/* layout-mounted so the conversation survives navigation */}
+          <ScannerPanel />
         </Providers>
       </body>
     </html>

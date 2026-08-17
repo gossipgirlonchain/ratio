@@ -1,0 +1,9 @@
+{
+  "/page": "app/page.js",
+  "/[handle]/page": "app/[handle]/page.js",
+  "/[handle]/fights/page": "app/[handle]/fights/page.js",
+  "/m/[id]/page": "app/m/[id]/page.js",
+  "/[handle]/fight/[replyId]/page": "app/[handle]/fight/[replyId]/page.js",
+  "/api/card/score/[handle]/route": "app/api/card/score/[handle]/route.js",
+  "/api/card/market/[id]/route": "app/api/card/market/[id]/route.js"
+}

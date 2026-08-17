@@ -660,3 +660,137 @@ a { text-decoration: none; color: inherit; }
 .board-duo { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: start; }
 .board-duo .board-heading { margin-top: 4px; }
 @media (max-width: 1150px) { .board-duo { grid-template-columns: 1fr; } }
+
+/* ============ scanner: docked to the rail column, every page =========== */
+/* Aligned to the shell's right edge so on home it reads as "under the
+   leaderboard rail"; on railless pages it docks to the same x position. */
+.scanner {
+  position: fixed;
+  bottom: 0;
+  right: max(16px, calc((100vw - 1300px) / 2));
+  width: 350px;
+  max-height: 58vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  border: 2px solid var(--edge);
+  border-bottom: none;
+  border-radius: 12px 12px 0 0;
+  z-index: 50;
+  font-size: 12.5px;
+}
+.scanner-closed {
+  width: auto;
+  max-height: none;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-weight: 800;
+  font-size: 12px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.scanner-head {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 8px 12px;
+  font-weight: 800; font-size: 11px; text-transform: uppercase;
+  letter-spacing: 0.06em;
+  border-bottom: 1px solid var(--edge);
+}
+.scanner-head span { display: inline-flex; align-items: center; gap: 6px; }
+.scanner-collapse {
+  border: none; background: none; color: var(--gunmetal);
+  font-size: 13px; cursor: pointer; padding: 0 2px;
+}
+.scanner-dot {
+  width: 7px; height: 7px; border-radius: 999px;
+  background: var(--accent); display: inline-block;
+}
+
+/* alerts: the market leads, the rule is the footnote */
+.scanner-alerts { overflow-y: auto; max-height: 180px; border-bottom: 1px solid var(--edge); }
+.scanner-alert {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 1px 8px;
+  padding: 8px 12px;
+}
+.scanner-alert + .scanner-alert { border-top: 1px solid color-mix(in srgb, var(--edge) 45%, transparent); }
+.scanner-alert-market { font-weight: 800; color: var(--ink); text-decoration: none; }
+.scanner-alert-market:hover { text-decoration: underline; }
+.scanner-alert-meta { grid-row: 2; color: var(--gunmetal); font-size: 11.5px; }
+.scanner-alert-rule { grid-row: 3; grid-column: 1 / -1; color: var(--gunmetal); font-size: 10.5px; }
+.scanner-alert-actions { grid-row: 1 / 3; grid-column: 2; display: flex; align-items: center; gap: 8px; }
+.scanner-bet {
+  padding: 3px 12px; border-radius: 999px;
+  background: var(--accent); color: var(--on-accent);
+  font-weight: 800; font-size: 11.5px; text-decoration: none;
+  border: 1.5px solid var(--edge);
+}
+.scanner-x {
+  border: none; background: none; color: var(--gunmetal);
+  font-size: 14px; cursor: pointer; padding: 0 2px; line-height: 1;
+}
+
+/* rules: the manager half */
+.scanner-rules { border-bottom: 1px solid var(--edge); max-height: 120px; overflow-y: auto; }
+.scanner-rule {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 8px; padding: 6px 12px;
+}
+.scanner-rule-sum { color: var(--ink); font-size: 11.5px; min-width: 0; }
+.scanner-rule-meta {
+  color: var(--gunmetal); font-size: 11px; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 4px;
+}
+
+/* chat */
+.scanner-log { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; min-height: 70px; }
+.scanner-hello { color: var(--gunmetal); font-size: 11.5px; line-height: 1.45; }
+.scanner-msg {
+  max-width: 90%;
+  padding: 5px 10px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--edge) 30%, transparent);
+  align-self: flex-start;
+  line-height: 1.4;
+}
+.scanner-msg-you {
+  align-self: flex-end;
+  background: color-mix(in srgb, var(--accent) 30%, transparent);
+}
+.scanner-confirm { display: flex; gap: 6px; align-self: flex-start; }
+.scanner-save {
+  padding: 5px 14px; border-radius: 999px; border: 1.5px solid var(--edge);
+  background: var(--accent); color: var(--on-accent); font-weight: 800;
+  font-size: 12px; cursor: pointer;
+}
+.scanner-discard {
+  padding: 5px 12px; border-radius: 999px; border: 1.5px solid var(--edge);
+  background: none; color: var(--gunmetal); font-size: 12px; cursor: pointer;
+}
+
+/* presets: the empty state is suggestions, never a blank box */
+.scanner-presets { display: flex; flex-wrap: wrap; gap: 5px; padding: 0 12px 8px; }
+.scanner-preset {
+  padding: 4px 10px; border-radius: 999px; border: 1.5px solid var(--edge);
+  background: none; color: var(--ink); font-size: 11px; cursor: pointer;
+}
+.scanner-preset:hover { border-color: var(--ink); }
+
+.scanner-input-row { display: flex; gap: 6px; padding: 8px 12px 10px; border-top: 1px solid var(--edge); }
+.scanner-input {
+  flex: 1; min-width: 0; padding: 6px 12px;
+  border: 1.5px solid var(--edge); border-radius: 999px;
+  background: none; color: var(--ink); font-size: 12.5px; outline: none;
+}
+.scanner-input:focus { border-color: var(--ink); }
+.scanner-send {
+  width: 34px; border-radius: 999px; border: 1.5px solid var(--edge);
+  background: var(--accent); color: var(--on-accent); font-weight: 800;
+  cursor: pointer;
+}
+.scanner-send:disabled { background: none; color: var(--gunmetal); cursor: default; }
+
+@media (max-width: 900px) { .scanner { display: none; } }

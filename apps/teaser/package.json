@@ -1,0 +1,20 @@
+{
+  "name": "@ratio/teaser",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 3010",
+    "build": "next build",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "next": "^14.2.15",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22",
+    "@types/react": "^18",
+    "typescript": "5.5.3"
+  }
+}

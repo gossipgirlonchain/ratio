@@ -13,6 +13,7 @@
  */
 import { useEffect, useState } from "react";
 
+import { scannerStore } from "./scanner";
 import { playPlacedSound } from "./sound";
 
 export interface PendingBet {
@@ -48,6 +49,10 @@ export function placeBet(opts: {
   };
   pending.push(bet);
   playPlacedSound();
+  // Instrumentation: a bet within 30min of clicking a scanner alert for
+  // this market counts as alert-led — the number that decides whether
+  // auto-trading is ever worth building.
+  scannerStore.creditBetFromAlert(opts.marketId);
   emit();
 
   // Simulated chain: ~1.2s to land. Real impl: the swap tx promise.

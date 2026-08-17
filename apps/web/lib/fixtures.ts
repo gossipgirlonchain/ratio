@@ -13,6 +13,8 @@ const av = (h: string) => `https://i.pravatar.cc/60?u=${h}`;
 
 export interface FixtureMarket {
   data: MarketStripData;
+  /** reply vs quote tweet — the scanner's market-type condition. */
+  pairType: "reply" | "quote";
   taggerHandle: string;
   volumeUsd: number; // gross buys — the historical fact
   netStakedUsd: number; // what is in it right now — feed ranking
@@ -22,6 +24,7 @@ export interface FixtureMarket {
 export const markets: FixtureMarket[] = [
   {
     postId: "p-chart",
+    pairType: "reply",
     taggerHandle: "scout",
     volumeUsd: 125,
     netStakedUsd: 125,
@@ -35,6 +38,7 @@ export const markets: FixtureMarket[] = [
   },
   {
     postId: "p-remote",
+    pairType: "reply",
     taggerHandle: "scout",
     volumeUsd: 2_600,
     netStakedUsd: 2_600,
@@ -48,6 +52,7 @@ export const markets: FixtureMarket[] = [
   },
   {
     postId: "p-cereal",
+    pairType: "reply",
     taggerHandle: "dave",
     volumeUsd: 680,
     netStakedUsd: 680,
@@ -61,6 +66,7 @@ export const markets: FixtureMarket[] = [
   },
   {
     postId: "p-criticism",
+    pairType: "quote",
     taggerHandle: "scout",
     volumeUsd: 1_300,
     netStakedUsd: 1_300,
@@ -75,6 +81,7 @@ export const markets: FixtureMarket[] = [
   },
   {
     postId: "p-remote",
+    pairType: "reply",
     taggerHandle: "carol",
     volumeUsd: 3_550,
     netStakedUsd: 0,
@@ -89,6 +96,7 @@ export const markets: FixtureMarket[] = [
   },
   {
     postId: "p-delete",
+    pairType: "reply",
     taggerHandle: "scout",
     volumeUsd: 115,
     netStakedUsd: 0,

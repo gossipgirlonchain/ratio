@@ -1,6 +1,10 @@
-# Market scanner — spec (backlog)
+# Market scanner — spec
 
-**Status: backlog, not launch. Land AFTER the extension and the OG images.**
+**Status: BUILT (fixture version, winny pulled it forward 2026-08-14) —
+the in-app panel, parser, evaluator, and instrumentation are live in
+apps/web (lib/scanner.ts + components/ScannerPanel.tsx). Still pending:
+server-side evaluation next to the real likes sampler, extension push,
+and Telegram delivery — those land with their own workstreams.**
 Spec'd 2026-08-13 from winny's trading-product teardown follow-up.
 
 Alerts only, **no auto-trading**. Users set standing rules and get notified

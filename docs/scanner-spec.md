@@ -57,10 +57,17 @@ space is empty on every page.
   count on each, and alerts appear in the same panel as they fire — each
   leading with the market and a direct way to bet.
 - Presets are concrete knob settings — one tap fills the controls, the
-  user still reviews and saves:
-  - "close markets over 5k likes"
-  - "one side barely funded"
-  - "closing in under an hour"
+  user still reviews and saves. Always visible (not just the empty
+  state), each one a thesis:
+  - "close markets over 5k likes" (gap within 15% + likes over 5k)
+  - "one side barely funded" (money 5x lopsided)
+  - "closing in under an hour" (time left under 1h)
+  - "big fight, tiny pot" (likes over 10k + staked under $200)
+  - "photo finish" (gap within 5% + closing under 2h)
+  - "whale market" (staked over $2,000)
+  - "first money in" (staked under $50)
+  - "fresh with heat" (over 20h left + likes over 2k)
+  - "quote tweet beef" (quote tweets only)
 - Logged out: panel shows with presets visible; saving a rule prompts
   log in (point-of-action gate, same as everywhere else).
 

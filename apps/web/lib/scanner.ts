@@ -276,11 +276,23 @@ export const scannerStore = {
 };
 
 /** Presets: concrete knob settings — one tap fills the controls, the
- * user still reviews and saves. Never a blank builder. */
+ * user still reviews and saves. Never a blank builder. Each one is a
+ * thesis, not a demo: the label says why you'd want the alert. */
 export const SCANNER_PRESETS: Array<{ label: string; conditions: RuleConditions }> = [
   { label: "close markets over 5k likes", conditions: { gapRatioMax: 1.15, likesMin: 5_000 } },
   { label: "one side barely funded", conditions: { imbalanceRatioMin: 5 } },
   { label: "closing in under an hour", conditions: { minsLeftMax: 60 } },
+  // high attention, cheap entry: the crowd is watching but not betting yet
+  { label: "big fight, tiny pot", conditions: { likesMin: 10_000, stakedMax: 200 } },
+  // dead even at the wire: maximum uncertainty, maximum payout swing
+  { label: "photo finish", conditions: { gapRatioMax: 1.05, minsLeftMax: 120 } },
+  // serious money arrived: someone is confident about something
+  { label: "whale market", conditions: { stakedMin: 2_000 } },
+  // be the first dollar in: best curve price you will ever get
+  { label: "first money in", conditions: { stakedMax: 50 } },
+  // young market already pulling numbers: early entry on a mover
+  { label: "fresh with heat", conditions: { minsLeftMin: 20 * 60, likesMin: 2_000 } },
+  { label: "quote tweet beef", conditions: { pairType: "quote" } },
 ];
 
 export { marketById };

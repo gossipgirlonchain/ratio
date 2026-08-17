@@ -374,7 +374,9 @@ export function ScannerPanel() {
         </button>
       </div>
 
-      {rules.length === 0 && (
+      {/* always visible: presets are starting points for the NEXT rule
+          too, not just the empty state */}
+      {(
         <div className="scanner-presets">
           {SCANNER_PRESETS.map((p) => (
             <button

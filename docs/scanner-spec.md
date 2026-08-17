@@ -34,7 +34,8 @@ In-app, browser push via the extension, and Telegram if linked. Every
 alert leads with the market and a direct way to act (deep link to
 `/m/[id]`), never a bare notification.
 
-## UI (revised 2026-08-13: chat panel, not a profile form)
+## UI (revised 2026-08-14: KNOBS, not chat — winny reversed the chat
+design after seeing it: "it needs to be knobs, not qualitative")
 
 **A persistent panel in the right rail, under the leaderboard.** That
 space is empty on every page.
@@ -46,19 +47,17 @@ space is empty on every page.
   holds, one shared component.)
 - Collapsible; remembers whether it's open (localStorage, like the
   sidebar collapse).
-- **It works like a chat.** Users describe what they want in plain
-  English ("tell me when a market is neck and neck with over 5k likes",
-  "alert me on anything involving @bigaccount"); it parses that into a
-  rule, shows the rule back for confirmation, and saves it. Chat rather
-  than a form because the point is people not having to learn what
-  conditions exist.
-- Failure handling: if the intent is unclear, ask ONE clarifying
-  question. Never guess.
+- **Knobs.** One row per condition: an explicit mode select + number
+  (like gap: any / within % / within likes / leader >= x:1; likes and
+  staked: any / over / under; imbalance: any / >= x times; time left:
+  any / under / over + h/m; handles: free @list; type: both / replies /
+  quotes). A generated summary line shows exactly what the rule means
+  before saving; nothing qualitative, nothing parsed from prose.
 - The panel is builder AND manager: it lists active rules with a match
   count on each, and alerts appear in the same panel as they fire — each
   leading with the market and a direct way to bet.
-- Empty state: two or three preset rules as suggested prompts, never a
-  blank box:
+- Presets are concrete knob settings — one tap fills the controls, the
+  user still reviews and saves:
   - "close markets over 5k likes"
   - "one side barely funded"
   - "closing in under an hour"

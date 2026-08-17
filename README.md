@@ -103,11 +103,11 @@ handle is unregistered — `BOT_HANDLE` in `@ratio/config` drives it everywhere.
 - **R4.** Privy server wallets keyed on numeric X id, ATA creation in the
   sponsored-gas path, unclaimed-fee notifications.
 - **R5.** PWA -> extension -> Telegram.
-- **Scanner — in-app panel BUILT (2026-08-14, pulled forward).** Chat
+- **Scanner — in-app panel BUILT (2026-08-14, pulled forward).** KNOB
   rule builder docked to the rail column on every page (module-level
-  state survives navigation): plain-English parser for the seven
-  AND-able conditions with a one-clarifying-question fallback, confirm
-  then save, fire-once per rule per market on the likes-sampler cadence,
+  state survives navigation): explicit mode + number controls for the
+  seven AND-able conditions, generated summary before save (chat/parser
+  version built first, reversed same day: knobs, not qualitative), fire-once per rule per market on the likes-sampler cadence,
   alerts lead with the market + bet link, presets as prompts, logged-out
   point-of-action gate, rules/alerts/alert-led-bets instrumented
   (localStorage ratio-scanner-v1). Spec: docs/scanner-spec.md. Still

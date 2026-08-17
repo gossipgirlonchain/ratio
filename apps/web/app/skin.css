@@ -745,52 +745,54 @@ a { text-decoration: none; color: inherit; }
   display: inline-flex; align-items: center; gap: 4px;
 }
 
-/* chat */
-.scanner-log { flex: 1; overflow-y: auto; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; min-height: 70px; }
-.scanner-hello { color: var(--gunmetal); font-size: 11.5px; line-height: 1.45; }
-.scanner-msg {
-  max-width: 90%;
-  padding: 5px 10px;
-  border-radius: 10px;
-  background: color-mix(in srgb, var(--edge) 30%, transparent);
-  align-self: flex-start;
-  line-height: 1.4;
+/* knobs: one row per condition — mode select + number, nothing prose */
+.scanner-knobs { padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; overflow-y: auto; }
+.scanner-knob { display: flex; align-items: center; gap: 6px; }
+.scanner-knob-label {
+  width: 64px; flex-shrink: 0;
+  font-size: 10.5px; font-weight: 800; text-transform: uppercase;
+  letter-spacing: 0.04em; color: var(--gunmetal);
 }
-.scanner-msg-you {
-  align-self: flex-end;
-  background: color-mix(in srgb, var(--accent) 30%, transparent);
+.scanner-sel {
+  flex: 1; min-width: 0; padding: 4px 6px;
+  border: 1.5px solid var(--edge); border-radius: 8px;
+  background: var(--bg); color: var(--ink); font-size: 11.5px;
 }
-.scanner-confirm { display: flex; gap: 6px; align-self: flex-start; }
+.scanner-num {
+  padding: 4px 8px; border: 1.5px solid var(--edge); border-radius: 8px;
+  background: none; color: var(--ink); font-size: 11.5px; outline: none;
+  font-variant-numeric: tabular-nums;
+}
+.scanner-num:disabled { opacity: 0.35; }
+.scanner-num:focus { border-color: var(--ink); }
+.scanner-handles { flex: 1; min-width: 0; width: auto; }
+.scanner-seg { display: flex; gap: 4px; flex: 1; }
+.scanner-seg-btn {
+  flex: 1; padding: 4px 0; border: 1.5px solid var(--edge); border-radius: 999px;
+  background: none; color: var(--gunmetal); font-size: 11px; cursor: pointer;
+}
+.scanner-seg-on { background: var(--accent); color: var(--on-accent); font-weight: 800; }
+
+/* footer: the generated rule line + save */
+.scanner-footer {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 12px; border-top: 1px solid var(--edge);
+}
+.scanner-summary { flex: 1; min-width: 0; font-size: 10.5px; color: var(--gunmetal); line-height: 1.35; }
 .scanner-save {
   padding: 5px 14px; border-radius: 999px; border: 1.5px solid var(--edge);
   background: var(--accent); color: var(--on-accent); font-weight: 800;
-  font-size: 12px; cursor: pointer;
+  font-size: 12px; cursor: pointer; white-space: nowrap;
 }
-.scanner-discard {
-  padding: 5px 12px; border-radius: 999px; border: 1.5px solid var(--edge);
-  background: none; color: var(--gunmetal); font-size: 12px; cursor: pointer;
-}
+.scanner-save:disabled { background: none; color: var(--gunmetal); cursor: default; }
 
 /* presets: the empty state is suggestions, never a blank box */
-.scanner-presets { display: flex; flex-wrap: wrap; gap: 5px; padding: 0 12px 8px; }
+.scanner-presets { display: flex; flex-wrap: wrap; gap: 5px; padding: 8px 12px 10px; border-top: 1px solid var(--edge); }
 .scanner-preset {
   padding: 4px 10px; border-radius: 999px; border: 1.5px solid var(--edge);
   background: none; color: var(--ink); font-size: 11px; cursor: pointer;
 }
 .scanner-preset:hover { border-color: var(--ink); }
 
-.scanner-input-row { display: flex; gap: 6px; padding: 8px 12px 10px; border-top: 1px solid var(--edge); }
-.scanner-input {
-  flex: 1; min-width: 0; padding: 6px 12px;
-  border: 1.5px solid var(--edge); border-radius: 999px;
-  background: none; color: var(--ink); font-size: 12.5px; outline: none;
-}
-.scanner-input:focus { border-color: var(--ink); }
-.scanner-send {
-  width: 34px; border-radius: 999px; border: 1.5px solid var(--edge);
-  background: var(--accent); color: var(--on-accent); font-weight: 800;
-  cursor: pointer;
-}
-.scanner-send:disabled { background: none; color: var(--gunmetal); cursor: default; }
 
 @media (max-width: 900px) { .scanner { display: none; } }

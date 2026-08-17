@@ -4,11 +4,11 @@
  * Market scanner (docs/scanner-spec.md, pulled forward 2026-08-13).
  * Alerts only — NO auto-execution, ever, without its own workstream.
  *
- * Users describe what they want in plain English; parseRule turns it into
- * an AND-combined condition set, the panel echoes it back, and only a
- * confirmed draft becomes a rule. Rules evaluate on the likes-sampler
- * cadence (that is when the data changes) and fire ONCE per rule per
- * market — the fired log is permanent, no repeat alerts.
+ * Rules are built with KNOBS — explicit controls per condition, nothing
+ * qualitative (winny 2026-08-14, reversing the chat design): every
+ * condition is a mode + number the user sets directly. Rules evaluate on
+ * the likes-sampler cadence (that is when the data changes) and fire
+ * ONCE per rule per market — the fired log is permanent, no repeats.
  *
  * All state lives at module level + localStorage, so the panel keeps its
  * conversation and rules across route changes without living in a rail
@@ -71,146 +71,27 @@ export interface ScannerAlert {
   atMs: number;
 }
 
-export interface ChatMsg {
-  who: "you" | "scanner";
-  text: string;
-}
+// --- summary: the saved rule line, generated from the knobs ----------------
 
-export interface RuleDraft {
-  text: string;
-  summary: string;
-  conditions: RuleConditions;
-}
+const fmtN = (n: number) => n.toLocaleString("en-US");
 
-// --- parser -----------------------------------------------------------------
-
-const num = (raw: string): number => {
-  const cleaned = raw.replace(/[$,\s]/g, "").toLowerCase();
-  if (cleaned.endsWith("k")) return parseFloat(cleaned) * 1_000;
-  if (cleaned.endsWith("m")) return parseFloat(cleaned) * 1_000_000;
-  return parseFloat(cleaned);
-};
-
-const NUM = "\\$?[\\d,.]+\\s?[km]?";
-
-export type ParseResult =
-  | { kind: "rule"; draft: RuleDraft }
-  | { kind: "clarify"; question: string };
-
-/**
- * Plain English -> conditions. Keyword grammar, deliberately forgiving:
- * the confirmation step catches misreads, and anything unparseable gets
- * ONE clarifying question, never a guess. (Real version: swap this for a
- * small-model extract behind the same ParseResult shape.)
- */
-export function parseRule(input: string): ParseResult {
-  const t = input.toLowerCase().trim();
-  const c: RuleConditions = {};
+export function buildSummary(c: RuleConditions): string {
   const parts: string[] = [];
-
-  // watchlist: any @handles
-  const handles = [...t.matchAll(/@([a-z0-9_]+)/g)].map((m) => m[1]!);
-  if (handles.length > 0) {
-    c.watchlist = handles;
-    parts.push(`involving ${handles.map((h) => `@${h}`).join(" or ")}`);
-  }
-
-  // market type
-  if (/\bquote|qt\b/.test(t) && !/\breply\b/.test(t)) {
-    c.pairType = "quote";
-    parts.push("quote tweets only");
-  } else if (/\breply|replies\b/.test(t) && !/\bquote|qt\b/.test(t)) {
-    c.pairType = "reply";
-    parts.push("replies only");
-  }
-
-  // like gap, ratio or absolute
-  const withinPct = t.match(new RegExp(`within\\s+(${NUM})\\s*(?:%|percent)`));
-  const withinLikes = t.match(new RegExp(`within\\s+(${NUM})\\s+likes`));
-  const leadRatio = t.match(new RegExp(`(?:leading|ahead|up)\\s+(?:by\\s+)?(${NUM})\\s*(?::|to)\\s*1`));
-  if (withinPct) {
-    c.gapRatioMax = 1 + num(withinPct[1]!) / 100;
-    parts.push(`like gap within ${num(withinPct[1]!)}%`);
-  } else if (withinLikes) {
-    c.gapAbsMax = num(withinLikes[1]!);
-    parts.push(`like gap within ${num(withinLikes[1]!).toLocaleString("en-US")} likes`);
-  } else if (leadRatio) {
-    c.gapRatioMin = num(leadRatio[1]!);
-    parts.push(`one side leading ${num(leadRatio[1]!)}:1 or more`);
-  } else if (/neck and neck|dead even|tight|close market|close race|too close/.test(t)) {
-    c.gapRatioMax = 1.15;
-    parts.push("like gap within 15%");
-  }
-
-  // like counts (skip matches that were about staked $)
-  const likesOver = t.match(new RegExp(`(?:over|above|more than|at least)\\s+(${NUM})\\s+likes`));
-  const likesUnder = t.match(new RegExp(`(?:under|below|less than)\\s+(${NUM})\\s+likes`));
-  if (likesOver) {
-    c.likesMin = num(likesOver[1]!);
-    parts.push(`over ${num(likesOver[1]!).toLocaleString("en-US")} likes`);
-  }
-  if (likesUnder) {
-    c.likesMax = num(likesUnder[1]!);
-    parts.push(`under ${num(likesUnder[1]!).toLocaleString("en-US")} likes`);
-  }
-
-  // staked (needs a $ or the word staked/pot-adjacent phrasing)
-  const stakedOver = t.match(new RegExp(`(?:over|above|more than|at least)\\s+\\$([\\d,.]+\\s?[km]?)(?!\\s*likes)`)) ??
-    t.match(new RegExp(`staked?\\s+(?:over|above|more than)\\s+(${NUM})`));
-  const stakedUnder = t.match(new RegExp(`(?:under|below|less than)\\s+\\$([\\d,.]+\\s?[km]?)(?!\\s*likes)`)) ??
-    t.match(new RegExp(`staked?\\s+(?:under|below|less than)\\s+(${NUM})`));
-  if (stakedOver) {
-    c.stakedMin = num(stakedOver[1]!);
-    parts.push(`over $${num(stakedOver[1]!).toLocaleString("en-US")} staked`);
-  }
-  if (stakedUnder) {
-    c.stakedMax = num(stakedUnder[1]!);
-    parts.push(`under $${num(stakedUnder[1]!).toLocaleString("en-US")} staked`);
-  }
-
-  // money imbalance
-  const imbalanceX = t.match(new RegExp(`money\\s+(?:imbalance|lopsided)?\\s*(${NUM})\\s*x`));
-  if (imbalanceX) {
-    c.imbalanceRatioMin = num(imbalanceX[1]!);
-    parts.push(`money ${num(imbalanceX[1]!)}x lopsided`);
-  } else if (/barely funded|one.?sided money|lopsided|imbalance|nobody on one side|empty side/.test(t)) {
-    c.imbalanceRatioMin = 5;
-    parts.push("money 5x lopsided or worse");
-  }
-
-  // time remaining
-  const underTime = t.match(new RegExp(`(?:under|less than|within)\\s+(?:an?\\s+)?(${NUM})?\\s*(hour|hr|minute|min)`));
-  const overTime = t.match(new RegExp(`(?:over|more than|at least)\\s+(?:an?\\s+)?(${NUM})?\\s*(hour|hr|minute|min)`));
-  const timeMins = (m: RegExpMatchArray) => {
-    const n = m[1] ? num(m[1]) : 1;
-    return /hour|hr/.test(m[2]!) ? n * 60 : n;
-  };
-  if (underTime && /clos|end|settl|left|remain|expir|final/.test(t)) {
-    c.minsLeftMax = timeMins(underTime);
+  if (c.watchlist?.length) parts.push(`involving ${c.watchlist.map((h) => `@${h}`).join(" or ")}`);
+  if (c.pairType) parts.push(c.pairType === "quote" ? "quote tweets only" : "replies only");
+  if (c.gapRatioMax !== undefined) parts.push(`like gap within ${Math.round((c.gapRatioMax - 1) * 100)}%`);
+  if (c.gapAbsMax !== undefined) parts.push(`like gap within ${fmtN(c.gapAbsMax)} likes`);
+  if (c.gapRatioMin !== undefined) parts.push(`one side leading ${c.gapRatioMin}:1 or more`);
+  if (c.likesMin !== undefined) parts.push(`over ${fmtN(c.likesMin)} likes`);
+  if (c.likesMax !== undefined) parts.push(`under ${fmtN(c.likesMax)} likes`);
+  if (c.stakedMin !== undefined) parts.push(`over $${fmtN(c.stakedMin)} staked`);
+  if (c.stakedMax !== undefined) parts.push(`under $${fmtN(c.stakedMax)} staked`);
+  if (c.imbalanceRatioMin !== undefined) parts.push(`money ${c.imbalanceRatioMin}x lopsided`);
+  if (c.minsLeftMax !== undefined)
     parts.push(`closing in under ${c.minsLeftMax >= 60 ? `${c.minsLeftMax / 60}h` : `${c.minsLeftMax}m`}`);
-  } else if (overTime && /left|remain|clos|end/.test(t)) {
-    c.minsLeftMin = timeMins(overTime);
+  if (c.minsLeftMin !== undefined)
     parts.push(`more than ${c.minsLeftMin >= 60 ? `${c.minsLeftMin / 60}h` : `${c.minsLeftMin}m`} left`);
-  }
-
-  if (parts.length === 0) {
-    // bare number with no unit is the classic ambiguous case
-    if (/[\d]/.test(t)) {
-      return {
-        kind: "clarify",
-        question: "is that number likes, dollars staked, or time left? say it with a unit, like \"over 5k likes\" or \"under $100 staked\" or \"closing in under an hour\".",
-      };
-    }
-    return {
-      kind: "clarify",
-      question: "i can watch the like gap, like counts, money staked, money imbalance, time left, specific @handles, or replies vs quote tweets. what should trigger this one?",
-    };
-  }
-
-  return {
-    kind: "rule",
-    draft: { text: input.trim(), summary: parts.join(" · "), conditions: c },
-  };
+  return parts.join(" \u00b7 ");
 }
 
 // --- evaluator --------------------------------------------------------------
@@ -260,12 +141,8 @@ interface Persisted {
 
 const state: {
   loaded: boolean;
-  transcript: ChatMsg[];
-  draft: RuleDraft | null;
 } & Persisted = {
   loaded: false,
-  transcript: [],
-  draft: null,
   rules: [],
   alerts: [],
   metrics: { rulesCreated: 0, alertsFired: 0, alertBets: 0 },
@@ -313,45 +190,23 @@ export const scannerStore = {
     emit();
   },
 
-  send(text: string) {
+  /** Save a knob-built rule. The summary is generated, never typed. */
+  saveRule(conditions: RuleConditions): ScannerRule {
     load();
-    state.transcript.push({ who: "you", text });
-    const parsed = parseRule(text);
-    if (parsed.kind === "clarify") {
-      state.draft = null;
-      state.transcript.push({ who: "scanner", text: parsed.question });
-    } else {
-      state.draft = parsed.draft;
-      state.transcript.push({ who: "scanner", text: `watching for: ${parsed.draft.summary}. save it?` });
-    }
-    emit();
-  },
-
-  saveDraft(): ScannerRule | null {
-    load();
-    if (!state.draft) return null;
     const rule: ScannerRule = {
       id: `r${Date.now().toString(36)}`,
-      text: state.draft.text,
-      summary: state.draft.summary,
-      conditions: state.draft.conditions,
+      text: "",
+      summary: buildSummary(conditions),
+      conditions,
       createdAtMs: Date.now(),
       matchedMarketIds: [],
     };
     state.rules.push(rule);
     state.metrics.rulesCreated += 1;
-    state.draft = null;
-    state.transcript.push({ who: "scanner", text: "saved. you'll hear about it here the moment a market matches." });
     save();
     emit();
     this.evaluate();
     return rule;
-  },
-
-  discardDraft() {
-    state.draft = null;
-    state.transcript.push({ who: "scanner", text: "dropped. describe it differently and we go again." });
-    emit();
   },
 
   deleteRule(id: string) {
@@ -420,11 +275,12 @@ export const scannerStore = {
   },
 };
 
-/** Preset prompts — the empty state is suggestions, never a blank box. */
-export const SCANNER_PRESETS = [
-  "close markets over 5k likes",
-  "one side barely funded",
-  "closing in under an hour",
-] as const;
+/** Presets: concrete knob settings — one tap fills the controls, the
+ * user still reviews and saves. Never a blank builder. */
+export const SCANNER_PRESETS: Array<{ label: string; conditions: RuleConditions }> = [
+  { label: "close markets over 5k likes", conditions: { gapRatioMax: 1.15, likesMin: 5_000 } },
+  { label: "one side barely funded", conditions: { imbalanceRatioMin: 5 } },
+  { label: "closing in under an hour", conditions: { minsLeftMax: 60 } },
+];
 
 export { marketById };

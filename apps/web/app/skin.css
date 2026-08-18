@@ -433,7 +433,10 @@ body { background: var(--bg); color: var(--ink); }
 .masthead { margin-left: 0; padding-left: 24px; max-width: none; }
 @media (max-width: 900px) {
   .sidebar { display: none; }
-  .home-grid { grid-template-columns: minmax(0, 1fr); padding: 16px; }
+  /* one slim gutter, not stacked ones: the shell already pads the edge,
+     so the grid drops its own — containers get nearly the full screen */
+  .shell { padding: 0 10px; gap: 0; }
+  .home-grid { grid-template-columns: minmax(0, 1fr); padding: 14px 0 60px; }
   .home-side { display: none; }
 }
 

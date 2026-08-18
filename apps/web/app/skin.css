@@ -871,3 +871,11 @@ a { text-decoration: none; color: inherit; }
   cursor: pointer;
 }
 .scanner-new-rule:hover { color: var(--ink); border-color: var(--ink); }
+
+/* matchup rows double as side pickers, mirroring the trade panel state.
+   GREEN = selected and nothing else (the law); hover stays neutral. */
+.match-row-tap { cursor: pointer; border-radius: 10px; transition: background 90ms ease; }
+.match-row-tap:hover { background: color-mix(in srgb, var(--carbon) 6%, transparent); }
+.match-row-on, .match-row-on:hover { background: var(--accent); }
+.match-row-on .match-handle, .match-row-on .match-text,
+.match-row-on .match-likes { color: var(--on-accent); }

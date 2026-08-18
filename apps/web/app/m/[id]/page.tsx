@@ -113,8 +113,36 @@ export default function MarketPage() {
               data.status === "settled" && data.winner
                 ? data.winner === who
                 : (who === "a") === (data.a.likes >= data.b.likes);
+            const on = open && backing === who;
+            const rowClass = [
+              "match-row",
+              open ? "match-row-tap" : "",
+              on ? "match-row-on" : "",
+            ].join(" ").trim();
             return (
-              <div className="match-row" key={who}>
+              // The tweets ARE buttons (strip law: rows are the controls):
+              // tapping one picks that side in the trade panel; same state,
+              // two surfaces. Handle links still navigate, nothing else.
+              <div
+                className={rowClass}
+                key={who}
+                role={open ? "button" : undefined}
+                tabIndex={open ? 0 : undefined}
+                onClick={() => {
+                  if (!open) return;
+                  setBacking(backing === who ? null : who);
+                  setAmount(null);
+                  setCustom(null);
+                }}
+                onKeyDown={(e) => {
+                  if (open && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault();
+                    setBacking(backing === who ? null : who);
+                    setAmount(null);
+                    setCustom(null);
+                  }
+                }}
+              >
                 {/* the ring IS the chart key — same hue as the side's line */}
                 <img
                   className="rs-avatar match-avatar"
@@ -123,7 +151,11 @@ export default function MarketPage() {
                   alt=""
                 />
                 <div className="match-body">
-                  <Link href={`/${side.handle}`} className="match-handle">
+                  <Link
+                    href={`/${side.handle}`}
+                    className="match-handle"
+                    onClick={(e) => e.stopPropagation()}
+                  >
                     @{side.handle}
                   </Link>
                   <p className="match-text">{side.text}</p>

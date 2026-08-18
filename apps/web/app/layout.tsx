@@ -3,6 +3,7 @@ import "@ratio/ui/strip.css";
 import "./skin.css";
 
 import { ScannerPanel } from "../components/ScannerPanel";
+import { MobileNav } from "./mobile-nav";
 import { Nav } from "./nav";
 import { Providers } from "./providers";
 import { Sidebar } from "./sidebar";
@@ -32,6 +33,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           </div>
           {/* layout-mounted so the conversation survives navigation */}
           <ScannerPanel />
+          {/* mobile only: the sidebar hides under 900px */}
+          <MobileNav />
         </Providers>
       </body>
     </html>

@@ -879,3 +879,32 @@ a { text-decoration: none; color: inherit; }
 .match-row-on, .match-row-on:hover { background: var(--accent); }
 .match-row-on .match-handle, .match-row-on .match-text,
 .match-row-on .match-likes { color: var(--on-accent); }
+
+/* -- mobile bottom nav: the sidebar's replacement under 900px ------------ */
+.mnav { display: none; }
+@media (max-width: 900px) {
+  .mnav {
+    display: flex;
+    position: fixed;
+    left: 0; right: 0; bottom: 0;
+    z-index: 60;
+    background: var(--bg);
+    border-top: 2px solid var(--edge);
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  .mnav-item {
+    flex: 1;
+    padding: 12px 0;
+    text-align: center;
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--gunmetal);
+    text-decoration: none;
+    background: none;
+    border: none;
+    cursor: pointer;
+  }
+  .mnav-item-on { color: var(--ink); }
+  /* content never hides behind the bar */
+  body { padding-bottom: calc(52px + env(safe-area-inset-bottom)); }
+}

@@ -25,11 +25,19 @@ export const FRESHNESS_WINDOW_MS = 12 * 60 * 60 * 1000;
 export const MARKET_DURATION_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Treasury seed (2026-08-11): at creation, BEFORE the bot posts the card,
+ * Treasury seed: SETTLEMENT INSURANCE, NOT LIQUIDITY (corrected
+ * 2026-08-15). Doppler is a liquidity bootstrapping protocol: it blocks
+ * external LPs entirely and the curve prices from VIRTUAL reserves —
+ * (curveVirtualQuote + quoteVault) / (curveVirtualBase − sold) — so a
+ * market with zero real money is fully tradable and correctly priced.
+ * The seed exists for exactly one reason: at least one real holder on
+ * each side, so settlement can never hit ZeroClaimableSupply (sells are
+ * impossible, so that state would be unrefundable).
+ *
+ * At creation, BEFORE the bot posts the card,
  * the treasury buys this much on EACH side. With sells impossible, a
  * winning side with no money hits ZeroClaimableSupply and nothing can
- * refund — seeding makes that state unreachable, and it fixes the odds
- * display (no more $125-vs-$0 full bar). Treasury keeps seed winnings,
+ * refund — seeding makes that state unreachable. Treasury keeps seed winnings,
  * eats seed losses; ~break-even at scale, worst case ~= this per market.
  * Seed positions are plumbing: excluded from who's-in and positions.
  */

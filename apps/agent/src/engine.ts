@@ -252,9 +252,11 @@ export class RatioEngine {
     await this.store.saveMarket(record);
 
     // Treasury seed, BEFORE the card posts so nobody can bet first: $SEED
-    // on each side. With sells impossible, a winning side with no money is
-    // unrefundable — seeding makes that state unreachable, and the odds
-    // display prices from the first second. Plumbing, not a participant.
+    // on each side. Settlement insurance ONLY, not liquidity — the curve
+    // prices from virtual reserves and needs no real money to trade. The
+    // seed guarantees a real holder on each side so settlement can never
+    // hit ZeroClaimableSupply (unrefundable, since sells are impossible).
+    // Plumbing, not a participant.
     for (const side of [0, 1] as const) {
       const result = await this.chain.placeBet({
         refs: chainRefs,

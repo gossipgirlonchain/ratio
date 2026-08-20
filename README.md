@@ -4,8 +4,9 @@ A Solana prediction market that lives on X. Someone tweets, someone answers,
 anyone tags the bot on the answer: a 24-hour market opens between the two
 tweets. Most likes when the clock runs out wins. The likes are the referee.
 
-Rebuild of `cue-wire` (different mechanic, same seams). `ratio.wtf`; the X
-handle is unregistered — `BOT_HANDLE` in `@ratio/config` drives it everywhere.
+Rebuild of `cue-wire` (different mechanic, same seams). `ratio.wtf`; the
+bot is **@ratiowtf** (registered 2026-08-20; `BOT_HANDLE` in
+`@ratio/config` drives it everywhere, env-overridable).
 
 ## Status
 

@@ -16,7 +16,7 @@
  */
 
 /** X handle for the bot. NOT registered yet; override via env when it is. */
-export const BOT_HANDLE = process.env.RATIO_BOT_HANDLE ?? "ratio";
+export const BOT_HANDLE = process.env.RATIO_BOT_HANDLE ?? "ratiowtf";
 
 /** Side B must be under 12h old at mention time (PLAN: dominant pricing input). */
 export const FRESHNESS_WINDOW_MS = 12 * 60 * 60 * 1000;

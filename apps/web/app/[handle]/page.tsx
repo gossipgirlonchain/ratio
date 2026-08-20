@@ -12,6 +12,7 @@ import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { BOT_HANDLE } from "@ratio/config";
 import { MarketStrip } from "@ratio/ui";
 
 import { useAuth } from "../../lib/auth";
@@ -198,7 +199,7 @@ export default function ProfilePage() {
       {shown.length === 0 ? (
         <p className="page-empty">
           {isOwn && mine.length === 0
-            ? "no markets yet. tag @ratio under a reply on x and your first one opens here."
+            ? `no markets yet. tag @${BOT_HANDLE} under a reply on x and your first one opens here.`
             : "nothing here yet."}
         </p>
       ) : (

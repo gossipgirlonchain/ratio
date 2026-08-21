@@ -7,7 +7,8 @@
   "scripts": {
     "sim": "tsx src/sim.ts",
     "sim:devnet": "tsx --env-file-if-exists=../../.env src/sim-devnet.ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "start": "tsx --env-file-if-exists=../../.env --env-file-if-exists=.env src/main.ts"
   },
   "dependencies": {
     "@ratio/config": "*",

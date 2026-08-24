@@ -122,21 +122,23 @@ async function main() {
     console.log("store NOT configured (SUPABASE_URL / SUPABASE_SERVICE_KEY missing)");
   }
 
-  // Read-only mention probe: proves the XClient path without acting on
-  // anything. Failures (e.g. 402 credits depleted) log and never crash.
-  const x = new XApiClient({
+  // Read-only mention probe on a THROWAWAY client: the probe must never
+  // advance the cursor of the client the engine trades with, or it
+  // silently steals pre-boot mentions from the catch-up poll.
+  const creds = {
     apiKey: process.env.X_API_KEY!,
     apiSecret: process.env.X_API_SECRET!,
     accessToken: process.env.X_ACCESS_TOKEN!,
     accessSecret: process.env.X_ACCESS_SECRET!,
     botUserId: me.id,
-  });
+  };
   try {
-    const mentions = await x.fetchMentions();
+    const mentions = await new XApiClient(creds).fetchMentions();
     console.log(`xclient ok: ${mentions.length} mention(s) visible (read-only, not acting)`);
   } catch (err) {
     console.log(`xclient read failed (non-fatal): ${(err as Error).message.slice(0, 160)}`);
   }
+  const x = new XApiClient(creds);
 
   // ------------------------------------------------------------------
   // THE LATCH. RATIO_ARMED=1 is the ONLY thing that lets this process

@@ -81,6 +81,9 @@ export function Sidebar() {
     localStorage.setItem(KEY, next ? "1" : "0");
   };
 
+  // the gate is pre-wall: no chrome leaks through it
+  if (pathname === "/gate") return null;
+
   const item = (href: string, label: string) => (
     <Link className={pathname === href ? "side-item side-item-on" : "side-item"} href={href}>
       {label}

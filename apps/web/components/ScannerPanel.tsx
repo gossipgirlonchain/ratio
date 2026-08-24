@@ -12,6 +12,7 @@
  * SAVING prompts login (point of action, like everywhere else).
  */
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { LIKES_SAMPLE_INTERVAL_MS } from "@ratio/config";
@@ -159,6 +160,7 @@ function conditionsToKnobs(c: RuleConditions): Knobs {
 
 export function ScannerPanel() {
   const mounted = useMounted();
+  const pathname = usePathname();
   const { viewer, login } = useAuth();
   const [, bump] = useState(0);
   const [open, setOpen] = useState(true);
@@ -188,6 +190,8 @@ export function ScannerPanel() {
   }, []);
 
   if (!mounted) return null;
+  // pre-wall gate and the admin room stay free of product chrome
+  if (pathname === "/gate" || pathname === "/admin") return null;
   const { rules, alerts } = scannerStore.get();
   const conditions = knobsToConditions(knobs);
   const summary = buildSummary(conditions);

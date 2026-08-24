@@ -5,13 +5,14 @@
  * sidebar. Search opens results under the input as you type.
  */
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { allHandles, markets } from "../lib/fixtures";
 import { useAuth } from "../lib/auth";
 
 export function Nav() {
+  const pathname = usePathname();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
   const router = useRouter();
@@ -39,6 +40,7 @@ export function Nav() {
     router.push(href);
   };
 
+  if (pathname === "/gate") return null;
   return (
     <header className="topbar">
       <div className="nav-search">

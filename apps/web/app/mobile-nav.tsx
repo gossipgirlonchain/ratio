@@ -15,6 +15,8 @@ export function MobileNav() {
   const { viewer, login } = useAuth();
   const pathname = usePathname();
 
+  if (pathname === "/gate") return null;
+
   const item = (href: string, label: string) => (
     <Link
       className={pathname === href ? "mnav-item mnav-item-on" : "mnav-item"}

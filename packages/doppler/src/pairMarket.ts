@@ -193,19 +193,29 @@ export class RatioMarketClient {
       operator.address,
       params.nonce,
     );
-    await sendInstructions({
-      clients,
-      payer: operator,
-      label: "initialize_oracle",
-      instructions: [
-        trustedOracle.getInitializeOracleInstruction({
-          oracleAuthority: operator,
-          oracleState,
-          nonce: params.nonce,
-          quoteMint: params.quoteMint,
-        }),
-      ],
-    });
+    // RESUMABLE: a prior failed launch may have initialized this oracle
+    // already (nonce = tweet id, deterministic PDA). Retrying must skip
+    // the step, not collide with its own debris.
+    const existingOracle = await clients.rpc
+      .getAccountInfo(oracleState, { encoding: "base64" })
+      .send();
+    if (existingOracle.value) {
+      console.log("    pairMarket: oracle exists, resuming launch");
+    } else {
+      await sendInstructions({
+        clients,
+        payer: operator,
+        label: "initialize_oracle",
+        instructions: [
+          trustedOracle.getInitializeOracleInstruction({
+            oracleAuthority: operator,
+            oracleState,
+            nonce: params.nonce,
+            quoteMint: params.quoteMint,
+          }),
+        ],
+      });
+    }
 
     const [market] = await predictionMigrator.getPredictionMarketAddress(
       oracleState,

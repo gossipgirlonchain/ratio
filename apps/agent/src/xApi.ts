@@ -92,6 +92,11 @@ const refOf = (t: V2Tweet): { type: RefType; tweetId: string } | undefined => {
 };
 
 export class XApiClient implements XClient {
+  /** Newest mention seen: internal since_id cursor so steady-state polls
+   * return (and bill for) only new mentions. Restart refetches the last
+   * page; the store's mention idempotency absorbs the replay. */
+  private newestMentionId: string | undefined;
+
   constructor(private readonly creds: XApiCreds) {}
 
   private async request<T>(
@@ -120,6 +125,7 @@ export class XApiClient implements XClient {
   }
 
   async fetchMentions(sinceId?: string): Promise<XMention[]> {
+    const since = sinceId ?? this.newestMentionId;
     const r = await this.request<V2Tweet[]>(
       "GET",
       `/users/${this.creds.botUserId}/mentions`,
@@ -127,9 +133,10 @@ export class XApiClient implements XClient {
         max_results: "25",
         "tweet.fields": "author_id,referenced_tweets,text",
         expansions: "author_id",
-        ...(sinceId ? { since_id: sinceId } : {}),
+        ...(since ? { since_id: since } : {}),
       },
     );
+    if (r.meta?.newest_id) this.newestMentionId = r.meta.newest_id;
     const users = new Map((r.includes?.users ?? []).map((u) => [u.id, u.username]));
     // oldest first: the engine processes in arrival order
     return (r.data ?? [])

@@ -9,6 +9,26 @@
  */
 import { createHmac, randomBytes } from "node:crypto";
 
+import {
+  BOT_HANDLE,
+  FEE_SHARE_BPS,
+  FRESHNESS_WINDOW_MS,
+  HIDDEN_REPORT_THRESHOLD,
+  LIKES_SAMPLE_INTERVAL_MS,
+  MARKET_DURATION_MS,
+  MAX_STAKE_USD,
+  MIN_STAKE_USD,
+  SEED_PER_SIDE_USD,
+  SWAP_FEE_BPS,
+  marketUrl,
+} from "@ratio/config";
+import { RatioMarketClient } from "@ratio/doppler/pair-market";
+import { createClients } from "@ratio/doppler/tx";
+import { createKeyPairSignerFromBytes } from "@solana/kit";
+
+import { DopplerMarketChain } from "./chainDevnet.js";
+import { RatioEngine } from "./engine.js";
+import { PrivyWalletProvider } from "./privyWallets.js";
 import { SupabaseStore } from "./storeSupabase.js";
 import { XApiClient } from "./xApi.js";
 
@@ -21,6 +41,16 @@ const REQUIRED = [
 ] as const;
 
 const HEARTBEAT_MS = 5 * 60 * 1000;
+
+const shutdownHooks: Array<() => void> = [];
+const onShutdown = (fn: () => void) => shutdownHooks.push(fn);
+for (const sig of ["SIGTERM", "SIGINT"] as const) {
+  process.on(sig, () => {
+    console.log(`${sig} received, shutting down`);
+    for (const fn of shutdownHooks) fn();
+    process.exit(0);
+  });
+}
 
 const pct = (s: string) =>
   encodeURIComponent(s).replace(/[!'()*]/g, (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`);
@@ -107,18 +137,91 @@ async function main() {
     console.log(`xclient read failed (non-fatal): ${(err as Error).message.slice(0, 160)}`);
   }
 
-  console.log("trading loop DISARMED: engine assembly pending. Heartbeating.");
-  const beat = setInterval(() => {
-    console.log(`heartbeat: alive, loop disarmed (${new Date().toISOString()})`);
-  }, HEARTBEAT_MS);
+  // ------------------------------------------------------------------
+  // THE LATCH. RATIO_ARMED=1 is the ONLY thing that lets this process
+  // post tweets or touch the chain. Anything else = observe-only.
+  // ------------------------------------------------------------------
+  if (process.env.RATIO_ARMED !== "1") {
+    console.log("trading loop DISARMED (set RATIO_ARMED=1 to arm). Heartbeating.");
+    const beat = setInterval(() => {
+      console.log(`heartbeat: alive, loop disarmed (${new Date().toISOString()})`);
+    }, HEARTBEAT_MS);
+    onShutdown(() => clearInterval(beat));
+    return;
+  }
 
-  const bye = (sig: string) => {
-    console.log(`${sig} received, shutting down`);
-    clearInterval(beat);
-    process.exit(0);
+  // -- ARMED: assemble the same machine the devnet sim proves ---------
+  const operatorBytes = process.env.OPERATOR_KEYPAIR;
+  if (!operatorBytes) {
+    console.error("armed but OPERATOR_KEYPAIR missing — refusing to start");
+    process.exit(1);
+  }
+  const clients = createClients();
+  const operator = await createKeyPairSignerFromBytes(
+    new Uint8Array(JSON.parse(operatorBytes)),
+  );
+  const balance = await clients.rpc.getBalance(operator.address).send();
+  console.log(`ARMED. operator ${operator.address}, ${Number(balance.value) / 1e9} SOL`);
+  if (Number(balance.value) < 200_000_000) {
+    console.error("WARNING: operator under 0.2 SOL — launches will start failing soon");
+  }
+
+  const store = new SupabaseStore(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
+  const wallets = new PrivyWalletProvider(
+    { appId: process.env.PRIVY_APP_ID!, appSecret: process.env.PRIVY_APP_SECRET! },
+    process.env.SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_KEY!,
+  );
+  const marketClient = await RatioMarketClient.create({ clients, operator });
+  const chain = new DopplerMarketChain(clients, marketClient, {
+    swapFeeBps: SWAP_FEE_BPS,
+    lamportsPerUsd: 500_000n, // $1 = 0.0005 SOL on the WSOL devnet quote
+    signerFor: (addr) => (addr === operator.address ? operator : wallets.signerFor(addr)),
+  });
+  const engine = new RatioEngine(x, store, wallets, chain, {
+    botHandle: BOT_HANDLE,
+    freshnessWindowMs: FRESHNESS_WINDOW_MS,
+    marketDurationMs: MARKET_DURATION_MS,
+    seedPerSideUsd: SEED_PER_SIDE_USD,
+    likesSampleIntervalMs: LIKES_SAMPLE_INTERVAL_MS,
+    minStakeUsd: MIN_STAKE_USD,
+    maxStakeUsd: MAX_STAKE_USD,
+    hiddenReportThreshold: HIDDEN_REPORT_THRESHOLD,
+    // operator doubles as treasury on devnet: seeds sign + fund from it
+    protocolWallet: operator.address,
+    dopplerWallet: process.env.DOPPLER_FEE_WALLET ?? operator.address,
+    feeShareBps: FEE_SHARE_BPS,
+    marketUrl,
+    now: () => Date.now(),
+  });
+
+  // Crons: chained timers (never overlapping runs of the same job), each
+  // failure logged and retried next tick — the engine is built for that.
+  const MENTION_MS = Number(process.env.RATIO_MENTION_POLL_MS ?? 60_000);
+  const SETTLE_MS = Number(process.env.RATIO_SETTLE_POLL_MS ?? 60_000);
+  const SAMPLE_MS = Number(process.env.RATIO_SAMPLER_POLL_MS ?? 300_000);
+  const cron = (label: string, ms: number, run: () => Promise<void>) => {
+    let stopped = false;
+    const loop = async () => {
+      if (stopped) return;
+      try {
+        await run();
+      } catch (err) {
+        console.error(`${label} tick failed:`, (err as Error).message.slice(0, 200));
+      }
+      if (!stopped) setTimeout(loop, ms);
+    };
+    setTimeout(loop, ms);
+    onShutdown(() => {
+      stopped = true;
+    });
+    console.log(`cron armed: ${label} every ${ms / 1000}s`);
   };
-  process.on("SIGTERM", () => bye("SIGTERM"));
-  process.on("SIGINT", () => bye("SIGINT"));
+  cron("mentions", MENTION_MS, () => engine.tick());
+  cron("settlement", SETTLE_MS, () => engine.resolveDueMarkets());
+  cron("likes-sampler", SAMPLE_MS, () => engine.sampleLikesDueMarkets());
+  console.log("ratio agent ARMED and trading. @" + me.username + " is live.");
+
 }
 
 main().catch((err) => {

@@ -9,6 +9,8 @@
  */
 import { createHmac, randomBytes } from "node:crypto";
 
+import { SupabaseStore } from "./storeSupabase.js";
+
 const REQUIRED = [
   "X_API_KEY",
   "X_API_SECRET",
@@ -79,7 +81,16 @@ async function main() {
     );
   }
 
-  console.log("trading loop DISARMED: waiting on Supabase store + real XClient. Heartbeating.");
+  // Prove the store the same way we prove X: connect and read.
+  if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
+    const store = new SupabaseStore(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+    const open = await store.listOpenMarketsDue(Date.now() + 365 * 24 * 3_600_000);
+    console.log(`store connected: supabase reachable, ${open.length} open markets on record`);
+  } else {
+    console.log("store NOT configured (SUPABASE_URL / SUPABASE_SERVICE_KEY missing)");
+  }
+
+  console.log("trading loop DISARMED: waiting on the real XClient. Heartbeating.");
   const beat = setInterval(() => {
     console.log(`heartbeat: alive, loop disarmed (${new Date().toISOString()})`);
   }, HEARTBEAT_MS);

@@ -74,11 +74,15 @@ export default function LeaderboardPage() {
 
       </section>
       <section>
-      <h2 className="board-heading">fees earned</h2>
-      <div className="legend board-legend">
-        <span><i className="swatch swatch-original" /> original</span>
-        <span><i className="swatch swatch-reply" /> reply</span>
-        <span><i className="swatch swatch-tagger" /> tagger</span>
+      {/* legend shares the heading line so both columns' first cards
+          sit at the same height */}
+      <div className="board-head-row">
+        <h2 className="board-heading">fees earned</h2>
+        <div className="legend board-legend">
+          <span><i className="swatch swatch-original" /> original</span>
+          <span><i className="swatch swatch-reply" /> reply</span>
+          <span><i className="swatch swatch-tagger" /> tagger</span>
+        </div>
       </div>
       <div className="board">
         {rows.map((r, i) => {

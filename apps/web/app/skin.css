@@ -969,3 +969,11 @@ a { text-decoration: none; color: inherit; }
 .admin-code { font-family: ui-monospace, monospace; font-size: 12px; }
 .admin-table-card { max-height: 420px; overflow-y: auto; }
 .admin-refresh { margin-top: 4px; }
+
+/* heading + legend on one line: the two boards' first cards align */
+.board-head-row {
+  display: flex; justify-content: space-between; align-items: baseline;
+  gap: 12px;
+}
+.board-head-row .board-heading { margin-bottom: 8px; }
+.board-head-row .board-legend { margin: 0; }

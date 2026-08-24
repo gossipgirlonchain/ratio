@@ -178,6 +178,7 @@ export class RatioMarketClient {
 
   /** Oracle + one launch per side. Returns every address the app needs. */
   async createMarket(params: PairMarketParams): Promise<PairMarketRefs> {
+    console.log("    pairMarket: createMarket start");
     const { clients, deployment, operator } = this;
     if (params.feeBeneficiaries.length > MAX_FEE_BENEFICIARIES)
       throw new Error(

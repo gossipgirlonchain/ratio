@@ -220,11 +220,22 @@ export class RatioEngine {
       { wallet: this.config.protocolWallet, shareBps: share.protocol },
     ];
 
-    const chainRefs = await this.chain.createMarket({
-      nonce: sideB.tweetId,
-      feeBeneficiaries,
-      outcomes: [`A @${sideA.authorHandle}`, `B @${sideB.authorHandle}`],
-    });
+    console.log(
+      `  launching @${sideA.authorHandle} vs @${sideB.authorHandle} (nonce ${sideB.tweetId})…`,
+    );
+    // Hard timeout: a hung launch must throw (and log) instead of
+    // silently freezing the mention cron forever.
+    const chainRefs = await Promise.race([
+      this.chain.createMarket({
+        nonce: sideB.tweetId,
+        feeBeneficiaries,
+        outcomes: [`A @${sideA.authorHandle}`, `B @${sideB.authorHandle}`],
+      }),
+      new Promise<never>((_, rej) =>
+        setTimeout(() => rej(new Error("chain launch timed out after 5min")), 300_000),
+      ),
+    ]);
+    console.log(`  launch landed: ${chainRefs.marketId}`);
 
     const record: MarketRecord = {
       id: sideB.tweetId,

@@ -31,6 +31,7 @@ import { RatioEngine } from "./engine.js";
 import { PrivyWalletProvider } from "./privyWallets.js";
 import { SupabaseStore } from "./storeSupabase.js";
 import { XApiClient } from "./xApi.js";
+import { StreamedXClient, ensureStreamRule } from "./xStream.js";
 
 const REQUIRED = [
   "X_API_KEY",
@@ -178,7 +179,14 @@ async function main() {
     lamportsPerUsd: 500_000n, // $1 = 0.0005 SOL on the WSOL devnet quote
     signerFor: (addr) => (addr === operator.address ? operator : wallets.signerFor(addr)),
   });
-  const engine = new RatioEngine(x, store, wallets, chain, {
+  // Push, not poll: mentions arrive over the filtered stream; the only
+  // billed reads are one catch-up at boot and one per reconnect.
+  await ensureStreamRule(process.env.X_BEARER_TOKEN!, BOT_HANDLE);
+  const streamed = new StreamedXClient(x, process.env.X_BEARER_TOKEN!, me.id);
+  streamed.start();
+  onShutdown(() => streamed.stop());
+
+  const engine = new RatioEngine(streamed, store, wallets, chain, {
     botHandle: BOT_HANDLE,
     freshnessWindowMs: FRESHNESS_WINDOW_MS,
     marketDurationMs: MARKET_DURATION_MS,
@@ -197,7 +205,9 @@ async function main() {
 
   // Crons: chained timers (never overlapping runs of the same job), each
   // failure logged and retried next tick — the engine is built for that.
-  const MENTION_MS = Number(process.env.RATIO_MENTION_POLL_MS ?? 60_000);
+  // Mention tick drains the local stream queue — free — so it can be
+  // snappy. The env name survives for ops muscle memory.
+  const MENTION_MS = Number(process.env.RATIO_MENTION_POLL_MS ?? 15_000);
   const SETTLE_MS = Number(process.env.RATIO_SETTLE_POLL_MS ?? 60_000);
   const SAMPLE_MS = Number(process.env.RATIO_SAMPLER_POLL_MS ?? 300_000);
   const cron = (label: string, ms: number, run: () => Promise<void>) => {

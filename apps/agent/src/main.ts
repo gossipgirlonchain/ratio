@@ -10,6 +10,7 @@
 import { createHmac, randomBytes } from "node:crypto";
 
 import { SupabaseStore } from "./storeSupabase.js";
+import { XApiClient } from "./xApi.js";
 
 const REQUIRED = [
   "X_API_KEY",
@@ -90,7 +91,23 @@ async function main() {
     console.log("store NOT configured (SUPABASE_URL / SUPABASE_SERVICE_KEY missing)");
   }
 
-  console.log("trading loop DISARMED: waiting on the real XClient. Heartbeating.");
+  // Read-only mention probe: proves the XClient path without acting on
+  // anything. Failures (e.g. 402 credits depleted) log and never crash.
+  const x = new XApiClient({
+    apiKey: process.env.X_API_KEY!,
+    apiSecret: process.env.X_API_SECRET!,
+    accessToken: process.env.X_ACCESS_TOKEN!,
+    accessSecret: process.env.X_ACCESS_SECRET!,
+    botUserId: me.id,
+  });
+  try {
+    const mentions = await x.fetchMentions();
+    console.log(`xclient ok: ${mentions.length} mention(s) visible (read-only, not acting)`);
+  } catch (err) {
+    console.log(`xclient read failed (non-fatal): ${(err as Error).message.slice(0, 160)}`);
+  }
+
+  console.log("trading loop DISARMED: engine assembly pending. Heartbeating.");
   const beat = setInterval(() => {
     console.log(`heartbeat: alive, loop disarmed (${new Date().toISOString()})`);
   }, HEARTBEAT_MS);

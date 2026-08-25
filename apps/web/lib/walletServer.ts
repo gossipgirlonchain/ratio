@@ -100,23 +100,30 @@ async function privyRest<T>(path: string, body: unknown, idempotencyKey?: string
 
 export async function getOrCreateWallet(xUserId: string): Promise<WalletRow> {
   const db = supabaseAdmin();
-  const { data } = await db.from("wallets").select().eq("x_user_id", xUserId).maybeSingle();
-  if (data) return data as WalletRow;
+  const sel = await db.from("wallets").select().eq("x_user_id", xUserId).maybeSingle();
+  if (sel.error) throw new Error(`wallets lookup: ${sel.error.message}`);
+  if (sel.data) return sel.data as WalletRow;
 
+  // Privy create is idempotent on this key (same key as the agent: one
+  // wallet per person, ever), and the write is an UPSERT on the primary
+  // key — so a concurrent provision from any surface converges on the
+  // same row instead of racing an insert.
   const created = await privyRest<{ id: string; address: string }>(
     "/wallets",
     { chain_type: "solana" },
-    `ratio-wallet-${xUserId}`, // same key as the agent: one wallet per person, ever
+    `ratio-wallet-${xUserId}`,
   );
-  const row = { x_user_id: xUserId, privy_wallet_id: created.id, address: created.address };
-  const { error } = await db.from("wallets").insert({ ...row, created_at_ms: Date.now() });
-  if (error) {
-    // concurrent provision (agent or another request) won the insert race
-    const { data: raced } = await db.from("wallets").select().eq("x_user_id", xUserId).maybeSingle();
-    if (raced) return raced as WalletRow;
-    throw new Error(`wallets insert: ${error.message}`);
-  }
-  return row;
+  const up = await db
+    .from("wallets")
+    .upsert(
+      { x_user_id: xUserId, privy_wallet_id: created.id, address: created.address, created_at_ms: Date.now() },
+      { onConflict: "x_user_id", ignoreDuplicates: false },
+    )
+    .select()
+    .maybeSingle();
+  if (up.error) throw new Error(`wallets upsert: ${up.error.message}`);
+  if (!up.data) throw new Error("wallets upsert returned nothing");
+  return up.data as WalletRow;
 }
 
 export async function balanceUsd(walletAddress: string): Promise<number> {

@@ -995,6 +995,11 @@ a { text-decoration: none; color: inherit; }
   box-shadow: 3px 3px 0 var(--lime); padding: 10px; display: flex;
   flex-direction: column; gap: 8px;
 }
+/* invisible hover bridge over the 6px gap: leaving the chip downward
+   keeps the pointer inside the popover's hit area the whole way */
+.wallet-pop::before {
+  content: ""; position: absolute; top: -10px; left: 0; right: 0; height: 10px;
+}
 .wallet-pop-addr {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   border: 2px solid var(--edge); border-radius: 8px; background: none;

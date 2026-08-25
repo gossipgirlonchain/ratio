@@ -7,7 +7,7 @@
  * address. Devnet note: the rail is the WSOL sim the markets trade on;
  * numbers are USD at the chain's rate.
  */
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { useWallet } from "../lib/wallet";
 
@@ -24,8 +24,19 @@ export function WalletChip({ stakedUsd }: { stakedUsd: number }) {
   const [amount, setAmount] = useState("");
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   if (!wallet) return null;
+
+  const enter = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = null;
+    setOpen(true);
+  };
+  const leave = () => {
+    // grace period: crossing the gap to the panel must not close it
+    closeTimer.current = setTimeout(() => setOpen(false), 250);
+  };
 
   const copy = () => {
     void navigator.clipboard.writeText(wallet.address);
@@ -52,8 +63,8 @@ export function WalletChip({ stakedUsd }: { stakedUsd: number }) {
   return (
     <div
       className="wallet-chip-wrap"
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
+      onMouseEnter={enter}
+      onMouseLeave={leave}
     >
       <button className="wallet-chip" onClick={() => setOpen(!open)} title={wallet.address}>
         <span className="wallet-chip-balance">{fmtUsd(wallet.balanceUsd)}</span>

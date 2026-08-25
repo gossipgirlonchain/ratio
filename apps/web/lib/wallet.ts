@@ -17,6 +17,8 @@ import { useCallback, useEffect, useState } from "react";
 export interface WalletView {
   address: string;
   balanceUsd: number;
+  /** Refundable rent parked in token accounts — where the "missing" money is. */
+  rentUsd: number;
 }
 
 let cached: WalletView | null = null;

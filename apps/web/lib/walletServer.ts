@@ -131,6 +131,24 @@ export async function balanceUsd(walletAddress: string): Promise<number> {
   return Number(value) / Number(LAMPORTS_PER_USD);
 }
 
+/**
+ * Lamports parked as rent in the wallet's token accounts (outcome tokens,
+ * WSOL). At the devnet sim rate rent looks big in USD — showing it is the
+ * difference between "numbers add up" and "where did $8 go".
+ */
+export async function rentUsd(walletAddress: string): Promise<number> {
+  const { value } = await rpc()
+    .getTokenAccountsByOwner(
+      address(walletAddress),
+      { programId: address("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA") },
+      { encoding: "jsonParsed" },
+    )
+    .send();
+  let lamports = 0n;
+  for (const acc of value) lamports += BigInt(acc.account.lamports);
+  return Number(lamports) / Number(LAMPORTS_PER_USD);
+}
+
 export function privySigner(walletId: string, walletAddress: string): TransactionSigner {
   return {
     address: walletAddress as Address,

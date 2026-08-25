@@ -48,13 +48,13 @@ function SidePositions({ viewer }: { viewer: string | null }) {
         return (
           <Link className="side-pos" href={`/m/${p.marketId}`} key={`${p.marketId}${p.side}`}>
             <span className="side-pos-handle">@{p.sideHandle}</span>
+            <span className="side-pos-stake">${p.netStakedUsd.toLocaleString("en-US")}</span>
             <span className={gap >= 0 ? "side-pos-gap" : "side-pos-gap side-pos-gap-down"}>
-              {gap >= 0 ? "▲" : "▼"} {Math.abs(gap).toLocaleString("en-US")} likes
+              {gap >= 0 ? "▲" : "▼"} {Math.abs(gap).toLocaleString("en-US")}
             </span>
           </Link>
         );
       })}
-      <div className="side-positions-note">like gap since you signed</div>
     </div>
   );
 }

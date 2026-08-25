@@ -26,9 +26,7 @@ import { useMemo, useState } from "react";
 import { formatQuote, quotePayout } from "./payout";
 import type { MarketStripData, StripSide } from "./types";
 
-// Ladder spans exactly the server's legal range (MIN_STAKE_USD 5 to
-// MAX_STAKE_USD 250): a preset the chain rejects is a lie in a button.
-const PRESETS = [5, 10, 25, 50, 100, 250] as const;
+const PRESETS = [1, 5, 25, 100, 250, 500] as const;
 
 const fmtLikes = (n: number): string =>
   n >= 1_000_000

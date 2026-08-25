@@ -88,7 +88,13 @@ export function WalletChip({ stakedUsd }: { stakedUsd: number }) {
             <span className="wallet-pop-mono">{copied ? "copied" : shortAddr(wallet.address)}</span>
             <span className="wallet-pop-copy">{copied ? "✓" : "copy"}</span>
           </button>
+          {wallet.rentUsd > 0 && (
+            <span className="wallet-pop-note">
+              {fmtUsd(wallet.rentUsd)} held as account rent, refunded when markets close
+            </span>
+          )}
           <div className="wallet-pop-send">
+            <span className="wallet-pop-label">send USDC to</span>
             <input
               className="wallet-pop-input"
               placeholder="solana address"

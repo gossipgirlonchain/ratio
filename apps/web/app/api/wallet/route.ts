@@ -5,7 +5,7 @@
  */
 import { NextResponse, type NextRequest } from "next/server";
 
-import { balanceUsd, getOrCreateWallet, verifyViewer } from "../../../lib/walletServer";
+import { balanceUsd, getOrCreateWallet, rentUsd, verifyViewer } from "../../../lib/walletServer";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +14,11 @@ export async function GET(req: NextRequest) {
   if (!viewer) return NextResponse.json({ error: "not logged in" }, { status: 401 });
   try {
     const wallet = await getOrCreateWallet(viewer.xUserId);
-    const usd = await balanceUsd(wallet.address).catch(() => 0);
-    return NextResponse.json({ address: wallet.address, balanceUsd: usd });
+    const [usd, rent] = await Promise.all([
+      balanceUsd(wallet.address).catch(() => 0),
+      rentUsd(wallet.address).catch(() => 0),
+    ]);
+    return NextResponse.json({ address: wallet.address, balanceUsd: usd, rentUsd: rent });
   } catch (err) {
     return NextResponse.json({ error: (err as Error).message }, { status: 500 });
   }

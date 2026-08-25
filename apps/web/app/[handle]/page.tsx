@@ -16,7 +16,7 @@ import { BOT_HANDLE } from "@ratio/config";
 import { MarketStrip } from "@ratio/ui";
 
 import { useAuth } from "../../lib/auth";
-import { likeGapSince, marketsByParticipant, openPositionsFor, profileFor, useLive } from "../../lib/live";
+import { likeGapSince, marketById, marketsByParticipant, openPositionsFor, profileFor, useLive } from "../../lib/live";
 import { useMounted } from "../../lib/useMounted";
 import { useWallet } from "../../lib/wallet";
 
@@ -189,11 +189,10 @@ export default function ProfilePage() {
           </div>
           <div className="profile-secondary">
             <span>{fmtUsd0(p.volumeUsd)} volume</span>
+            <span>{fmtUsd0(openPositionsFor(world, handle).reduce((s, x) => s + x.netStakedUsd, 0))} in open battles</span>
             <span>{fmtUsd0(p.biggestMarketUsd)} biggest market</span>
             <span>{p.timesRatiod}x ratio&apos;d</span>
-            <span>{p.asOriginal} as the original</span>
-            <span>{p.asReply} as the reply</span>
-            <span>{p.asTagger} tagged</span>
+            <span>markets: {p.asOriginal} original · {p.asReply} reply · {p.asTagger} tagger</span>
           </div>
         </div>
         <WalletModule owner={viewer === handle} unclaimedUsd={p.unclaimedUsd} onLogin={login} />
@@ -204,15 +203,25 @@ export default function ProfilePage() {
         if (positions.length === 0) return null;
         return (
           <div className="card profile-positions">
-            <span className="section-note profile-positions-title">currently backing</span>
+            <span className="section-note profile-positions-title">open battles</span>
             {positions.map((pos) => {
               const gap = likeGapSince(world, pos);
+              const m = marketById(world, pos.marketId);
+              if (!m) return null;
+              const mine = pos.side === "a" ? m.data.a : m.data.b;
+              const theirs = pos.side === "a" ? m.data.b : m.data.a;
+              const leftMs = Math.max(0, m.data.settlesAtMs - Date.now());
+              const leftH = Math.floor(leftMs / 3_600_000);
+              const leftLabel = leftH > 0 ? `${leftH}h left` : `${Math.floor(leftMs / 60_000)}m left`;
               return (
                 <Link className="mod-row profile-pos" href={`/m/${pos.marketId}`} key={pos.marketId + pos.side}>
-                  <span className="mod-strong">@{pos.sideHandle}</span>
-                  <span className="mod-quiet">over @{pos.otherHandle} · {fmtUsd0(pos.netStakedUsd)}</span>
+                  <span className="mod-strong">@{pos.sideHandle} vs @{pos.otherHandle}</span>
+                  <span className="mod-quiet">
+                    {fmtUsd0(pos.netStakedUsd)} on @{pos.sideHandle} · {leftLabel}
+                  </span>
                   <span className="mod-strong">
-                    {gap >= 0 ? "▲" : "▼"} {Math.abs(gap).toLocaleString("en-US")} likes
+                    {mine.likes.toLocaleString("en-US")}–{theirs.likes.toLocaleString("en-US")}
+                    {" "}{gap >= 0 ? "▲" : "▼"}
                   </span>
                 </Link>
               );

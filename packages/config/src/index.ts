@@ -53,8 +53,8 @@ export const SEED_PER_SIDE_USD = 1;
 export const LIKES_SAMPLE_INTERVAL_MS = 60 * 60 * 1000;
 
 /** Stake caps ported from cue-wire launch sizing ($5 keeps confirms margin-positive). */
-export const MIN_STAKE_USD = 5;
-export const MAX_STAKE_USD = 250;
+export const MIN_STAKE_USD = 1; // matches the preset ladder — the buttons are the spec
+export const MAX_STAKE_USD = 500;
 
 /**
  * Hidden-reply badge (decided 2026-07-31): the browser extension reports a

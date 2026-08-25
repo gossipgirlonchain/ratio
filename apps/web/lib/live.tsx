@@ -79,7 +79,12 @@ export const feedMarkets = (w: LiveWorld) =>
 export const marketsByParticipant = (w: LiveWorld, handle: string) =>
   w.markets.filter(
     (m) =>
-      m.data.a.handle === handle || m.data.b.handle === handle || m.taggerHandle === handle,
+      m.data.a.handle === handle ||
+      m.data.b.handle === handle ||
+      m.taggerHandle === handle ||
+      // bettors belong on their own profile too — a market you have money
+      // in is yours to track
+      (w.tradesByMarket[m.data.marketId] ?? []).some((t) => t.handle === handle),
   );
 
 export const allHandles = (w: LiveWorld): string[] => {
@@ -200,7 +205,13 @@ export const profileFor = (w: LiveWorld, handle: string): ProfileStats => {
     asTagger: mine.filter((m) => m.taggerHandle === handle).length,
     wins: won,
     losses: settled.length - won,
-    volumeUsd: mine.reduce((s, m) => s + m.volumeUsd, 0),
+    // volume = money through markets you are IN plus money YOU bet
+    volumeUsd:
+      mine.reduce((s, m) => s + m.volumeUsd, 0) +
+      Object.values(w.tradesByMarket)
+        .flat()
+        .filter((t) => t.handle === handle)
+        .reduce((s, t) => s + t.amountUsd, 0),
     biggestMarketUsd: Math.max(0, ...mine.map((m) => m.volumeUsd)),
     timesRatiod: settled.filter(
       (m) => m.data.a.handle === handle && m.data.winner === "b",

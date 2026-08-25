@@ -89,6 +89,10 @@ export class StreamedXClient implements XClient {
         console.log("mention stream connected");
         // reset only to 30s: connect-then-die flaps must stay damped
         backoffMs = 30_000;
+        // Catch up AFTER connecting, not while down: a poll that runs
+        // mid-outage leaves a blind gap between it and the reconnect.
+        // The since_id cursor makes this poll cover the whole outage.
+        this.needCatchUp = true;
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";

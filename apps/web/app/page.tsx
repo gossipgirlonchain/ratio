@@ -5,6 +5,7 @@
  * leaderboard right, sticky — rank, avatar, handle, total only, linking
  * through to the full page. Strips unchanged.
  */
+import { usePrivy } from "@privy-io/react-auth";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
@@ -12,6 +13,7 @@ import { MarketStrip } from "@ratio/ui";
 
 import { useAuth } from "../lib/auth";
 import { feedMarkets, useLive } from "../lib/live";
+import { placeBet } from "../lib/trade";
 import { useMounted } from "../lib/useMounted";
 
 const fmtUsd = (n: number) =>
@@ -21,6 +23,7 @@ export default function Page() {
   const mounted = useMounted();
   const router = useRouter();
   const { viewer, login } = useAuth();
+  const { getAccessToken, authenticated } = usePrivy();
   const live = useLive();
   if (!mounted) return null;
   const markets = feedMarkets(live);
@@ -42,7 +45,7 @@ export default function Page() {
                   login();
                   return false;
                 }
-                console.log(`sign: $${amount} backing ${side}`);
+                placeBet({ marketId: data.marketId, side, amountUsd: amount, auth: authenticated ? getAccessToken : undefined });
               }}
               onPresetUsed={(p) => console.log(`preset used: ${p}`)}
               marketHref={`/m/${data.marketId}`}

@@ -8,8 +8,10 @@
  * chain result reconciles it: confirmed keeps it, failure rolls everything
  * back visibly with the reason. Components subscribe via usePendingBets.
  *
- * Fixture world: the "chain" is a timeout that enforces the wallet
- * balance. The real DopplerMarketChain drops in behind the same promise.
+ * Real chain: when an `auth` token getter is passed, the bet goes to
+ * /api/bet — a Privy-signed swap on the market's curve — and the promise
+ * that reconciles the optimistic state is the real transaction. Without
+ * auth (dev demo viewer) the old simulated chain stays.
  */
 import { useEffect, useState } from "react";
 
@@ -40,6 +42,8 @@ export function placeBet(opts: {
   marketId: string;
   side: "a" | "b";
   amountUsd: number;
+  /** Privy access-token getter: presence = the real chain rail. */
+  auth?: () => Promise<string | null>;
 }): PendingBet {
   const bet: PendingBet = {
     id: `pb${nextId++}`,
@@ -55,18 +59,44 @@ export function placeBet(opts: {
   scannerStore.creditBetFromAlert(opts.marketId);
   emit();
 
-  // Simulated chain: ~1.2s to land. Real impl: the swap tx promise.
+  const fail = (reason: string) => {
+    bet.state = "failed";
+    bet.reason = reason;
+    emit();
+    // failed bets stay visible long enough to be read, then clear
+    setTimeout(() => {
+      const i = pending.indexOf(bet);
+      if (i >= 0) pending.splice(i, 1);
+      emit();
+    }, 6_000);
+  };
+
+  if (opts.auth) {
+    // Real chain: Privy-signed swap via the server.
+    void (async () => {
+      try {
+        const token = await opts.auth!();
+        if (!token) return fail("log in to bet");
+        const res = await fetch("/api/bet", {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}`, "content-type": "application/json" },
+          body: JSON.stringify({ marketId: opts.marketId, side: opts.side, amountUsd: opts.amountUsd }),
+        });
+        const data = (await res.json().catch(() => ({}))) as { signature?: string; error?: string };
+        if (!res.ok || !data.signature) return fail(data.error ?? "bet failed");
+        bet.state = "confirmed";
+        emit();
+      } catch {
+        fail("network error, nothing was placed");
+      }
+    })();
+    return bet;
+  }
+
+  // Simulated chain (dev demo viewer only): ~1.2s to land.
   setTimeout(() => {
     if (opts.amountUsd > DEMO_BALANCE_USD) {
-      bet.state = "failed";
-      bet.reason = `not enough in your wallet ($${DEMO_BALANCE_USD.toLocaleString("en-US")} available)`;
-      emit();
-      // failed bets stay visible long enough to be read, then clear
-      setTimeout(() => {
-        const i = pending.indexOf(bet);
-        if (i >= 0) pending.splice(i, 1);
-        emit();
-      }, 6_000);
+      fail(`not enough in your wallet ($${DEMO_BALANCE_USD.toLocaleString("en-US")} available)`);
     } else {
       bet.state = "confirmed";
       emit();

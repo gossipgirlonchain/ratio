@@ -7,6 +7,7 @@
  * with dense stat modules under it. No onboarding prose, no section
  * headers; every element earns its size.
  */
+import { usePrivy } from "@privy-io/react-auth";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -41,6 +42,7 @@ export default function MarketPage() {
   const mounted = useMounted();
   const params = useParams<{ id: string }>();
   const { viewer, login } = useAuth();
+  const { getAccessToken, authenticated } = usePrivy();
   const [backing, setBacking] = useState<"a" | "b" | null>(null);
   const [amount, setAmount] = useState<number | null>(null);
   const [custom, setCustom] = useState<string | null>(null);
@@ -96,7 +98,12 @@ export default function MarketPage() {
       return;
     }
     // Optimistic: placed NOW, reconciled when the chain answers.
-    placeBet({ marketId: data.marketId, side: backing, amountUsd: amount });
+    placeBet({
+      marketId: data.marketId,
+      side: backing,
+      amountUsd: amount,
+      auth: authenticated ? getAccessToken : undefined,
+    });
     setBacking(null);
     setAmount(null);
     setCustom(null);

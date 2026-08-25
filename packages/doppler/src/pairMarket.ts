@@ -539,3 +539,92 @@ export class RatioMarketClient {
     return account.data;
   }
 }
+
+/**
+ * Rebuild PairMarketRefs from the chain alone. Everything except the two
+ * base mints is PDA-derived (oracle from operator+nonce, market family
+ * from the oracle, launch family from the mint); the mints — random
+ * keypairs at creation — are read back from the prediction entry
+ * accounts, and the vaults from the launch accounts. This is what lets
+ * ANY process (web routes, a restarted agent) act on a market knowing
+ * only its nonce, the operator address, and the two outcome labels.
+ */
+export async function recoverRefs(opts: {
+  clients: Clients;
+  operatorAddress: Address;
+  nonce: bigint;
+  labels: [string, string];
+  quoteMint?: Address;
+  deployment?: SolanaCpmmDeployment;
+}): Promise<PairMarketRefs> {
+  const deployment =
+    opts.deployment ??
+    (await deriveSolanaCpmmDeployment(DOPPLER_SOLANA_DEVNET_PROGRAM_ADDRESSES));
+  const quoteMint = opts.quoteMint ?? WSOL_MINT;
+  const [oracleState] = await trustedOracle.getOracleStateAddress(
+    opts.operatorAddress,
+    opts.nonce,
+  );
+  const [market] = await predictionMigrator.getPredictionMarketAddress(
+    oracleState,
+    quoteMint,
+  );
+  const [potVault] =
+    await predictionMigrator.getPredictionPotVaultAddress(market);
+  const [marketAuthority] =
+    await predictionMigrator.getPredictionMarketAuthorityAddress(market);
+
+  const outcomes: OutcomeRefs[] = [];
+  for (const label of opts.labels) {
+    const entryId = new Uint8Array(32);
+    entryId.set(new TextEncoder().encode(label).slice(0, 32));
+    const [entryAddress] = await predictionMigrator.getPredictionEntryAddress(
+      market,
+      entryId,
+    );
+    const entry = await predictionMigrator.fetchEntry(
+      opts.clients.rpc,
+      entryAddress,
+    );
+    const baseMint = entry.data.baseMint;
+    const [entryByMint] =
+      await predictionMigrator.getPredictionEntryByMintAddress(
+        market,
+        baseMint,
+      );
+    const addresses = await initializer.deriveCreateLaunchAddresses({
+      deployment,
+      namespace: oracleState,
+      launchId: entryId,
+      baseMint,
+    });
+    const launch = await initializer.fetchLaunch(
+      opts.clients.rpc,
+      addresses.launch,
+    );
+    if (!launch) throw new Error(`no launch account at ${addresses.launch}`);
+    outcomes.push({
+      label,
+      entryId,
+      launch: addresses.launch,
+      launchAuthority: addresses.launchAuthority,
+      config: addresses.config,
+      baseMint,
+      baseVault: launch.baseVault,
+      quoteVault: launch.quoteVault,
+      launchFeeState: addresses.launchFeeState,
+      entryAddress,
+      entryByMint,
+    });
+  }
+
+  return {
+    nonce: opts.nonce,
+    quoteMint,
+    oracleState,
+    market,
+    potVault,
+    marketAuthority,
+    outcomes: outcomes as [OutcomeRefs, OutcomeRefs],
+  };
+}

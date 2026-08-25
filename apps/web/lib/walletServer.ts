@@ -131,7 +131,7 @@ export async function balanceUsd(walletAddress: string): Promise<number> {
   return Number(value) / Number(LAMPORTS_PER_USD);
 }
 
-function privySigner(walletId: string, walletAddress: string): TransactionSigner {
+export function privySigner(walletId: string, walletAddress: string): TransactionSigner {
   return {
     address: walletAddress as Address,
     async signTransactions(transactions) {

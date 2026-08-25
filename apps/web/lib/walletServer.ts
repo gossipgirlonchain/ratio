@@ -35,8 +35,8 @@ import {
 
 import { supabaseAdmin } from "./supabaseServer";
 
-/** Devnet WSOL sim rate — MUST match the agent's DopplerMarketChain. */
-export const LAMPORTS_PER_USD = 500_000n;
+import { LAMPORTS_PER_USD } from "@ratio/config";
+export { LAMPORTS_PER_USD };
 
 const PRIVY_API = "https://api.privy.io/v1";
 

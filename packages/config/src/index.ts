@@ -74,6 +74,17 @@ export const HIDDEN_REPORT_THRESHOLD = 3;
 export const SWAP_FEE_BPS = 125; // 1.25%
 
 /**
+ * Devnet WSOL sim rate: $1 = 0.005 SOL prices SOL at ~$200 — realistic,
+ * so rent, fees, and balances read like mainnet will. (Was 500_000n,
+ * which priced SOL at $2,000 and made a 40-cent rent deposit look like
+ * $8.) USDC production replaces this with 1_000_000n at 1e6/$.
+ * NOTE: markets launched before 2026-08-26 (the @nathan_liow/@solana
+ * test market) were priced at the old rate; their display skews 10x low
+ * until they settle. Accepted for the beta.
+ */
+export const LAMPORTS_PER_USD = 5_000_000n;
+
+/**
  * Share of the swap fee per party, in bps of the fee (sums to 10_000).
  * Effective rates on volume: doppler 0.094%, treasury 0.52%, sides 0.21%
  * each, tagger 0.13%. Doppler hard-limits beneficiaries to FIVE per curve

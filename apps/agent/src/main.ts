@@ -13,6 +13,7 @@ import {
   BOT_HANDLE,
   FEE_SHARE_BPS,
   FRESHNESS_WINDOW_MS,
+  LAMPORTS_PER_USD,
   HIDDEN_REPORT_THRESHOLD,
   LIKES_SAMPLE_INTERVAL_MS,
   MARKET_DURATION_MS,
@@ -177,7 +178,7 @@ async function main() {
   const marketClient = await RatioMarketClient.create({ clients, operator });
   const chain = new DopplerMarketChain(clients, marketClient, {
     swapFeeBps: SWAP_FEE_BPS,
-    lamportsPerUsd: 500_000n, // $1 = 0.0005 SOL on the WSOL devnet quote
+    lamportsPerUsd: LAMPORTS_PER_USD,
     signerFor: (addr) => (addr === operator.address ? operator : wallets.signerFor(addr)),
     operatorAddress: operator.address,
     labelsFor: async (marketId) => {

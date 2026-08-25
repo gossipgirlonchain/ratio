@@ -40,7 +40,7 @@ const clock = () => simNow;
 // with a previous run's on-chain accounts.
 seedMockIds(Date.now());
 
-const LAMPORTS_PER_USD = 500_000n; // $1 = 0.0005 SOL on the WSOL devnet quote
+import { LAMPORTS_PER_USD } from "@ratio/config";
 
 async function main() {
   const clients = createClients();
@@ -56,8 +56,9 @@ async function main() {
     generateKeyPairSigner(),
   ]);
   const marketClient = await RatioMarketClient.create({ clients, operator });
-  // 0.04 SOL/wallet: covers the $25 (0.0125 SOL) max stake in this sim + rent/fees.
-  const wallets = new LocalWalletProvider(clients, operator, 40_000_000n);
+  // 0.2 SOL/wallet: covers the $25 (0.125 SOL at the $200-SOL sim rate)
+  // max stake in this sim + rent/fees.
+  const wallets = new LocalWalletProvider(clients, operator, 200_000_000n);
   const chain = new DopplerMarketChain(clients, marketClient, {
     swapFeeBps: SWAP_FEE_BPS,
     lamportsPerUsd: LAMPORTS_PER_USD,

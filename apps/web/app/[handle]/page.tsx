@@ -198,38 +198,6 @@ export default function ProfilePage() {
         <WalletModule owner={viewer === handle} unclaimedUsd={p.unclaimedUsd} onLogin={login} />
       </header>
 
-      {(() => {
-        const positions = openPositionsFor(world, handle);
-        if (positions.length === 0) return null;
-        return (
-          <div className="card profile-positions">
-            <span className="section-note profile-positions-title">open battles</span>
-            {positions.map((pos) => {
-              const gap = likeGapSince(world, pos);
-              const m = marketById(world, pos.marketId);
-              if (!m) return null;
-              const mine = pos.side === "a" ? m.data.a : m.data.b;
-              const theirs = pos.side === "a" ? m.data.b : m.data.a;
-              const leftMs = Math.max(0, m.data.settlesAtMs - Date.now());
-              const leftH = Math.floor(leftMs / 3_600_000);
-              const leftLabel = leftH > 0 ? `${leftH}h left` : `${Math.floor(leftMs / 60_000)}m left`;
-              return (
-                <Link className="mod-row profile-pos" href={`/m/${pos.marketId}`} key={pos.marketId + pos.side}>
-                  <span className="mod-strong">@{pos.sideHandle} vs @{pos.otherHandle}</span>
-                  <span className="mod-quiet">
-                    {fmtUsd0(pos.netStakedUsd)} on @{pos.sideHandle} · {leftLabel}
-                  </span>
-                  <span className="mod-strong">
-                    {mine.likes.toLocaleString("en-US")}–{theirs.likes.toLocaleString("en-US")}
-                    {" "}{gap >= 0 ? "▲" : "▼"}
-                  </span>
-                </Link>
-              );
-            })}
-          </div>
-        );
-      })()}
-
       <div className="tabs profile-tabs">
         <button className={tab === "live" ? "tab tab-on" : "tab"} onClick={() => setTab("live")}>
           live ({open.length})
@@ -247,9 +215,25 @@ export default function ProfilePage() {
         </p>
       ) : (
         <div className="profile-strips">
-          {shown.map((m) => (
-            <MarketStrip key={m.data.marketId} data={m.data} marketHref={`/m/${m.data.marketId}`} onOpen={() => router.push(`/m/${m.data.marketId}`)} />
-          ))}
+          {shown.map((m) => {
+            const pos = openPositionsFor(world, handle).find(
+              (x) => x.marketId === m.data.marketId,
+            );
+            const gap = pos ? likeGapSince(world, pos) : 0;
+            return (
+              <div key={m.data.marketId}>
+                <MarketStrip data={m.data} marketHref={`/m/${m.data.marketId}`} onOpen={() => router.push(`/m/${m.data.marketId}`)} />
+                {pos && (
+                  <Link className="strip-position" href={`/m/${pos.marketId}`}>
+                    <span>{fmtUsd0(pos.netStakedUsd)} on @{pos.sideHandle}</span>
+                    <span className={gap >= 0 ? "strip-position-gap" : "strip-position-gap strip-position-down"}>
+                      {gap >= 0 ? "▲" : "▼"} {Math.abs(gap).toLocaleString("en-US")} since entry
+                    </span>
+                  </Link>
+                )}
+              </div>
+            );
+          })}
         </div>
       )}
     </main>

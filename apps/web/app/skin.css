@@ -1028,3 +1028,14 @@ a { text-decoration: none; color: inherit; }
 .wallet-send-amount { max-width: 80px; }
 
 .wallet-pop-label { font-size: 10.5px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; color: var(--ink-muted); }
+
+/* the viewer's stake, pinned under the strip it lives in */
+.strip-position {
+  display: flex; justify-content: space-between; align-items: center;
+  margin: -6px 0 14px; padding: 6px 14px;
+  border: 2px solid var(--edge); border-top: none; border-radius: 0 0 12px 12px;
+  font-size: 12px; font-weight: 700; color: var(--ink); text-decoration: none;
+}
+.strip-position:hover { border-color: var(--lime); }
+.strip-position-gap { font-variant-numeric: tabular-nums; }
+.strip-position-down { color: var(--gunmetal); }

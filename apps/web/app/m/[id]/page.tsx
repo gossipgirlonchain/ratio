@@ -25,7 +25,9 @@ import {
 import { placeBet, usePendingBets } from "../../../lib/trade";
 import { useMounted } from "../../../lib/useMounted";
 
-const PRESETS = [1, 5, 25, 100, 250, 500] as const;
+// Ladder spans exactly the server's legal range (MIN_STAKE_USD 5 to
+// MAX_STAKE_USD 250): a preset the chain rejects is a lie in a button.
+const PRESETS = [5, 10, 25, 50, 100, 250] as const;
 
 const fmtUsd = (n: number) => `$${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 const fmtUsd2 = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

@@ -14,7 +14,13 @@ export function supabaseAdmin(): SupabaseClient {
     const url = process.env.SUPABASE_URL;
     const key = process.env.SUPABASE_SERVICE_KEY;
     if (!url || !key) throw new Error("SUPABASE_URL / SUPABASE_SERVICE_KEY not configured");
-    client = createClient(url, key, { auth: { persistSession: false } });
+    client = createClient(url, key, {
+      auth: { persistSession: false },
+      // Next.js patches fetch and CACHES GETs (Vercel's data cache even
+      // survives deploys) — every PostgREST read would be a frozen
+      // snapshot. Live data non-negotiable: no-store on every request.
+      global: { fetch: (input, init) => fetch(input, { ...init, cache: "no-store" }) },
+    });
   }
   return client;
 }

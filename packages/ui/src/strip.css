@@ -221,3 +221,5 @@
   color: var(--ink-muted, #888); line-height: 1;
 }
 .rs-row-x:hover { color: var(--accent-text, #CEF17B); }
+
+.rs-placed-failed { background: #B4544B; }

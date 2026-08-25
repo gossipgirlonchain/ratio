@@ -13,7 +13,7 @@ import { MarketStrip } from "@ratio/ui";
 
 import { useAuth } from "../lib/auth";
 import { feedMarkets, useLive } from "../lib/live";
-import { placeBet } from "../lib/trade";
+import { placeBet, usePendingBets } from "../lib/trade";
 import { useMounted } from "../lib/useMounted";
 
 const fmtUsd = (n: number) =>
@@ -25,6 +25,7 @@ export default function Page() {
   const { viewer, login } = useAuth();
   const { getAccessToken, authenticated } = usePrivy();
   const live = useLive();
+  const pendingBets = usePendingBets();
   if (!mounted) return null;
   const markets = feedMarkets(live);
   const leaders = live.leaderboard.slice(0, 5);
@@ -39,6 +40,7 @@ export default function Page() {
             <MarketStrip
               key={data.marketId}
               data={data}
+              betStatus={pendingBets.filter((b) => b.marketId === data.marketId).at(-1) ?? null}
               onSign={(side, amount) => {
                 // Point-of-action gate: reading is never gated, signing is.
                 if (!viewer) {

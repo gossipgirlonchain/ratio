@@ -27,6 +27,13 @@ let retryMs = 2_000;
 const subs = new Set<() => void>();
 const emit = () => subs.forEach((fn) => fn());
 
+/** Last token getter from a mounted consumer: lets non-hook code
+ * (the trade layer, after a confirmed bet) refresh the balance. */
+let lastGetToken: (() => Promise<string | null>) | null = null;
+export const refreshWallet = (): void => {
+  if (lastGetToken) void load(lastGetToken);
+};
+
 const scheduleRetry = (getToken: () => Promise<string | null>) => {
   if (retryTimer) clearTimeout(retryTimer);
   retryTimer = setTimeout(() => {
@@ -93,6 +100,7 @@ export function useWallet(): {
       cached = null;
       return;
     }
+    lastGetToken = getAccessToken;
     void load(getAccessToken);
     const t = setInterval(() => void load(getAccessToken), 60_000);
     return () => clearInterval(t);

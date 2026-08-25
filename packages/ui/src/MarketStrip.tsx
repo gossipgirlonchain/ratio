@@ -68,6 +68,12 @@ export interface MarketStripProps {
   onOpen?: () => void;
   /** Market page variant: render both tweets in full, no clamp (§2). */
   fullText?: boolean;
+  /**
+   * REAL chain state for the last bet signed on this strip. When set, the
+   * post-sign banner reports it honestly (confirming -> placed / failed
+   * with the reason) instead of the optimistic default.
+   */
+  betStatus?: { state: "confirming" | "confirmed" | "failed"; reason?: string } | null;
 }
 
 /** Small heart before the count: reads as likes without a label. */
@@ -160,7 +166,7 @@ function Row({
   );
 }
 
-export function MarketStrip({ data, nowMs, onSign, onPresetUsed, marketHref, onOpen, fullText }: MarketStripProps) {
+export function MarketStrip({ data, nowMs, onSign, onPresetUsed, marketHref, onOpen, fullText, betStatus }: MarketStripProps) {
   const now = nowMs ?? Date.now();
   const [backing, setBacking] = useState<"a" | "b" | null>(null);
   const [amount, setAmount] = useState<number | null>(null);
@@ -350,9 +356,13 @@ export function MarketStrip({ data, nowMs, onSign, onPresetUsed, marketHref, onO
         <div>
           {placed && (
             // no separate view-market link: the strip itself clicks through
-            <div className="rs-placed">
+            <div className={betStatus?.state === "failed" ? "rs-placed rs-placed-failed" : "rs-placed"}>
               <span className="rs-placed-msg">
-                ✓ ${placed.amountUsd} on @{(placed.side === "a" ? data.a : data.b).handle} placed
+                {betStatus?.state === "failed"
+                  ? `✕ ${betStatus.reason ?? "bet failed"}`
+                  : betStatus?.state === "confirming"
+                    ? `signing $${placed.amountUsd} on @${(placed.side === "a" ? data.a : data.b).handle}…`
+                    : `✓ $${placed.amountUsd} on @${(placed.side === "a" ? data.a : data.b).handle} placed`}
               </span>
             </div>
           )}

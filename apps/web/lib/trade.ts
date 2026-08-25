@@ -15,8 +15,10 @@
  */
 import { useEffect, useState } from "react";
 
+import { refreshLive } from "./live";
 import { scannerStore } from "./scanner";
 import { playPlacedSound } from "./sound";
+import { refreshWallet } from "./wallet";
 
 export interface PendingBet {
   id: string;
@@ -86,6 +88,9 @@ export function placeBet(opts: {
         if (!res.ok || !data.signature) return fail(data.error ?? "bet failed");
         bet.state = "confirmed";
         emit();
+        // the numbers move NOW, not on the next 60s poll
+        refreshLive();
+        refreshWallet();
       } catch {
         fail("network error, nothing was placed");
       }

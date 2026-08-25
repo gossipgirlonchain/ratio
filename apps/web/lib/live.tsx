@@ -29,6 +29,11 @@ const EMPTY: LiveWorld = { markets: [], tradesByMarket: {}, seriesByMarket: {}, 
 
 const LiveContext = createContext<LiveWorld>(EMPTY);
 
+/** Module-level refetch: set by the provider, callable from anywhere
+ * (trade layer calls it the moment a bet confirms — no 60s wait). */
+let refetchLive: () => void = () => {};
+export const refreshLive = (): void => refetchLive();
+
 export function LiveProvider({ children }: { children: ReactNode }) {
   const [world, setWorld] = useState<LiveWorld>(EMPTY);
   useEffect(() => {
@@ -44,9 +49,11 @@ export function LiveProvider({ children }: { children: ReactNode }) {
       }
     };
     void load();
+    refetchLive = () => void load();
     const t = setInterval(load, 60_000);
     return () => {
       alive = false;
+      refetchLive = () => {};
       clearInterval(t);
     };
   }, []);

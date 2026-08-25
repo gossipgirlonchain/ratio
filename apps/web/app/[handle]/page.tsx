@@ -190,9 +190,7 @@ export default function ProfilePage() {
           <div className="profile-secondary">
             <span>{fmtUsd0(p.volumeUsd)} volume</span>
             <span>{fmtUsd0(openPositionsFor(world, handle).reduce((s, x) => s + x.netStakedUsd, 0))} in open battles</span>
-            <span>{fmtUsd0(p.biggestMarketUsd)} biggest market</span>
             <span>{p.timesRatiod}x ratio&apos;d</span>
-            <span>markets: {p.asOriginal} original · {p.asReply} reply · {p.asTagger} tagger</span>
           </div>
         </div>
         <WalletModule owner={viewer === handle} unclaimedUsd={p.unclaimedUsd} onLogin={login} />

@@ -181,7 +181,6 @@ export interface ProfileStats {
   wins: number;
   losses: number;
   volumeUsd: number;
-  biggestMarketUsd: number;
   timesRatiod: number;
   feesEarnedUsd: number;
   feesByRole: { original: number; reply: number; tagger: number };
@@ -205,14 +204,22 @@ export const profileFor = (w: LiveWorld, handle: string): ProfileStats => {
     asTagger: mine.filter((m) => m.taggerHandle === handle).length,
     wins: won,
     losses: settled.length - won,
-    // volume = money through markets you are IN plus money YOU bet
+    // volume = money through markets you are a PARTICIPANT of (author or
+    // tagger) plus money you bet yourself. A market you merely bet in
+    // counts your stake, never its whole pot — no double counting.
     volumeUsd:
-      mine.reduce((s, m) => s + m.volumeUsd, 0) +
+      w.markets
+        .filter(
+          (m) =>
+            m.data.a.handle === handle ||
+            m.data.b.handle === handle ||
+            m.taggerHandle === handle,
+        )
+        .reduce((s, m) => s + m.volumeUsd, 0) +
       Object.values(w.tradesByMarket)
         .flat()
         .filter((t) => t.handle === handle)
         .reduce((s, t) => s + t.amountUsd, 0),
-    biggestMarketUsd: Math.max(0, ...mine.map((m) => m.volumeUsd)),
     timesRatiod: settled.filter(
       (m) => m.data.a.handle === handle && m.data.winner === "b",
     ).length,

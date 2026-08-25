@@ -16,15 +16,13 @@ export async function POST(req: NextRequest) {
   if (!normalized) return NextResponse.json({ error: "no code" }, { status: 400 });
 
   const db = supabaseAdmin();
-  // burn-if-unused in one statement: update only matches unredeemed rows
-  const { data, error } = await db
-    .from("access_codes")
-    .update({ redeemed_at_ms: Date.now(), redeemed_by: req.headers.get("user-agent")?.slice(0, 120) ?? null })
-    .eq("code", normalized)
-    .is("redeemed_at_ms", null)
-    .select();
+  // atomic burn: increments use_count only while under max_uses
+  const { data, error } = await db.rpc("redeem_access_code", {
+    p_code: normalized,
+    p_by: req.headers.get("user-agent")?.slice(0, 120) ?? null,
+  });
   if (error) return NextResponse.json({ error: "store error" }, { status: 500 });
-  if (!data || data.length === 0) {
+  if (!data) {
     return NextResponse.json({ error: "that code is not valid or already used" }, { status: 403 });
   }
 

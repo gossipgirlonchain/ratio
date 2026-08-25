@@ -1039,3 +1039,4 @@ a { text-decoration: none; color: inherit; }
 .strip-position:hover { border-color: var(--lime); }
 .strip-position-gap { font-variant-numeric: tabular-nums; }
 .strip-position-down { color: var(--gunmetal); }
+.admin-uses { display: flex; align-items: center; gap: 6px; font-size: 12px; }

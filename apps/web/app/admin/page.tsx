@@ -11,6 +11,8 @@ interface CodeRow {
   code: string;
   created_at_ms: number;
   note: string | null;
+  max_uses?: number;
+  use_count?: number;
   redeemed_at_ms: number | null;
 }
 interface MarketRow {
@@ -41,6 +43,7 @@ export default function AdminPage() {
   const [codes, setCodes] = useState<CodeRow[]>([]);
   const [freshCodes, setFreshCodes] = useState<string[]>([]);
   const [count, setCount] = useState("5");
+  const [uses, setUses] = useState("1");
   const [error, setError] = useState("");
 
   const call = async (path: string, init?: RequestInit) => {
@@ -144,13 +147,24 @@ export default function AdminPage() {
               inputMode="numeric"
               value={count}
               onChange={(e) => setCount(e.target.value)}
+              title="how many codes"
             />
+            <label className="admin-uses">
+              <span className="muted-ink">uses each</span>
+              <input
+                className="scanner-num"
+                style={{ width: 64 }}
+                inputMode="numeric"
+                value={uses}
+                onChange={(e) => setUses(e.target.value)}
+              />
+            </label>
             <button
               className="gate-btn"
               onClick={async () => {
                 const r = (await call("/api/admin/codes", {
                   method: "POST",
-                  body: JSON.stringify({ count: Number(count) || 1 }),
+                  body: JSON.stringify({ count: Number(count) || 1, uses: Number(uses) || 1 }),
                 })) as { codes: string[] } | null;
                 if (r) {
                   setFreshCodes(r.codes);
@@ -186,7 +200,11 @@ export default function AdminPage() {
                   <tr key={c.code}>
                     <td className="admin-code">{c.code}</td>
                     <td className="muted-ink">
-                      {c.redeemed_at_ms ? `used ${fmtTime(c.redeemed_at_ms)}` : "unused"}
+                      {(c.max_uses ?? 1) > 1
+                        ? `${c.use_count ?? 0}/${c.max_uses} used${c.redeemed_at_ms ? ` · last ${fmtTime(c.redeemed_at_ms)}` : ""}`
+                        : c.redeemed_at_ms
+                          ? `used ${fmtTime(c.redeemed_at_ms)}`
+                          : "unused"}
                     </td>
                   </tr>
                 ))}

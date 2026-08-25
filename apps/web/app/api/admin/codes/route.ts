@@ -31,12 +31,18 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   if (!authed(req)) return NextResponse.json({ error: "nope" }, { status: 401 });
-  const { count = 1, note } = (await req.json().catch(() => ({}))) as { count?: number; note?: string };
+  const { count = 1, note, uses = 1 } = (await req.json().catch(() => ({}))) as {
+    count?: number;
+    note?: string;
+    uses?: number;
+  };
   const n = Math.max(1, Math.min(50, Math.floor(count)));
+  const maxUses = Math.max(1, Math.min(100_000, Math.floor(uses)));
   const rows = Array.from({ length: n }, () => ({
     code: newCode(),
     created_at_ms: Date.now(),
     note: note ?? null,
+    max_uses: maxUses,
   }));
   const { error } = await supabaseAdmin().from("access_codes").insert(rows);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

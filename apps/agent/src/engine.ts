@@ -307,15 +307,30 @@ export class RatioEngine {
     }
 
     // The ONE linked post per market — the market card, in side B's thread.
-    const card = await this.x.postReply({
-      inReplyTo: sideB.tweetId,
-      text: marketCard({
-        settlesAtMs: record.settlesAtMs,
-        sideAHandle: sideA.authorHandle,
-        sideBHandle: sideB.authorHandle,
-      }),
-      link: this.config.marketUrl(record.id),
+    // Big accounts often restrict who can reply; when side B's thread is
+    // closed to us, the card lands under the tagger's mention instead
+    // (always postable: the bot is mentioned there).
+    const cardText = marketCard({
+      settlesAtMs: record.settlesAtMs,
+      sideAHandle: sideA.authorHandle,
+      sideBHandle: sideB.authorHandle,
     });
+    let card: { tweetId: string };
+    try {
+      card = await this.x.postReply({
+        inReplyTo: sideB.tweetId,
+        text: cardText,
+        link: this.config.marketUrl(record.id),
+      });
+    } catch (err) {
+      if (!(err as Error).message.includes("not-authorized-for-resource")) throw err;
+      console.log(`  side B thread reply-restricted; card goes under the mention`);
+      card = await this.x.postReply({
+        inReplyTo: mention.mentionTweetId,
+        text: cardText,
+        link: this.config.marketUrl(record.id),
+      });
+    }
     await this.store.updateMarket(record.id, { cardTweetId: card.tweetId });
   }
 

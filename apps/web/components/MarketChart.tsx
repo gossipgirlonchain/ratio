@@ -103,12 +103,32 @@ export function MarketChart({
             className="chart-grid"
           />
         ))}
-        <text x={W - PAD.r + 6} y={yLike(likeMax / 1.08) + 4} className="chart-tick">
-          {fmtLikes(likeMax / 1.08)}
-        </text>
 
         <path d={pathA} fill="none" style={{ stroke: A }} strokeWidth="2" strokeLinejoin="round" />
         <path d={pathB} fill="none" style={{ stroke: B }} strokeWidth="2" strokeLinejoin="round" />
+
+        {/* both lines get an endpoint count — the score at "now", one per
+            side, nudged apart when the lines converge */}
+        {(() => {
+          const yA = yLike(series.likesA[n - 1]!);
+          const yB = yLike(series.likesB[n - 1]!);
+          let labelYA = yA + 4;
+          let labelYB = yB + 4;
+          if (Math.abs(yA - yB) < 14) {
+            if (yA <= yB) { labelYA = yA - 4; labelYB = yB + 12; }
+            else { labelYB = yB - 4; labelYA = yA + 12; }
+          }
+          return (
+            <g>
+              <text x={W - PAD.r + 6} y={labelYA} className="chart-end-label" style={{ fill: A }}>
+                {fmtLikes(series.likesA[n - 1]!)}
+              </text>
+              <text x={W - PAD.r + 6} y={labelYB} className="chart-end-label" style={{ fill: B }}>
+                {fmtLikes(series.likesB[n - 1]!)}
+              </text>
+            </g>
+          );
+        })()}
 
         {/* money, two channels kept separate: DIRECTION is vertical (buys
             stack up from the zero line, sells stack down), COLOUR is side,

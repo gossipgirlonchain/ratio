@@ -11,10 +11,12 @@
  */
 import { PrivyProvider } from "@privy-io/react-auth";
 
+import { LiveProvider } from "../lib/live";
+
 const APP_ID = process.env.NEXT_PUBLIC_PRIVY_APP_ID;
 
 export function Providers({ children }: { children: React.ReactNode }) {
-  if (!APP_ID) return <>{children}</>;
+  if (!APP_ID) return <LiveProvider>{children}</LiveProvider>;
   return (
     <PrivyProvider
       appId={APP_ID}
@@ -32,7 +34,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
         },
       }}
     >
-      {children}
+      <LiveProvider>{children}</LiveProvider>
     </PrivyProvider>
   );
 }

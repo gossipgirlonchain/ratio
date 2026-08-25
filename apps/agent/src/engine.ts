@@ -277,6 +277,8 @@ export class RatioEngine {
       authorAHandle: sideA.authorHandle,
       authorBHandle: sideB.authorHandle,
       taggerHandle: mention.authorHandle,
+      textA: sideA.text,
+      textB: sideB.text,
     };
     await this.store.saveMarket(record);
 

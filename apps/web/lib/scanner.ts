@@ -14,12 +14,21 @@
  * conversation and rules across route changes without living in a rail
  * that some pages don't have.
  *
- * Fixture world: evaluation runs client-side over fixtures. The real
- * version moves evaluation server-side next to the likes sampler and adds
- * extension push + Telegram delivery; this panel stays the in-app surface.
+ * Live world: the panel injects the live market list via setMarkets();
+ * evaluation runs client-side over it. The real version moves evaluation
+ * server-side next to the likes sampler and adds extension push +
+ * Telegram delivery; this panel stays the in-app surface.
  */
 
-import { feedMarkets, marketById, type FixtureMarket } from "./fixtures";
+import { type FixtureMarket } from "./fixtures";
+
+/** Injected by ScannerPanel from useLive() — the scanner never fetches. */
+let worldMarkets: FixtureMarket[] = [];
+export const setScannerMarkets = (m: FixtureMarket[]): void => {
+  worldMarkets = m;
+};
+const feedMarkets = () => worldMarkets.filter((m) => m.data.status === "open");
+const marketById = (id: string) => worldMarkets.find((m) => m.data.marketId === id);
 
 // --- rule model -------------------------------------------------------------
 

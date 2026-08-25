@@ -23,7 +23,9 @@ import {
   SCANNER_PRESETS,
   scannerStore,
   type RuleConditions,
+  setScannerMarkets,
 } from "../lib/scanner";
+import { useLive } from "../lib/live";
 import { useMounted } from "../lib/useMounted";
 
 const fmtUsd = (n: number) => `$${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
@@ -171,6 +173,10 @@ export function ScannerPanel() {
     setKnobsState(knobDraft);
   };
 
+  const world = useLive();
+  useEffect(() => {
+    setScannerMarkets(world.markets);
+  }, [world]);
   useEffect(() => {
     scannerStore.load();
     setOpen(scannerStore.isOpen());

@@ -8,8 +8,8 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
-import { allHandles, markets } from "../lib/fixtures";
 import { useAuth } from "../lib/auth";
+import { allHandles, useLive } from "../lib/live";
 
 export function Nav() {
   const pathname = usePathname();
@@ -17,10 +17,12 @@ export function Nav() {
   const [open, setOpen] = useState(false);
   const router = useRouter();
   const { viewer, login } = useAuth();
+  const world = useLive();
+  const markets = world.markets;
 
   const needle = q.trim().replace(/^@/, "").toLowerCase();
   const handleHits = needle
-    ? allHandles().filter((h) => h.toLowerCase().includes(needle)).slice(0, 4)
+    ? allHandles(world).filter((h) => h.toLowerCase().includes(needle)).slice(0, 4)
     : [];
   const marketHits = needle
     ? markets

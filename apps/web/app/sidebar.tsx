@@ -13,7 +13,7 @@ import { useEffect, useState } from "react";
 import { LIKES_SAMPLE_INTERVAL_MS } from "@ratio/config";
 
 import { useAuth } from "../lib/auth";
-import { likeGapSince, openPositionsFor } from "../lib/fixtures";
+import { likeGapSince, openPositionsFor, useLive } from "../lib/live";
 import { setSoundEnabled, soundEnabled } from "../lib/sound";
 import { usePendingBets } from "../lib/trade";
 
@@ -27,6 +27,7 @@ const KEY = "ratio-sidebar-collapsed";
  * instantly when an optimistic placement lands.
  */
 function SidePositions({ viewer }: { viewer: string | null }) {
+  const world = useLive();
   const pending = usePendingBets();
   const [, tick] = useState(0);
   useEffect(() => {
@@ -34,7 +35,7 @@ function SidePositions({ viewer }: { viewer: string | null }) {
     return () => clearInterval(t);
   }, []);
   if (!viewer) return null;
-  const positions = openPositionsFor(viewer);
+  const positions = openPositionsFor(world, viewer);
   const confirming = pending.filter((b) => b.state === "confirming").length;
   if (positions.length === 0 && confirming === 0) return null;
   return (
@@ -43,7 +44,7 @@ function SidePositions({ viewer }: { viewer: string | null }) {
         positions ({positions.length}{confirming > 0 ? ` +${confirming}` : ""})
       </div>
       {positions.map((p) => {
-        const gap = likeGapSince(p);
+        const gap = likeGapSince(world, p);
         return (
           <Link className="side-pos" href={`/m/${p.marketId}`} key={`${p.marketId}${p.side}`}>
             <span className="side-pos-handle">@{p.sideHandle}</span>

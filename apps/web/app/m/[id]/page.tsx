@@ -16,12 +16,11 @@ import { quotePayout } from "@ratio/ui";
 import { MarketChart, SIDE_A_COLOR, SIDE_B_COLOR } from "../../../components/MarketChart";
 import { useAuth } from "../../../lib/auth";
 import {
-  chartSeries,
   marketById,
   openPositionsFor,
   positionFor,
-  tradesByMarket,
-} from "../../../lib/fixtures";
+  useLive,
+} from "../../../lib/live";
 import { placeBet, usePendingBets } from "../../../lib/trade";
 import { useMounted } from "../../../lib/useMounted";
 
@@ -46,23 +45,23 @@ export default function MarketPage() {
   const [amount, setAmount] = useState<number | null>(null);
   const [custom, setCustom] = useState<string | null>(null);
 
-  const market = marketById(params.id);
+  const world = useLive();
+  const market = marketById(world, params.id);
   const pending = usePendingBets(params.id);
-  const series = useMemo(
-    () => (market ? chartSeries(market) : null),
-    [market],
-  );
+  const series = market ? (world.seriesByMarket[market.data.marketId] ?? null) : null;
   if (!mounted) return null;
   if (!market || !series) {
     return (
       <main className="page">
-        <p className="page-empty">no market here. <Link href="/">back to the feed</Link></p>
+        <p className="page-empty">
+          {world.loading ? "loading…" : <>no market here. <Link href="/">back to the feed</Link></>}
+        </p>
       </main>
     );
   }
   const { data } = market;
   const open = data.status === "open";
-  const position = positionFor(viewer, data.marketId);
+  const position = positionFor(world, viewer, data.marketId);
 
   // Optimistic layer: pending bets fold into every number BEFORE the
   // chain answers. Failure removes them and the numbers roll back.
@@ -72,10 +71,10 @@ export default function MarketPage() {
     live.filter((b) => b.side === side).reduce((s, b) => s + b.amountUsd, 0);
   const potA = data.a.potUsd + pendUsd("a");
   const potB = data.b.potUsd + pendUsd("b");
-  const trades = (tradesByMarket[data.marketId] ?? []).sort((x, y) => y.amountUsd - x.amountUsd);
+  const trades = (world.tradesByMarket[data.marketId] ?? []).sort((x, y) => y.amountUsd - x.amountUsd);
   const myEntries = viewer
     ? [
-        ...openPositionsFor(viewer)
+        ...openPositionsFor(world, viewer)
           .filter((p) => p.marketId === data.marketId)
           .map((p) => ({ atMs: p.enteredAtMs, side: p.side })),
         ...live.map((b) => ({ atMs: b.atMs, side: b.side })),

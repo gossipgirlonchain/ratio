@@ -57,6 +57,8 @@ const toRow = (m: MarketRecord): MarketRow => ({
   author_a_handle: m.authorAHandle,
   author_b_handle: m.authorBHandle,
   tagger_handle: m.taggerHandle,
+  text_a: m.textA ?? null,
+  text_b: m.textB ?? null,
 });
 
 const numOrUndef = (v: unknown): number | undefined =>
@@ -92,6 +94,8 @@ const fromRow = (r: MarketRow): MarketRecord => ({
   authorAHandle: r.author_a_handle as string,
   authorBHandle: r.author_b_handle as string,
   taggerHandle: r.tagger_handle as string,
+  textA: (r.text_a ?? undefined) as string | undefined,
+  textB: (r.text_b ?? undefined) as string | undefined,
 });
 
 const betToRow = (b: BetRecord) => ({

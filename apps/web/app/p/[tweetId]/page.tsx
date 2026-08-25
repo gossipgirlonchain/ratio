@@ -10,7 +10,7 @@ import { useParams, useRouter } from "next/navigation";
 
 import { MarketStrip } from "@ratio/ui";
 
-import { marketsByPost } from "../../../lib/fixtures";
+import { marketsByPost, useLive } from "../../../lib/live";
 import { useMounted } from "../../../lib/useMounted";
 
 export default function PostPage() {
@@ -19,7 +19,7 @@ export default function PostPage() {
   const router = useRouter();
   if (!mounted) return null;
 
-  const list = marketsByPost(params.tweetId);
+  const list = marketsByPost(useLive(), params.tweetId);
   if (list.length === 0) {
     return (
       <main className="page">

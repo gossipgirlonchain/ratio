@@ -11,7 +11,7 @@
 import Link from "next/link";
 import { useState } from "react";
 
-import { leaderboard, traderBoard } from "../../lib/fixtures";
+import { traderBoard, useLive } from "../../lib/live";
 import { useMounted } from "../../lib/useMounted";
 
 const WINDOWS = [
@@ -26,9 +26,11 @@ const fmtUsd = (n: number) =>
 export default function LeaderboardPage() {
   const mounted = useMounted();
   const [win, setWin] = useState<(typeof WINDOWS)[number]["key"]>("all");
+  const world = useLive();
   if (!mounted) return null;
-  const rows = leaderboard[win];
-  const traders = traderBoard(win);
+  // fee windows: all-time only until the API slices by time
+  const rows = world.leaderboard;
+  const traders = traderBoard(world, win);
 
   return (
     <main className="page page-boards">
@@ -57,7 +59,7 @@ export default function LeaderboardPage() {
           traders.map((t, i) => (
             <div className="card board-row" key={t.handle}>
               <span className="board-rank">{i + 1}</span>
-              <img className="rs-avatar" src={`https://i.pravatar.cc/60?u=${t.handle}`} alt="" />
+              <img className="rs-avatar" src={`https://unavatar.io/x/${t.handle}`} alt="" />
               <div className="board-main">
                 <Link href={`/${t.handle}`}>@{t.handle}</Link>
                 <span className="board-sub">
@@ -90,7 +92,7 @@ export default function LeaderboardPage() {
           return (
             <div className="card board-row" key={r.handle}>
               <span className="board-rank">{i + 1}</span>
-              <img className="rs-avatar" src={`https://i.pravatar.cc/60?u=${r.handle}`} alt="" />
+              <img className="rs-avatar" src={`https://unavatar.io/x/${r.handle}`} alt="" />
               <div className="board-main">
                 <Link href={`/${r.handle}`}>@{r.handle}</Link>
                 <div className="role-bar">

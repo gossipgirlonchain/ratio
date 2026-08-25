@@ -16,7 +16,7 @@ import { BOT_HANDLE } from "@ratio/config";
 import { MarketStrip } from "@ratio/ui";
 
 import { useAuth } from "../../lib/auth";
-import { likeGapSince, marketsByParticipant, openPositionsFor, profileFor } from "../../lib/fixtures";
+import { likeGapSince, marketsByParticipant, openPositionsFor, profileFor, useLive } from "../../lib/live";
 import { useMounted } from "../../lib/useMounted";
 
 const DEMO_ADDRESS = "ratio1DemoWa11etAddre55Repl4cedByPrivyR4";
@@ -97,10 +97,11 @@ export default function ProfilePage() {
   const router = useRouter();
   const { viewer, avatarUrl, login } = useAuth();
   const [tab, setTab] = useState<"live" | "history">("live");
+  const world = useLive();
   if (!mounted) return null;
 
   const handle = decodeURIComponent(params.handle);
-  const mine = marketsByParticipant(handle);
+  const mine = marketsByParticipant(world, handle);
   const isOwn = viewer === handle;
   // YOUR profile always renders in full — wallet, zeroed record, empty
   // tabs — even before your first market. Strangers' empty profiles stay
@@ -114,7 +115,7 @@ export default function ProfilePage() {
       </main>
     );
   }
-  const p = profileFor(handle);
+  const p = profileFor(world, handle);
   const open = mine.filter((m) => m.data.status === "open");
   const settled = mine.filter((m) => m.data.status !== "open");
   const roleTotal = p.feesByRole.original + p.feesByRole.reply + p.feesByRole.tagger || 1;
@@ -125,7 +126,7 @@ export default function ProfilePage() {
       <header className="card profile-header">
         <img
           className="profile-avatar-lg"
-          src={isOwn && avatarUrl ? avatarUrl : `https://i.pravatar.cc/96?u=${handle}`}
+          src={isOwn && avatarUrl ? avatarUrl : `https://unavatar.io/x/${handle}`}
           alt=""
         />
         <div className="profile-main">
@@ -166,13 +167,13 @@ export default function ProfilePage() {
       </header>
 
       {(() => {
-        const positions = openPositionsFor(handle);
+        const positions = openPositionsFor(world, handle);
         if (positions.length === 0) return null;
         return (
           <div className="card profile-positions">
             <span className="section-note profile-positions-title">currently backing</span>
             {positions.map((pos) => {
-              const gap = likeGapSince(pos);
+              const gap = likeGapSince(world, pos);
               return (
                 <Link className="mod-row profile-pos" href={`/m/${pos.marketId}`} key={pos.marketId + pos.side}>
                   <span className="mod-strong">@{pos.sideHandle}</span>

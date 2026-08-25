@@ -61,6 +61,8 @@ export interface MarketRecord {
   authorAHandle: string;
   authorBHandle: string;
   taggerHandle: string;
+  textA?: string;
+  textB?: string;
 }
 
 export interface PostView {

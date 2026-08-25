@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 import { MarketStrip } from "@ratio/ui";
 
 import { useAuth } from "../lib/auth";
-import { leaderboard, markets } from "../lib/fixtures";
+import { feedMarkets, useLive } from "../lib/live";
 import { useMounted } from "../lib/useMounted";
 
 const fmtUsd = (n: number) =>
@@ -21,11 +21,17 @@ export default function Page() {
   const mounted = useMounted();
   const router = useRouter();
   const { viewer, login } = useAuth();
+  const live = useLive();
   if (!mounted) return null;
+  const markets = feedMarkets(live);
+  const leaders = live.leaderboard.slice(0, 5);
   return (
     <>
       <div className="home-grid">
         <main className="timeline timeline-flush">
+          {!live.loading && markets.length === 0 && (
+            <p className="page-empty">no markets yet. tag @ratiowtf under a reply or QT to open the first one.</p>
+          )}
           {markets.map(({ data }) => (
             <MarketStrip
               key={data.marketId}
@@ -47,10 +53,11 @@ export default function Page() {
         <aside className="home-side">
           <div className="card side-board">
             <h2>fees earned</h2>
-            {leaderboard.all.slice(0, 5).map((r, i) => (
+            {leaders.length === 0 && <p className="side-empty">no fees earned yet</p>}
+            {leaders.map((r, i) => (
               <Link className="side-row" key={r.handle} href={`/${r.handle}`}>
                 <span className="board-rank">{i + 1}</span>
-                <img className="rs-avatar" src={`https://i.pravatar.cc/60?u=${r.handle}`} alt="" />
+                <img className="rs-avatar" src={`https://unavatar.io/x/${r.handle}`} alt="" />
                 <span className="side-handle">@{r.handle}</span>
                 <span className="side-total">{fmtUsd(r.totalFeeUsd)}</span>
               </Link>

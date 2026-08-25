@@ -17,7 +17,7 @@ const fmtUsd = (n: number) =>
 const shortAddr = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`;
 
 export function WalletChip({ stakedUsd }: { stakedUsd: number }) {
-  const { wallet, send } = useWallet();
+  const { wallet, error, send } = useWallet();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [to, setTo] = useState("");
@@ -25,8 +25,6 @@ export function WalletChip({ stakedUsd }: { stakedUsd: number }) {
   const [busy, setBusy] = useState(false);
   const [note, setNote] = useState<string | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  if (!wallet) return null;
 
   const enter = () => {
     if (closeTimer.current) clearTimeout(closeTimer.current);
@@ -39,6 +37,7 @@ export function WalletChip({ stakedUsd }: { stakedUsd: number }) {
   };
 
   const copy = () => {
+    if (!wallet) return;
     void navigator.clipboard.writeText(wallet.address);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
@@ -60,17 +59,30 @@ export function WalletChip({ stakedUsd }: { stakedUsd: number }) {
     }
   };
 
+  // Logged-in users ALWAYS see the chip. No wallet yet = a loading state
+  // with the failure visible in the panel, never a silent disappearance.
   return (
     <div
       className="wallet-chip-wrap"
       onMouseEnter={enter}
       onMouseLeave={leave}
     >
-      <button className="wallet-chip" onClick={() => setOpen(!open)} title={wallet.address}>
-        <span className="wallet-chip-balance">{fmtUsd(wallet.balanceUsd)}</span>
-        <span className="wallet-chip-staked">{fmtUsd(stakedUsd)} staked</span>
+      <button className="wallet-chip" onClick={() => setOpen(!open)} title={wallet?.address ?? ""}>
+        {wallet ? (
+          <>
+            <span className="wallet-chip-balance">{fmtUsd(wallet.balanceUsd)}</span>
+            <span className="wallet-chip-staked">{fmtUsd(stakedUsd)} staked</span>
+          </>
+        ) : (
+          <span className="wallet-chip-staked">wallet…</span>
+        )}
       </button>
-      {open && (
+      {open && !wallet && (
+        <div className="wallet-pop">
+          <span className="wallet-pop-note">{error ?? "loading wallet…"}</span>
+        </div>
+      )}
+      {open && wallet && (
         <div className="wallet-pop">
           <button className="wallet-pop-addr" onClick={copy} title="copy address">
             <span className="wallet-pop-mono">{copied ? "copied" : shortAddr(wallet.address)}</span>

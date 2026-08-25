@@ -20,32 +20,45 @@ export interface WalletView {
 }
 
 let cached: WalletView | null = null;
+let lastError: string | null = null;
 let inflight: Promise<void> | null = null;
 let retryTimer: ReturnType<typeof setTimeout> | null = null;
 let retryMs = 2_000;
 const subs = new Set<() => void>();
 const emit = () => subs.forEach((fn) => fn());
 
+const scheduleRetry = (getToken: () => Promise<string | null>) => {
+  if (retryTimer) clearTimeout(retryTimer);
+  retryTimer = setTimeout(() => {
+    retryTimer = null;
+    void load(getToken);
+  }, retryMs);
+  retryMs = Math.min(retryMs * 2, 30_000);
+};
+
 async function fetchWallet(getToken: () => Promise<string | null>): Promise<void> {
   try {
     const token = await getToken();
-    if (!token) return;
-    const res = await fetch("/api/wallet", { headers: { Authorization: `Bearer ${token}` } });
-    if (!res.ok) throw new Error(String(res.status));
-    const data = (await res.json()) as WalletView;
-    if (data.address) {
-      cached = data;
-      retryMs = 2_000;
+    if (!token) {
+      // token mid-refresh: try again shortly, this is not a dead end
+      lastError = "waiting for session";
       emit();
+      scheduleRetry(getToken);
+      return;
     }
-  } catch {
-    // provisioning race or network blip: retry soon, backoff capped
-    if (retryTimer) clearTimeout(retryTimer);
-    retryTimer = setTimeout(() => {
-      retryTimer = null;
-      void load(getToken);
-    }, retryMs);
-    retryMs = Math.min(retryMs * 2, 30_000);
+    const res = await fetch("/api/wallet", { headers: { Authorization: `Bearer ${token}` } });
+    const data = (await res.json().catch(() => ({}))) as WalletView & { error?: string };
+    if (!res.ok || !data.address) {
+      throw new Error(data.error ?? `wallet api ${res.status}`);
+    }
+    cached = data;
+    lastError = null;
+    retryMs = 2_000;
+    emit();
+  } catch (err) {
+    lastError = (err as Error).message.slice(0, 120);
+    emit();
+    scheduleRetry(getToken);
   }
 }
 
@@ -60,6 +73,7 @@ function load(getToken: () => Promise<string | null>): Promise<void> {
 
 export function useWallet(): {
   wallet: WalletView | null;
+  error: string | null;
   refresh: () => void;
   send: (to: string, amountUsd: number) => Promise<{ signature?: string; error?: string }>;
 } {
@@ -104,5 +118,5 @@ export function useWallet(): {
     [getAccessToken, refresh],
   );
 
-  return { wallet: authenticated ? cached : null, refresh, send };
+  return { wallet: authenticated ? cached : null, error: lastError, refresh, send };
 }

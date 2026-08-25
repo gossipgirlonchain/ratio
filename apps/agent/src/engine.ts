@@ -176,10 +176,18 @@ export class RatioEngine {
     const pair = await this.resolvePair(mention);
 
     const reject = async (reason: RejectionReason) => {
-      await this.x.postReply({
-        inReplyTo: mention.mentionTweetId,
-        text: rejection(reason, this.config.botHandle),
-      });
+      console.log(`  rejected ${mention.mentionTweetId}: ${reason}`);
+      try {
+        await this.x.postReply({
+          inReplyTo: mention.mentionTweetId,
+          text: rejection(reason, this.config.botHandle),
+        });
+      } catch (err) {
+        // X dedups identical text account-wide; a rejection we already
+        // voiced once is delivered as far as we care. Anything else rethrows.
+        if (!(err as Error).message.includes("duplicate content")) throw err;
+        console.log(`  rejection reply deduped by X (already posted once)`);
+      }
     };
 
     if (typeof pair === "string") return reject(pair);

@@ -57,7 +57,7 @@ export async function placeRealBet(
   if (amountUsd < MIN_STAKE_USD) throw new Error(`minimum stake is $${MIN_STAKE_USD}`);
   if (amountUsd > MAX_STAKE_USD) throw new Error(`maximum stake is $${MAX_STAKE_USD}`);
 
-  const wallet = await getOrCreateWallet(viewer.xUserId);
+  const wallet = await getOrCreateWallet(viewer.xUserId, viewer.handle);
   const balance = await balanceUsd(wallet.address);
   if (amountUsd > balance - 0.05) {
     throw new Error(`not enough in your wallet ($${balance.toFixed(2)} available)`);

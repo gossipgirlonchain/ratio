@@ -16,7 +16,7 @@ export async function GET(req: NextRequest) {
     db.from("markets").select().order("created_at_ms", { ascending: false }).limit(200),
     db.from("bets").select("market_id, x_user_id, handle, amount_usd, is_seed, placed_at_ms"),
     db.from("access_codes").select("code, redeemed_at_ms"),
-    db.from("wallets").select("x_user_id, address, created_at_ms").order("created_at_ms", { ascending: false }),
+    db.from("wallets").select("x_user_id, address, created_at_ms, handle").order("created_at_ms", { ascending: false }),
   ]);
   for (const r of [markets, bets, codes, wallets]) {
     if (r.error) return NextResponse.json({ error: r.error.message }, { status: 500 });
@@ -44,14 +44,31 @@ export async function GET(req: NextRequest) {
     u.lastBetMs = Math.max(u.lastBetMs ?? 0, Number(b.placed_at_ms));
     byUser.set(b.x_user_id, u);
   }
+  // Agent-provisioned wallets carry no handle; the markets they belong to
+  // do. Build id -> handle from every market's author/tagger columns.
+  const idToHandle = new Map<string, string>();
+  for (const m of markets.data ?? []) {
+    idToHandle.set(m.author_a_x_id as string, m.author_a_handle as string);
+    idToHandle.set(m.author_b_x_id as string, m.author_b_handle as string);
+    idToHandle.set(m.tagger_x_id as string, m.tagger_handle as string);
+  }
+  if (process.env.RATIO_BOT_USER_ID) idToHandle.set(process.env.RATIO_BOT_USER_ID, "ratiowtf");
+
   const users = (wallets.data ?? [])
-    .filter((w) => !String(w.x_user_id).startsWith("ratio:"))
-    .map((w) => ({
-      xUserId: w.x_user_id as string,
-      address: w.address as string,
-      createdAtMs: Number(w.created_at_ms),
-      ...(byUser.get(w.x_user_id as string) ?? { handle: null, bets: 0, stakedUsd: 0, lastBetMs: null }),
-    }));
+    .filter((w) => {
+      const id = String(w.x_user_id);
+      return !id.startsWith("ratio:") && !id.startsWith("smoke:");
+    })
+    .map((w) => {
+      const footprint = byUser.get(w.x_user_id as string) ?? { handle: null, bets: 0, stakedUsd: 0, lastBetMs: null };
+      return {
+        xUserId: w.x_user_id as string,
+        address: w.address as string,
+        createdAtMs: Number(w.created_at_ms),
+        ...footprint,
+        handle: (w.handle as string | null) ?? footprint.handle ?? idToHandle.get(w.x_user_id as string) ?? null,
+      };
+    });
 
   return NextResponse.json({ stats: { ...stats, users: users.length }, markets: markets.data, users });
 }

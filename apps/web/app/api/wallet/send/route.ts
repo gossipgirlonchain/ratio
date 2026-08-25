@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const wallet = await getOrCreateWallet(viewer.xUserId);
+    const wallet = await getOrCreateWallet(viewer.xUserId, viewer.handle);
     const balance = await balanceUsd(wallet.address);
     // fee headroom: a send that drains to exactly zero fails on gas
     if (amount > balance - 0.01) {

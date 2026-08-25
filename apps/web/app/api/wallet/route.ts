@@ -13,7 +13,7 @@ export async function GET(req: NextRequest) {
   const viewer = await verifyViewer(req.headers.get("authorization"));
   if (!viewer) return NextResponse.json({ error: "not logged in" }, { status: 401 });
   try {
-    const wallet = await getOrCreateWallet(viewer.xUserId);
+    const wallet = await getOrCreateWallet(viewer.xUserId, viewer.handle);
     const [usd, rent] = await Promise.all([
       balanceUsd(wallet.address).catch(() => 0),
       rentUsd(wallet.address).catch(() => 0),

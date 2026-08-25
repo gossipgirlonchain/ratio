@@ -98,11 +98,18 @@ async function privyRest<T>(path: string, body: unknown, idempotencyKey?: string
   return (await res.json()) as T;
 }
 
-export async function getOrCreateWallet(xUserId: string): Promise<WalletRow> {
+export async function getOrCreateWallet(xUserId: string, handle?: string): Promise<WalletRow> {
   const db = supabaseAdmin();
   const sel = await db.from("wallets").select().eq("x_user_id", xUserId).maybeSingle();
   if (sel.error) throw new Error(`wallets lookup: ${sel.error.message}`);
-  if (sel.data) return sel.data as WalletRow;
+  if (sel.data) {
+    const row = sel.data as WalletRow & { handle?: string | null };
+    // handles are display cache: keep it current on every login
+    if (handle && row.handle !== handle) {
+      void db.from("wallets").update({ handle }).eq("x_user_id", xUserId).then(() => {});
+    }
+    return row;
+  }
 
   // Privy create is idempotent on this key (same key as the agent: one
   // wallet per person, ever), and the write is an UPSERT on the primary
@@ -116,7 +123,7 @@ export async function getOrCreateWallet(xUserId: string): Promise<WalletRow> {
   const up = await db
     .from("wallets")
     .upsert(
-      { x_user_id: xUserId, privy_wallet_id: created.id, address: created.address, created_at_ms: Date.now() },
+      { x_user_id: xUserId, privy_wallet_id: created.id, address: created.address, created_at_ms: Date.now(), handle: handle ?? null },
       { onConflict: "x_user_id", ignoreDuplicates: false },
     )
     .select()

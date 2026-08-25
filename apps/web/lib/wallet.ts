@@ -1,9 +1,15 @@
 "use client";
 
 /**
- * Client wallet state: fetches the viewer's real Privy wallet (address +
- * balance) with their Privy access token. Null while logged out or for
- * the dev demo viewer (demo identities have no wallets, by design).
+ * Client wallet state: the viewer's real Privy wallet (address +
+ * balance), fetched with their Privy access token. Null while logged
+ * out or for the dev demo viewer (demo identities have no wallets).
+ *
+ * SINGLE-FLIGHT, SHARED: every component reads one module-level store —
+ * N mounted consumers never means N requests, and first-time
+ * provisioning (a slow create on the server) cannot race itself.
+ * Failures retry on a short backoff instead of waiting for the next
+ * scheduled poll.
  */
 import { usePrivy } from "@privy-io/react-auth";
 import { useCallback, useEffect, useState } from "react";
@@ -13,38 +19,74 @@ export interface WalletView {
   balanceUsd: number;
 }
 
+let cached: WalletView | null = null;
+let inflight: Promise<void> | null = null;
+let retryTimer: ReturnType<typeof setTimeout> | null = null;
+let retryMs = 2_000;
+const subs = new Set<() => void>();
+const emit = () => subs.forEach((fn) => fn());
+
+async function fetchWallet(getToken: () => Promise<string | null>): Promise<void> {
+  try {
+    const token = await getToken();
+    if (!token) return;
+    const res = await fetch("/api/wallet", { headers: { Authorization: `Bearer ${token}` } });
+    if (!res.ok) throw new Error(String(res.status));
+    const data = (await res.json()) as WalletView;
+    if (data.address) {
+      cached = data;
+      retryMs = 2_000;
+      emit();
+    }
+  } catch {
+    // provisioning race or network blip: retry soon, backoff capped
+    if (retryTimer) clearTimeout(retryTimer);
+    retryTimer = setTimeout(() => {
+      retryTimer = null;
+      void load(getToken);
+    }, retryMs);
+    retryMs = Math.min(retryMs * 2, 30_000);
+  }
+}
+
+function load(getToken: () => Promise<string | null>): Promise<void> {
+  if (!inflight) {
+    inflight = fetchWallet(getToken).finally(() => {
+      inflight = null;
+    });
+  }
+  return inflight;
+}
+
 export function useWallet(): {
   wallet: WalletView | null;
   refresh: () => void;
   send: (to: string, amountUsd: number) => Promise<{ signature?: string; error?: string }>;
 } {
   const { authenticated, getAccessToken } = usePrivy();
-  const [wallet, setWallet] = useState<WalletView | null>(null);
-
-  const refresh = useCallback(() => {
-    if (!authenticated) {
-      setWallet(null);
-      return;
-    }
-    void (async () => {
-      try {
-        const token = await getAccessToken();
-        if (!token) return;
-        const res = await fetch("/api/wallet", { headers: { Authorization: `Bearer ${token}` } });
-        if (!res.ok) return;
-        const data = (await res.json()) as WalletView;
-        if (data.address) setWallet(data);
-      } catch {
-        // keep last known wallet on network hiccups
-      }
-    })();
-  }, [authenticated, getAccessToken]);
+  const [, bump] = useState(0);
 
   useEffect(() => {
-    refresh();
-    const t = setInterval(refresh, 60_000);
+    const sub = () => bump((n) => n + 1);
+    subs.add(sub);
+    return () => {
+      subs.delete(sub);
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!authenticated) {
+      cached = null;
+      return;
+    }
+    void load(getAccessToken);
+    const t = setInterval(() => void load(getAccessToken), 60_000);
     return () => clearInterval(t);
-  }, [refresh]);
+  }, [authenticated, getAccessToken]);
+
+  const refresh = useCallback(() => {
+    if (authenticated) void load(getAccessToken);
+  }, [authenticated, getAccessToken]);
 
   const send = useCallback(
     async (to: string, amountUsd: number) => {
@@ -62,5 +104,5 @@ export function useWallet(): {
     [getAccessToken, refresh],
   );
 
-  return { wallet, refresh, send };
+  return { wallet: authenticated ? cached : null, refresh, send };
 }

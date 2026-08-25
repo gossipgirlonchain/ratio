@@ -51,6 +51,7 @@ const engine = new RatioEngine(x, store, wallets, chain, {
   dopplerWallet: "wallet:doppler",
   feeShareBps: FEE_SHARE_BPS,
   marketUrl,
+  walletBalanceUsd: async () => Number.POSITIVE_INFINITY, // mock world: everyone is solvent
   now: clock,
 });
 

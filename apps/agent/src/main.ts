@@ -214,6 +214,10 @@ async function main() {
       (await wallets.getWallet("ratio:doppler-fee")).address,
     feeShareBps: FEE_SHARE_BPS,
     marketUrl,
+    walletBalanceUsd: async (addr: string) => {
+      const { value } = await clients.rpc.getBalance(addr as never).send();
+      return Number(value) / Number(LAMPORTS_PER_USD);
+    },
     now: () => Date.now(),
   });
 

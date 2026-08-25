@@ -129,6 +129,9 @@ export function Sidebar() {
             <Link className="sidebar-cta" href="/extension">
               get the extension
             </Link>
+            <a className="side-item" href="https://x.com/ratiowtf" target="_blank" rel="noreferrer">
+              @ratiowtf on x
+            </a>
             <button className="side-item" onClick={flipTheme}>
               {theme === "dark" ? "light mode" : "dark mode"}
             </button>

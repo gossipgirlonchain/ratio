@@ -66,6 +66,10 @@ export const marketCard = (opts: {
   `likes only. closes in ${humanDuration(opts.closesInMs)}.\n` +
   `reply "$X @${opts.quotedHandle}" to bet.`;
 
+/** Broke bettor: one reply, points at their deposit surface. */
+export const insufficientFunds = (handle: string): string =>
+  `@${handle} not enough in your ratio wallet for that. add funds at ratio.wtf/${handle} and try again.`;
+
 export const betConfirm = (opts: {
   handle: string;
   amountUsd: number;

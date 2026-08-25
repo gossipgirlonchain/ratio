@@ -11,6 +11,8 @@ import { useRouter } from "next/navigation";
 
 import { MarketStrip } from "@ratio/ui";
 
+import { Welcome } from "../components/Welcome";
+
 import { useAuth } from "../lib/auth";
 import { feedMarkets, useLive } from "../lib/live";
 import { placeBet, usePendingBets } from "../lib/trade";
@@ -31,6 +33,7 @@ export default function Page() {
   const leaders = live.leaderboard.slice(0, 5);
   return (
     <>
+      <Welcome />
       <div className="home-grid">
         <main className="timeline timeline-flush">
           {!live.loading && markets.length === 0 && (

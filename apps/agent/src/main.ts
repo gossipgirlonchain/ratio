@@ -105,7 +105,11 @@ async function main() {
     process.exit(1);
   }
 
-  const me = await whoAmI();
+  // Identity from env when provided — a boot must not spend API reads
+  // on things we already know. /users/me runs only as a fallback.
+  const me = process.env.RATIO_BOT_USER_ID
+    ? { id: process.env.RATIO_BOT_USER_ID, username: process.env.RATIO_BOT_HANDLE ?? "ratiowtf" }
+    : await whoAmI();
   console.log(`ratio agent up as @${me.username} (x id ${me.id})`);
   if (process.env.RATIO_BOT_HANDLE && me.username.toLowerCase() !== process.env.RATIO_BOT_HANDLE.toLowerCase()) {
     console.error(
@@ -125,20 +129,15 @@ async function main() {
   // Read-only mention probe on a THROWAWAY client: the probe must never
   // advance the cursor of the client the engine trades with, or it
   // silently steals pre-boot mentions from the catch-up poll.
-  const creds = {
+  // NO probe read: boots must not bill. The armed catch-up poll is the
+  // one and only boot-time read; disarmed mode reads nothing at all.
+  const x = new XApiClient({
     apiKey: process.env.X_API_KEY!,
     apiSecret: process.env.X_API_SECRET!,
     accessToken: process.env.X_ACCESS_TOKEN!,
     accessSecret: process.env.X_ACCESS_SECRET!,
     botUserId: me.id,
-  };
-  try {
-    const mentions = await new XApiClient(creds).fetchMentions();
-    console.log(`xclient ok: ${mentions.length} mention(s) visible (read-only, not acting)`);
-  } catch (err) {
-    console.log(`xclient read failed (non-fatal): ${(err as Error).message.slice(0, 160)}`);
-  }
-  const x = new XApiClient(creds);
+  });
 
   // ------------------------------------------------------------------
   // THE LATCH. RATIO_ARMED=1 is the ONLY thing that lets this process
@@ -199,7 +198,13 @@ async function main() {
     hiddenReportThreshold: HIDDEN_REPORT_THRESHOLD,
     // operator doubles as treasury on devnet: seeds sign + fund from it
     protocolWallet: operator.address,
-    dopplerWallet: process.env.DOPPLER_FEE_WALLET ?? operator.address,
+    // distinct from the protocol wallet — the initializer rejects
+    // duplicate beneficiaries, and defaulting both to the operator was
+    // exactly that. A dedicated Privy wallet fills the slot when no
+    // explicit address is configured.
+    dopplerWallet:
+      process.env.DOPPLER_FEE_WALLET ??
+      (await wallets.getWallet("ratio:doppler-fee")).address,
     feeShareBps: FEE_SHARE_BPS,
     marketUrl,
     now: () => Date.now(),

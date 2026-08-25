@@ -212,13 +212,23 @@ export class RatioEngine {
       this.wallets.getWallet(sideB.authorId),
     ]);
     const share = this.config.feeShareBps;
-    const feeBeneficiaries: FeeBeneficiary[] = [
-      { wallet: this.config.dopplerWallet, shareBps: share.doppler },
-      { wallet: tagger.address, shareBps: share.tagger },
-      { wallet: walletA.address, shareBps: share.sideA },
-      { wallet: walletB.address, shareBps: share.sideB },
-      { wallet: this.config.protocolWallet, shareBps: share.protocol },
-    ];
+    // The initializer rejects DUPLICATE beneficiary wallets
+    // (InvalidFeeBeneficiary). Duplicates are legitimate here — tagger =
+    // side B's author stacks slices by design — so merge shares per
+    // wallet instead of listing a wallet twice.
+    const merged = new Map<string, number>();
+    for (const [wallet, bps] of [
+      [this.config.dopplerWallet, share.doppler],
+      [tagger.address, share.tagger],
+      [walletA.address, share.sideA],
+      [walletB.address, share.sideB],
+      [this.config.protocolWallet, share.protocol],
+    ] as Array<[string, number]>) {
+      merged.set(wallet, (merged.get(wallet) ?? 0) + bps);
+    }
+    const feeBeneficiaries: FeeBeneficiary[] = [...merged.entries()].map(
+      ([wallet, shareBps]) => ({ wallet, shareBps }),
+    );
 
     console.log(
       `  launching @${sideA.authorHandle} vs @${sideB.authorHandle} (nonce ${sideB.tweetId})…`,

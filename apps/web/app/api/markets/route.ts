@@ -96,8 +96,8 @@ export async function GET() {
       netStakedUsd: potA + potB,
       data: {
         marketId: m.id,
-        a: { handle: m.author_a_handle, avatarUrl: av(m.author_a_handle), text: m.text_a ?? "", likes: likesA, potUsd: potA },
-        b: { handle: m.author_b_handle, avatarUrl: av(m.author_b_handle), text: m.text_b ?? "", likes: likesB, potUsd: potB },
+        a: { handle: m.author_a_handle, avatarUrl: av(m.author_a_handle), text: m.text_a ?? "", likes: likesA, potUsd: potA, tweetUrl: `https://x.com/${m.author_a_handle}/status/${m.tweet_a_id}` },
+        b: { handle: m.author_b_handle, avatarUrl: av(m.author_b_handle), text: m.text_b ?? "", likes: likesB, potUsd: potB, tweetUrl: `https://x.com/${m.author_b_handle}/status/${m.tweet_b_id}` },
         settlesAtMs: Number(m.settles_at_ms),
         status,
         winner: m.winner ?? undefined,

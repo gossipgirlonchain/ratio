@@ -184,4 +184,15 @@ export class XApiClient implements XClient {
     if (!r.data?.id) throw new Error("x api post: no id in response");
     return { tweetId: r.data.id };
   }
+
+  async postQuote(opts: { quoteTweetId: string; text: string; link?: string }): Promise<{ tweetId: string }> {
+    // the url is line 4 of the card, never inline
+    const text = opts.link ? `${opts.text}\n${opts.link}` : opts.text;
+    const r = await this.request<{ id: string }>("POST", "/tweets", {}, {
+      text,
+      quote_tweet_id: opts.quoteTweetId,
+    });
+    if (!r.data?.id) throw new Error("x api post: no id in response");
+    return { tweetId: r.data.id };
+  }
 }

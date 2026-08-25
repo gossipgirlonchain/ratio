@@ -168,4 +168,8 @@ export class StreamedXClient implements XClient {
   postReply(opts: { inReplyTo: string; text: string; link?: string }): Promise<{ tweetId: string }> {
     return this.api.postReply(opts);
   }
+
+  postQuote(opts: { quoteTweetId: string; text: string; link?: string }): Promise<{ tweetId: string }> {
+    return this.api.postQuote(opts);
+  }
 }

@@ -25,12 +25,12 @@ const x = new XApiClient({
   botUserId: process.env.RATIO_BOT_USER_ID!,
 });
 
-const card = await x.postReply({
-  inReplyTo: mentionTweetId,
+const card = await x.postQuote({
+  quoteTweetId: m.tweet_a_id,
   text: marketCard({
-    settlesAtMs: Number(m.settles_at_ms),
-    sideAHandle: m.author_a_handle,
-    sideBHandle: m.author_b_handle,
+    quotedHandle: m.author_a_handle,
+    opponentHandle: m.author_b_handle,
+    closesInMs: Number(m.settles_at_ms) - Date.now(),
   }),
   link: marketUrl(marketId),
 });

@@ -48,6 +48,12 @@ export interface XClient {
     text: string;
     link?: string;
   }): Promise<{ tweetId: string }>;
+  /** Quote tweet — the market card's shape. `link` lands on its own line. */
+  postQuote(opts: {
+    quoteTweetId: string;
+    text: string;
+    link?: string;
+  }): Promise<{ tweetId: string }>;
 }
 
 // ---------------------------------------------------------------------------
@@ -130,6 +136,18 @@ export class MockXClient implements XClient {
     const cost = opts.link ? "$0.20" : "$0.015";
     console.log(
       `    [X:reply ${cost}] ↳${opts.inReplyTo}: ${opts.text}${opts.link ? ` ${opts.link}` : ""}`,
+    );
+    return { tweetId: nextId() };
+  }
+
+  async postQuote(opts: {
+    quoteTweetId: string;
+    text: string;
+    link?: string;
+  }): Promise<{ tweetId: string }> {
+    this.posted.push({ inReplyTo: `quote:${opts.quoteTweetId}`, text: opts.text, link: opts.link });
+    console.log(
+      `    [X:quote $0.20] ↰${opts.quoteTweetId}: ${opts.text.replaceAll("\n", " / ")}${opts.link ? ` ${opts.link}` : ""}`,
     );
     return { tweetId: nextId() };
   }

@@ -214,3 +214,10 @@
 .rs-sign-on {
   background: var(--rs-fg); color: var(--rs-bg); border-color: var(--rs-fg); cursor: pointer;
 }
+
+/* outbound link to the real post: quiet until hovered */
+.rs-row-x {
+  margin-left: 6px; text-decoration: none; font-weight: 800; font-size: 13px;
+  color: var(--ink-muted, #888); line-height: 1;
+}
+.rs-row-x:hover { color: var(--accent-text, #CEF17B); }

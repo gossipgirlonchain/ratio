@@ -16,6 +16,8 @@ export interface StripSide {
   text: string;
   likes: number;
   potUsd: number;
+  /** Link to the actual post on X; renders a small outbound arrow. */
+  tweetUrl?: string;
 }
 
 export interface MarketStripData {

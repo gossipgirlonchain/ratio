@@ -169,6 +169,18 @@ export default function MarketPage() {
                 <span className={leading ? "match-likes match-likes-lead" : "match-likes"}>
                   ♥ {fmtLikes(side.likes)}
                 </span>
+                {side.tweetUrl && (
+                  <a
+                    className="rs-row-x"
+                    href={side.tweetUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`open @${side.handle}'s post on X`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    ↗
+                  </a>
+                )}
               </div>
             );
           })}

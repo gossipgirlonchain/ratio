@@ -308,30 +308,47 @@ export class RatioEngine {
       });
     }
 
-    // The ONE linked post per market — the market card, in side B's thread.
-    // Big accounts often restrict who can reply; when side B's thread is
-    // closed to us, the card lands under the tagger's mention instead
-    // (always postable: the bot is mentioned there).
-    const cardText = marketCard({
-      settlesAtMs: record.settlesAtMs,
-      sideAHandle: sideA.authorHandle,
-      sideBHandle: sideB.authorHandle,
-    });
+    // The ONE linked post per market — the market card, a QUOTE TWEET of
+    // side A (card spec 2026-08-25: the quoted tweet is its own context,
+    // the copy never describes it). The example handle on line 3 is
+    // always the quoted author, so a copy-paste reply is a valid bet on
+    // the tweet the reader sees. Restricted accounts can block quoting
+    // too: fall back to quoting side B, then to a reply on the mention.
+    const link = this.config.marketUrl(record.id);
+    const closesInMs = record.settlesAtMs - now;
+    const cardFor = (quoted: XTweet, opponent: XTweet) =>
+      marketCard({
+        quotedHandle: quoted.authorHandle,
+        opponentHandle: opponent.authorHandle,
+        closesInMs,
+      });
+    const restricted = (err: unknown) =>
+      (err as Error).message.includes("not-authorized-for-resource");
     let card: { tweetId: string };
     try {
-      card = await this.x.postReply({
-        inReplyTo: sideB.tweetId,
-        text: cardText,
-        link: this.config.marketUrl(record.id),
+      card = await this.x.postQuote({
+        quoteTweetId: sideA.tweetId,
+        text: cardFor(sideA, sideB),
+        link,
       });
-    } catch (err) {
-      if (!(err as Error).message.includes("not-authorized-for-resource")) throw err;
-      console.log(`  side B thread reply-restricted; card goes under the mention`);
-      card = await this.x.postReply({
-        inReplyTo: mention.mentionTweetId,
-        text: cardText,
-        link: this.config.marketUrl(record.id),
-      });
+    } catch (errA) {
+      if (!restricted(errA)) throw errA;
+      console.log(`  side A quote-restricted; card quotes side B`);
+      try {
+        card = await this.x.postQuote({
+          quoteTweetId: sideB.tweetId,
+          text: cardFor(sideB, sideA),
+          link,
+        });
+      } catch (errB) {
+        if (!restricted(errB)) throw errB;
+        console.log(`  both sides quote-restricted; card replies to the mention`);
+        card = await this.x.postReply({
+          inReplyTo: mention.mentionTweetId,
+          text: cardFor(sideA, sideB),
+          link,
+        });
+      }
     }
     await this.store.updateMarket(record.id, { cardTweetId: card.tweetId });
   }

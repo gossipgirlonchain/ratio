@@ -40,17 +40,31 @@ export const rejection = (reason: RejectionReason, botHandle: string): string =>
 export const duplicatePointer = (): string =>
   `someone beat you to this one. the market is already live, bet on it here:`;
 
+/** Relative durations for card copy: "3 days" / "24h" / "40m". */
+export const humanDuration = (ms: number): string => {
+  const h = Math.round(ms / 3_600_000);
+  if (h >= 48) return `${Math.round(h / 24)} days`;
+  if (h >= 1) return `${h}h`;
+  return `${Math.max(1, Math.round(ms / 60_000))}m`;
+};
+
 /**
- * §4 applies to bot copy too: no side letters, no status vocabulary.
- * Users see two people and two numbers, in replies as much as in strips.
+ * The market card (card spec, winny 2026-08-25): a QUOTE TWEET of one of
+ * the two tweets, exactly four lines, the fourth being the market url
+ * (appended by postQuote's link param). The quoted tweet needs no
+ * description — it sits right above this copy. quotedHandle is always
+ * the example handle on line 3, so a copy-paste reply is a valid bet on
+ * the tweet the reader is looking at. "$X" is literal. Relative duration
+ * only. No labels, no slogans, no predictions, lowercase throughout.
  */
 export const marketCard = (opts: {
-  settlesAtMs: number;
-  sideAHandle: string;
-  sideBHandle: string;
+  quotedHandle: string;
+  opponentHandle: string;
+  closesInMs: number;
 }): string =>
-  `market open: @${opts.sideBHandle} vs @${opts.sideAHandle}. most likes when the clock runs out wins, the likes are the referee. ` +
-  `stake with a reply: "$25 @${opts.sideAHandle}" or "$10 @${opts.sideBHandle}". settles ${fmtUtc(opts.settlesAtMs)} UTC. live odds:`;
+  `@${opts.quotedHandle} vs @${opts.opponentHandle}\n` +
+  `likes only. closes in ${humanDuration(opts.closesInMs)}.\n` +
+  `reply "$X @${opts.quotedHandle}" to bet.`;
 
 export const betConfirm = (opts: {
   handle: string;

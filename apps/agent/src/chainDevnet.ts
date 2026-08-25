@@ -16,6 +16,7 @@ import { address, type TransactionSigner } from "@solana/kit";
 import {
   RatioMarketClient,
   readOdds,
+  recoverRefs,
   WSOL_MINT,
   type PairMarketRefs,
 } from "@ratio/doppler/pair-market";
@@ -35,6 +36,10 @@ export class DopplerMarketChain implements MarketChain {
       lamportsPerUsd: bigint;
       /** Bettor addresses resolve to signers here (Privy in production). */
       signerFor: (walletAddress: string) => TransactionSigner;
+      /** Refs recovery inputs for markets launched by a previous process:
+       * the oracle PDA derives from the operator, outcomes from labels. */
+      operatorAddress: string;
+      labelsFor: (marketId: string) => Promise<[string, string]>;
     },
   ) {}
 
@@ -60,9 +65,20 @@ export class DopplerMarketChain implements MarketChain {
     return { marketId: params.nonce };
   }
 
-  private refs(chainRefs: ChainRefs): PairMarketRefs {
-    const refs = this.refsById.get(chainRefs.marketId);
-    if (!refs) throw new Error(`no chain refs for market ${chainRefs.marketId}`);
+  /** In-process refs, or RECOVERED from chain: containers restart, markets
+   * outlive them. Recovery needs only the nonce, operator, and labels. */
+  private async refs(chainRefs: ChainRefs): Promise<PairMarketRefs> {
+    const hit = this.refsById.get(chainRefs.marketId);
+    if (hit) return hit;
+    const labels = await this.opts.labelsFor(chainRefs.marketId);
+    const refs = await recoverRefs({
+      clients: this.clients,
+      operatorAddress: address(this.opts.operatorAddress),
+      nonce: BigInt(chainRefs.marketId),
+      labels,
+    });
+    this.refsById.set(chainRefs.marketId, refs);
+    console.log(`  chain refs recovered for market ${chainRefs.marketId}`);
     return refs;
   }
 
@@ -73,7 +89,7 @@ export class DopplerMarketChain implements MarketChain {
     bettor: string;
   }): Promise<{ tokensOut: number }> {
     const result = await this.client.placeBet({
-      refs: this.refs(params.refs),
+      refs: await this.refs(params.refs),
       side: params.side,
       amountIn:
         BigInt(Math.round(params.amountUsd)) * this.opts.lamportsPerUsd,
@@ -98,7 +114,7 @@ export class DopplerMarketChain implements MarketChain {
   }
 
   async getOdds(chainRefs: ChainRefs): Promise<Odds> {
-    const view = await readOdds(this.clients, this.refs(chainRefs));
+    const view = await readOdds(this.clients, await this.refs(chainRefs));
     const toUsd = (raised: bigint) =>
       Number(raised) / Number(this.opts.lamportsPerUsd);
     return {
@@ -109,7 +125,7 @@ export class DopplerMarketChain implements MarketChain {
 
   async settle(params: { refs: ChainRefs; winner: 0 | 1 }): Promise<void> {
     await this.client.resolveAndMigrate({
-      refs: this.refs(params.refs),
+      refs: await this.refs(params.refs),
       winner: params.winner,
     });
   }

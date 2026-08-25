@@ -63,6 +63,11 @@ async function main() {
     lamportsPerUsd: LAMPORTS_PER_USD,
     signerFor: (addr) =>
       addr === operator.address ? operator : wallets.signerFor(addr),
+    operatorAddress: operator.address,
+    // sim never restarts mid-run: recovery is unreachable here
+    labelsFor: async (marketId) => {
+      throw new Error(`sim labelsFor unexpectedly called for ${marketId}`);
+    },
   });
   const x = new MockXClient(clock);
   const store = new InMemoryStore();

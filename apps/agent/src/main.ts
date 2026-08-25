@@ -179,6 +179,12 @@ async function main() {
     swapFeeBps: SWAP_FEE_BPS,
     lamportsPerUsd: 500_000n, // $1 = 0.0005 SOL on the WSOL devnet quote
     signerFor: (addr) => (addr === operator.address ? operator : wallets.signerFor(addr)),
+    operatorAddress: operator.address,
+    labelsFor: async (marketId) => {
+      const record = await store.getMarketByTweet(marketId);
+      if (!record) throw new Error(`labelsFor: no market ${marketId} on record`);
+      return [`A @${record.authorAHandle}`, `B @${record.authorBHandle}`];
+    },
   });
   // Push, not poll: mentions arrive over the filtered stream; the only
   // billed reads are one catch-up at boot and one per reconnect.

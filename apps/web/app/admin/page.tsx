@@ -26,12 +26,24 @@ interface MarketRow {
   likes_a_at_create: number;
   likes_b_at_create: number;
 }
+interface UserRow {
+  xUserId: string;
+  address: string;
+  createdAtMs: number;
+  handle: string | null;
+  bets: number;
+  stakedUsd: number;
+  lastBetMs: number | null;
+}
+
 interface Overview {
   stats: {
     markets: number; open: number; settled: number; grossStakedUsd: number;
     bettors: number; bets: number; codesTotal: number; codesRedeemed: number;
+    users: number;
   };
   markets: MarketRow[];
+  users: UserRow[];
 }
 
 const fmtTime = (ms: number) => new Date(ms).toLocaleString();
@@ -45,6 +57,7 @@ export default function AdminPage() {
   const [count, setCount] = useState("5");
   const [uses, setUses] = useState("1");
   const [error, setError] = useState("");
+  const [showUsers, setShowUsers] = useState(false);
 
   const call = async (path: string, init?: RequestInit) => {
     const res = await fetch(path, {
@@ -125,15 +138,49 @@ export default function AdminPage() {
             ["open", s.open],
             ["decided", s.settled],
             ["staked", `$${s.grossStakedUsd.toLocaleString("en-US")}`],
+            ["users", s.users],
             ["bettors", s.bettors],
             ["bets", s.bets],
             ["codes", `${s.codesRedeemed}/${s.codesTotal} used`],
-          ] as Array<[string, string | number]>).map(([label, value]) => (
-            <div className="admin-stat card" key={label}>
-              <span className="admin-stat-num">{value}</span>
-              <span className="admin-stat-label">{label}</span>
-            </div>
-          ))}
+          ] as Array<[string, string | number]>).map(([label, value]) =>
+            label === "users" ? (
+              <button
+                className={showUsers ? "admin-stat card admin-stat-tap admin-stat-on" : "admin-stat card admin-stat-tap"}
+                key={label}
+                onClick={() => setShowUsers(!showUsers)}
+                title="show user list"
+              >
+                <span className="admin-stat-num">{value}</span>
+                <span className="admin-stat-label">{label}</span>
+              </button>
+            ) : (
+              <div className="admin-stat card" key={label}>
+                <span className="admin-stat-num">{value}</span>
+                <span className="admin-stat-label">{label}</span>
+              </div>
+            ),
+          )}
+        </div>
+      )}
+
+      {showUsers && overview && (
+        <div className="card admin-table-card admin-users">
+          <table className="table">
+            <tbody>
+              {overview.users.map((u) => (
+                <tr key={u.xUserId}>
+                  <td className="admin-code">{u.handle ? `@${u.handle}` : u.xUserId}</td>
+                  <td className="muted-ink">{u.address.slice(0, 4)}…{u.address.slice(-4)}</td>
+                  <td className="muted-ink">{u.bets} bets · ${u.stakedUsd.toLocaleString("en-US")}</td>
+                  <td className="muted-ink">joined {fmtTime(u.createdAtMs)}</td>
+                  <td className="muted-ink">{u.lastBetMs ? `last bet ${fmtTime(u.lastBetMs)}` : "no bets"}</td>
+                </tr>
+              ))}
+              {overview.users.length === 0 && (
+                <tr><td className="muted-ink">nobody yet</td></tr>
+              )}
+            </tbody>
+          </table>
         </div>
       )}
 

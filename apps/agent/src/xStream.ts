@@ -57,6 +57,10 @@ export class StreamedXClient implements XClient {
   private queue: XMention[] = [];
   /** True until the next fetchMentions: do one billed catch-up poll. */
   private needCatchUp = true;
+  /** Catch-up cost guard: a flapping stream must not turn reconnect
+   * catch-ups into a polling loop. One billed poll per window, max. */
+  private lastCatchUpMs = 0;
+  private static readonly CATCH_UP_MIN_INTERVAL_MS = 5 * 60 * 1000;
   private stopped = false;
 
   constructor(
@@ -73,7 +77,7 @@ export class StreamedXClient implements XClient {
   }
 
   private async runStream(): Promise<void> {
-    let backoffMs = 5_000;
+    let backoffMs = 30_000;
     while (!this.stopped) {
       try {
         const url =
@@ -105,7 +109,7 @@ export class StreamedXClient implements XClient {
         console.error(`mention stream dropped: ${(err as Error).message.slice(0, 150)} — reconnecting in ${backoffMs / 1000}s`);
         this.needCatchUp = true; // cover the gap with one billed poll
         await new Promise((r) => setTimeout(r, backoffMs));
-        backoffMs = Math.min(backoffMs * 2, 320_000);
+        backoffMs = Math.min(backoffMs * 2, 600_000);
       }
     }
   }
@@ -137,8 +141,9 @@ export class StreamedXClient implements XClient {
   async fetchMentions(): Promise<XMention[]> {
     const out = this.queue;
     this.queue = [];
-    if (this.needCatchUp) {
+    if (this.needCatchUp && Date.now() - this.lastCatchUpMs >= StreamedXClient.CATCH_UP_MIN_INTERVAL_MS) {
       this.needCatchUp = false;
+      this.lastCatchUpMs = Date.now();
       try {
         const polled = await this.api.fetchMentions();
         const seen = new Set(out.map((m) => m.mentionTweetId));

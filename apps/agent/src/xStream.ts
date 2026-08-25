@@ -87,7 +87,8 @@ export class StreamedXClient implements XClient {
           throw new Error(`stream connect -> ${res.status}: ${(await res.text()).slice(0, 200)}`);
         }
         console.log("mention stream connected");
-        backoffMs = 5_000;
+        // reset only to 30s: connect-then-die flaps must stay damped
+        backoffMs = 30_000;
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = "";

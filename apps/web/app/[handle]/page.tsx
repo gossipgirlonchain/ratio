@@ -216,19 +216,25 @@ export default function ProfilePage() {
       ) : (
         <div className="profile-strips">
           {shown.map((m) => {
-            const pos = openPositionsFor(world, handle).find(
+            const marketPositions = openPositionsFor(world, handle).filter(
               (x) => x.marketId === m.data.marketId,
             );
-            const gap = pos ? likeGapSince(world, pos) : 0;
             return (
               <div key={m.data.marketId}>
                 <MarketStrip data={m.data} marketHref={`/m/${m.data.marketId}`} onOpen={() => router.push(`/m/${m.data.marketId}`)} />
-                {pos && (
-                  <Link className="strip-position" href={`/m/${pos.marketId}`}>
-                    <span>{fmtUsd0(pos.netStakedUsd)} on @{pos.sideHandle}</span>
-                    <span className={gap >= 0 ? "strip-position-gap" : "strip-position-gap strip-position-down"}>
-                      {gap >= 0 ? "▲" : "▼"} {Math.abs(gap).toLocaleString("en-US")} since entry
-                    </span>
+                {marketPositions.length > 0 && (
+                  <Link className="strip-position" href={`/m/${m.data.marketId}`}>
+                    {marketPositions.map((pos) => {
+                      const gap = likeGapSince(world, pos);
+                      return (
+                        <span className="strip-position-seg" key={pos.side}>
+                          {fmtUsd0(pos.netStakedUsd)} on @{pos.sideHandle}
+                          <span className={gap >= 0 ? "strip-position-gap" : "strip-position-gap strip-position-down"}>
+                            {" "}{gap >= 0 ? "▲" : "▼"} {Math.abs(gap).toLocaleString("en-US")}
+                          </span>
+                        </span>
+                      );
+                    })}
                   </Link>
                 )}
               </div>

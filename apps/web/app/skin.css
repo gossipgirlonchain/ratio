@@ -628,6 +628,11 @@ a { text-decoration: none; color: inherit; }
   font-size: 10.5px; font-weight: 800; text-transform: uppercase;
   letter-spacing: 0.06em; color: var(--gunmetal);
 }
+.side-market {
+  display: flex; flex-direction: column; gap: 3px; text-decoration: none;
+  padding: 6px 8px; margin: 0 -8px; border-radius: 8px;
+}
+.side-market:hover { background: color-mix(in srgb, var(--lime) 14%, transparent); }
 .side-pos {
   display: flex; justify-content: space-between; align-items: baseline;
   gap: 8px; font-size: 12.5px; text-decoration: none; color: var(--ink);
@@ -1031,11 +1036,12 @@ a { text-decoration: none; color: inherit; }
 
 /* the viewer's stake, pinned under the strip it lives in */
 .strip-position {
-  display: flex; justify-content: space-between; align-items: center;
-  margin: -6px 0 14px; padding: 6px 14px;
-  border: 2px solid var(--edge); border-top: none; border-radius: 0 0 12px 12px;
+  display: flex; justify-content: flex-start; align-items: center; gap: 18px;
+  margin: 2px 0 16px; padding: 7px 14px;
+  border: 2px solid var(--edge); border-radius: 10px;
   font-size: 12px; font-weight: 700; color: var(--ink); text-decoration: none;
 }
+.strip-position-seg { white-space: nowrap; }
 .strip-position:hover { border-color: var(--lime); }
 .strip-position-gap { font-variant-numeric: tabular-nums; }
 .strip-position-down { color: var(--gunmetal); }

@@ -38,23 +38,32 @@ function SidePositions({ viewer }: { viewer: string | null }) {
   const positions = openPositionsFor(world, viewer);
   const confirming = pending.filter((b) => b.state === "confirming").length;
   if (positions.length === 0 && confirming === 0) return null;
+  // one block per MARKET: betting both sides is one battle, not two rows
+  const byMarket = new Map<string, typeof positions>();
+  for (const p of positions) {
+    byMarket.set(p.marketId, [...(byMarket.get(p.marketId) ?? []), p]);
+  }
   return (
     <div className="side-positions">
       <div className="side-positions-head">
-        positions ({positions.length}{confirming > 0 ? ` +${confirming}` : ""})
+        positions ({byMarket.size}{confirming > 0 ? ` +${confirming}` : ""})
       </div>
-      {positions.map((p) => {
-        const gap = likeGapSince(world, p);
-        return (
-          <Link className="side-pos" href={`/m/${p.marketId}`} key={`${p.marketId}${p.side}`}>
-            <span className="side-pos-handle">@{p.sideHandle}</span>
-            <span className="side-pos-stake">${p.netStakedUsd.toLocaleString("en-US")}</span>
-            <span className={gap >= 0 ? "side-pos-gap" : "side-pos-gap side-pos-gap-down"}>
-              {gap >= 0 ? "▲" : "▼"} {Math.abs(gap).toLocaleString("en-US")}
-            </span>
-          </Link>
-        );
-      })}
+      {[...byMarket.entries()].map(([marketId, ps]) => (
+        <Link className="side-market" href={`/m/${marketId}`} key={marketId}>
+          {ps.map((p) => {
+            const gap = likeGapSince(world, p);
+            return (
+              <span className="side-pos" key={p.side}>
+                <span className="side-pos-handle">@{p.sideHandle}</span>
+                <span className="side-pos-stake">${p.netStakedUsd.toLocaleString("en-US")}</span>
+                <span className={gap >= 0 ? "side-pos-gap" : "side-pos-gap side-pos-gap-down"}>
+                  {gap >= 0 ? "▲" : "▼"} {Math.abs(gap).toLocaleString("en-US")}
+                </span>
+              </span>
+            );
+          })}
+        </Link>
+      ))}
     </div>
   );
 }

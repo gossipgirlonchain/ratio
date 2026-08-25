@@ -2,10 +2,9 @@
 
 /**
  * Nav wallet chip: balance and open stake at a glance, next to the
- * handle. Hover (or tap) opens a panel below — the layout never swaps
- * content in place: copy the address, or send USDC to any Solana
- * address. Devnet note: the rail is the WSOL sim the markets trade on;
- * numbers are USD at the chain's rate.
+ * handle. Hover (or tap) opens the DEPOSIT panel: this wallet's address
+ * with one-tap copy — you fund it by sending to that address.
+ * Withdrawing lives on the profile page, not here.
  */
 import { useRef, useState } from "react";
 
@@ -17,13 +16,9 @@ const fmtUsd = (n: number) =>
 const shortAddr = (a: string) => `${a.slice(0, 4)}…${a.slice(-4)}`;
 
 export function WalletChip({ stakedUsd }: { stakedUsd: number }) {
-  const { wallet, error, send } = useWallet();
+  const { wallet, error } = useWallet();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [to, setTo] = useState("");
-  const [amount, setAmount] = useState("");
-  const [busy, setBusy] = useState(false);
-  const [note, setNote] = useState<string | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const enter = () => {
@@ -41,22 +36,6 @@ export function WalletChip({ stakedUsd }: { stakedUsd: number }) {
     void navigator.clipboard.writeText(wallet.address);
     setCopied(true);
     setTimeout(() => setCopied(false), 1500);
-  };
-
-  const doSend = async () => {
-    const usd = Number(amount);
-    if (!to || !Number.isFinite(usd) || usd <= 0) return;
-    setBusy(true);
-    setNote(null);
-    const r = await send(to.trim(), usd);
-    setBusy(false);
-    if (r.error) {
-      setNote(r.error);
-    } else {
-      setNote(`sent ${fmtUsd(usd)}`);
-      setTo("");
-      setAmount("");
-    }
   };
 
   // Logged-in users ALWAYS see the chip. No wallet yet = a loading state
@@ -88,33 +67,12 @@ export function WalletChip({ stakedUsd }: { stakedUsd: number }) {
             <span className="wallet-pop-mono">{copied ? "copied" : shortAddr(wallet.address)}</span>
             <span className="wallet-pop-copy">{copied ? "✓" : "copy"}</span>
           </button>
+          <span className="wallet-pop-note">send devnet SOL to this address to top up</span>
           {wallet.rentUsd > 0 && (
             <span className="wallet-pop-note">
               {fmtUsd(wallet.rentUsd)} held as account rent, refunded when markets close
             </span>
           )}
-          <div className="wallet-pop-send">
-            <span className="wallet-pop-label">send USDC to</span>
-            <input
-              className="wallet-pop-input"
-              placeholder="solana address"
-              value={to}
-              onChange={(e) => setTo(e.target.value)}
-            />
-            <div className="wallet-pop-row">
-              <input
-                className="wallet-pop-input wallet-pop-amount"
-                placeholder="$"
-                inputMode="decimal"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
-              />
-              <button className="wallet-pop-go" onClick={() => void doSend()} disabled={busy}>
-                {busy ? "sending…" : "send USDC"}
-              </button>
-            </div>
-            {note && <span className="wallet-pop-note">{note}</span>}
-          </div>
         </div>
       )}
     </div>

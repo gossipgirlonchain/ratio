@@ -1043,3 +1043,4 @@ a { text-decoration: none; color: inherit; }
 .admin-stat-tap { cursor: pointer; }
 .admin-stat-tap:hover, .admin-stat-on { border-color: var(--lime); }
 .admin-users { margin-bottom: 16px; overflow-x: auto; }
+.admin-code-input { width: 230px; text-transform: uppercase; }

@@ -54,7 +54,7 @@ export default function AdminPage() {
   const [overview, setOverview] = useState<Overview | null>(null);
   const [codes, setCodes] = useState<CodeRow[]>([]);
   const [freshCodes, setFreshCodes] = useState<string[]>([]);
-  const [count, setCount] = useState("5");
+  const [codeInput, setCodeInput] = useState("");
   const [uses, setUses] = useState("1");
   const [error, setError] = useState("");
   const [showUsers, setShowUsers] = useState(false);
@@ -189,15 +189,13 @@ export default function AdminPage() {
           <h2 className="board-heading">access codes</h2>
           <div className="card admin-gen">
             <input
-              className="scanner-num"
-              style={{ width: 54 }}
-              inputMode="numeric"
-              value={count}
-              onChange={(e) => setCount(e.target.value)}
-              title="how many codes"
+              className="scanner-num admin-code-input"
+              placeholder="custom code (blank = random)"
+              value={codeInput}
+              onChange={(e) => setCodeInput(e.target.value.toUpperCase())}
             />
             <label className="admin-uses">
-              <span className="muted-ink">uses each</span>
+              <span className="muted-ink">uses</span>
               <input
                 className="scanner-num"
                 style={{ width: 64 }}
@@ -211,10 +209,11 @@ export default function AdminPage() {
               onClick={async () => {
                 const r = (await call("/api/admin/codes", {
                   method: "POST",
-                  body: JSON.stringify({ count: Number(count) || 1, uses: Number(uses) || 1 }),
+                  body: JSON.stringify({ code: codeInput, uses: Number(uses) || 1 }),
                 })) as { codes: string[] } | null;
                 if (r) {
                   setFreshCodes(r.codes);
+                  setCodeInput("");
                   void refresh();
                 }
               }}

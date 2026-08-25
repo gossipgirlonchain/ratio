@@ -31,20 +31,30 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   if (!authed(req)) return NextResponse.json({ error: "nope" }, { status: 401 });
-  const { count = 1, note, uses = 1 } = (await req.json().catch(() => ({}))) as {
-    count?: number;
+  const { code, note, uses = 1 } = (await req.json().catch(() => ({}))) as {
+    code?: string;
     note?: string;
     uses?: number;
   };
-  const n = Math.max(1, Math.min(50, Math.floor(count)));
   const maxUses = Math.max(1, Math.min(100_000, Math.floor(uses)));
-  const rows = Array.from({ length: n }, () => ({
-    code: newCode(),
+  // A typed code is THE code (uppercased, like redemption normalizes);
+  // blank means mint a random one.
+  let value = (code ?? "").trim().toUpperCase();
+  if (value && !/^[A-Z0-9-]{3,32}$/.test(value)) {
+    return NextResponse.json({ error: "codes are 3-32 letters, numbers, dashes" }, { status: 400 });
+  }
+  if (!value) value = newCode();
+  const { error } = await supabaseAdmin().from("access_codes").insert({
+    code: value,
     created_at_ms: Date.now(),
     note: note ?? null,
     max_uses: maxUses,
-  }));
-  const { error } = await supabaseAdmin().from("access_codes").insert(rows);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ codes: rows.map((r) => r.code) });
+  });
+  if (error) {
+    if (error.code === "23505") {
+      return NextResponse.json({ error: "that code already exists" }, { status: 409 });
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+  return NextResponse.json({ codes: [value] });
 }

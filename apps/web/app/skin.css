@@ -977,3 +977,45 @@ a { text-decoration: none; color: inherit; }
 }
 .board-head-row .board-heading { margin-bottom: 8px; }
 .board-head-row .board-legend { margin: 0; }
+
+/* -- nav wallet chip: balance · staked, hover panel below ----------------- */
+.nav-viewer { position: relative; display: flex; align-items: center; gap: 10px; }
+.wallet-chip-wrap { position: relative; }
+.wallet-chip {
+  display: flex; align-items: center; gap: 8px; cursor: pointer;
+  border: 2px solid var(--edge); border-radius: 999px; background: none;
+  padding: 3px 12px; font-size: 12px;
+}
+.wallet-chip:hover { border-color: var(--lime); }
+.wallet-chip-balance { color: var(--ink); font-weight: 800; }
+.wallet-chip-staked { color: var(--ink-muted); font-weight: 600; }
+.wallet-pop {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 40; width: 250px;
+  background: var(--paper, var(--bg)); border: 2px solid var(--edge); border-radius: 10px;
+  box-shadow: 3px 3px 0 var(--lime); padding: 10px; display: flex;
+  flex-direction: column; gap: 8px;
+}
+.wallet-pop-addr {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  border: 2px solid var(--edge); border-radius: 8px; background: none;
+  padding: 6px 10px; cursor: pointer; color: var(--ink);
+}
+.wallet-pop-addr:hover { border-color: var(--lime); }
+.wallet-pop-mono { font-family: ui-monospace, monospace; font-size: 12px; }
+.wallet-pop-copy { font-size: 11px; font-weight: 800; color: var(--accent-text); }
+.wallet-pop-send { display: flex; flex-direction: column; gap: 6px; }
+.wallet-pop-input {
+  border: 2px solid var(--edge); border-radius: 8px; background: none; color: var(--ink);
+  padding: 5px 10px; font-size: 12px; outline: none; width: 100%; box-sizing: border-box;
+}
+.wallet-pop-input:focus { border-color: var(--lime); }
+.wallet-pop-row { display: flex; gap: 6px; }
+.wallet-pop-amount { width: 72px; }
+.wallet-pop-go {
+  flex: 1; border: 2px solid var(--accent); background: var(--accent); color: var(--on-accent);
+  border-radius: 8px; font-weight: 800; font-size: 12px; cursor: pointer; padding: 5px 0;
+}
+.wallet-pop-go:disabled { opacity: 0.6; cursor: default; }
+.wallet-pop-note { font-size: 11.5px; color: var(--ink-muted); }
+.head-wallet-send { flex-wrap: wrap; }
+.wallet-send-amount { max-width: 80px; }

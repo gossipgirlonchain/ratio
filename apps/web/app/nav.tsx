@@ -8,8 +8,9 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { WalletChip } from "../components/WalletChip";
 import { useAuth } from "../lib/auth";
-import { allHandles, useLive } from "../lib/live";
+import { allHandles, openPositionsFor, useLive } from "../lib/live";
 
 export function Nav() {
   const pathname = usePathname();
@@ -80,9 +81,14 @@ export function Nav() {
         )}
       </div>
       {viewer ? (
-        <Link className="nav-profile" href={`/${viewer}`}>
-          @{viewer}
-        </Link>
+        <div className="nav-viewer">
+          <WalletChip
+            stakedUsd={openPositionsFor(world, viewer).reduce((s, p) => s + p.netStakedUsd, 0)}
+          />
+          <Link className="nav-profile" href={`/${viewer}`}>
+            @{viewer}
+          </Link>
+        </div>
       ) : (
         <button className="nav-login" onClick={login}>
           log in

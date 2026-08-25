@@ -18,8 +18,7 @@ import { MarketStrip } from "@ratio/ui";
 import { useAuth } from "../../lib/auth";
 import { likeGapSince, marketsByParticipant, openPositionsFor, profileFor, useLive } from "../../lib/live";
 import { useMounted } from "../../lib/useMounted";
-
-const DEMO_ADDRESS = "ratio1DemoWa11etAddre55Repl4cedByPrivyR4";
+import { useWallet } from "../../lib/wallet";
 
 const fmtUsd = (n: number) =>
   `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
@@ -36,6 +35,11 @@ function WalletModule({
 }) {
   const [openSection, setOpenSection] = useState<"deposit" | "withdraw" | null>(null);
   const [copied, setCopied] = useState(false);
+  const { wallet, send } = useWallet();
+  const [to, setTo] = useState("");
+  const [amount, setAmount] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [note, setNote] = useState<string | null>(null);
   if (!owner) {
     return unclaimedUsd > 0 ? (
       <div className="head-wallet">
@@ -49,7 +53,7 @@ function WalletModule({
   return (
     <div className="head-wallet">
       <div className="head-wallet-line">
-        <span className="head-balance">$0.00</span>
+        <span className="head-balance">{wallet ? fmtUsd(wallet.balanceUsd) : "$0.00"}</span>
         <button
           className={openSection === "deposit" ? "wallet-toggle wallet-toggle-on" : "wallet-toggle"}
           onClick={() => setOpenSection(openSection === "deposit" ? null : "deposit")}
@@ -66,11 +70,13 @@ function WalletModule({
       {unclaimedUsd > 0 && <button className="claim-btn">claim {fmtUsd(unclaimedUsd)}</button>}
       {openSection === "deposit" && (
         <div className="head-wallet-detail">
-          <code className="deposit-address">{DEMO_ADDRESS}</code>
+          <code className="deposit-address">{wallet ? wallet.address : "provisioning wallet…"}</code>
           <button
             className="copy-btn"
+            disabled={!wallet}
             onClick={() => {
-              navigator.clipboard?.writeText(DEMO_ADDRESS);
+              if (!wallet) return;
+              navigator.clipboard?.writeText(wallet.address);
               setCopied(true);
               setTimeout(() => setCopied(false), 1500);
             }}
@@ -80,11 +86,38 @@ function WalletModule({
         </div>
       )}
       {openSection === "withdraw" && (
-        <div className="head-wallet-detail">
-          <input className="rs-custom-input" placeholder="destination address" disabled />
-          <button className="copy-btn" disabled>
-            send
+        <div className="head-wallet-detail head-wallet-send">
+          <input
+            className="rs-custom-input"
+            placeholder="destination address"
+            value={to}
+            onChange={(e) => setTo(e.target.value)}
+          />
+          <input
+            className="rs-custom-input wallet-send-amount"
+            placeholder="$"
+            inputMode="decimal"
+            value={amount}
+            onChange={(e) => setAmount(e.target.value.replace(/[^0-9.]/g, ""))}
+          />
+          <button
+            className="copy-btn"
+            disabled={busy || !wallet}
+            onClick={() => {
+              const usd = Number(amount);
+              if (!to || !Number.isFinite(usd) || usd <= 0) return;
+              setBusy(true);
+              setNote(null);
+              void send(to.trim(), usd).then((r) => {
+                setBusy(false);
+                setNote(r.error ? r.error : `sent ${fmtUsd(usd)}`);
+                if (!r.error) { setTo(""); setAmount(""); }
+              });
+            }}
+          >
+            {busy ? "sending…" : "send USDC"}
           </button>
+          {note && <span className="wallet-pop-note">{note}</span>}
         </div>
       )}
     </div>

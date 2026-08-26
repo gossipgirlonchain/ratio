@@ -41,8 +41,28 @@ export class DopplerMarketChain implements MarketChain {
        * the oracle PDA derives from the operator, outcomes from labels. */
       operatorAddress: string;
       labelsFor: (marketId: string) => Promise<[string, string]>;
+      /** Treasury that sponsors tx fees + ATA rent on stakes (never the
+       * stake itself). Unset or broke: the bettor pays, bet still lands. */
+      sponsorAddress?: string;
     },
   ) {}
+
+  /** Sponsor signer when the treasury can afford it, else undefined. */
+  private async sponsor(): Promise<TransactionSigner | undefined> {
+    const addr = this.opts.sponsorAddress;
+    if (!addr) return undefined;
+    try {
+      const { value } = await this.clients.rpc.getBalance(address(addr)).send();
+      // needs headroom for 2 ATAs + fee; below that, degrade gracefully
+      if (value < 6_000_000n) {
+        console.error(`  sponsor wallet low (${Number(value) / 1e9} SOL) — bettor pays own rent`);
+        return undefined;
+      }
+      return this.opts.signerFor(addr);
+    } catch {
+      return undefined;
+    }
+  }
 
   async createMarket(params: {
     nonce: string;
@@ -96,6 +116,7 @@ export class DopplerMarketChain implements MarketChain {
         BigInt(Math.round(params.amountUsd)) * this.opts.lamportsPerUsd,
       bettor: this.opts.signerFor(params.bettor),
       wrapSol: true, // WSOL quote; USDC flips this off
+      rentPayer: await this.sponsor(),
     });
     void result.signature;
     return { tokensOut: 0 }; // token amount lives in the bettor's ATA on-chain

@@ -181,6 +181,7 @@ async function main() {
     lamportsPerUsd: LAMPORTS_PER_USD,
     signerFor: (addr) => (addr === operator.address ? operator : wallets.signerFor(addr)),
     operatorAddress: operator.address,
+    sponsorAddress: (await wallets.getWallet("ratio:treasury")).address,
     labelsFor: async (marketId) => {
       const record = await store.getMarketByTweet(marketId);
       if (!record) throw new Error(`labelsFor: no market ${marketId} on record`);

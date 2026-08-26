@@ -14,6 +14,17 @@ import { address } from "@solana/kit";
 import { supabaseAdmin } from "./supabaseServer";
 import { balanceUsd, getOrCreateWallet, LAMPORTS_PER_USD, privySigner, type Viewer } from "./walletServer";
 
+/** Treasury sponsor signer (fees + rent, never stakes) when it exists
+ * and can afford it; undefined degrades to bettor-pays. */
+async function sponsorSigner(): Promise<ReturnType<typeof privySigner> | undefined> {
+  const db = supabaseAdmin();
+  const { data } = await db.from("wallets").select().eq("x_user_id", "ratio:treasury").maybeSingle();
+  if (!data) return undefined;
+  const bal = await balanceUsd(data.address as string).catch(() => 0);
+  if (bal * Number(LAMPORTS_PER_USD) < 6_000_000) return undefined; // < 2 ATAs + fee headroom
+  return privySigner(data.privy_wallet_id as string, data.address as string);
+}
+
 /** The agent hot wallet that creates markets — oracle PDAs derive from it.
  * Public info (it signs every market on-chain), env-overridable. */
 const OPERATOR_ADDRESS =
@@ -73,6 +84,7 @@ export async function placeRealBet(
     amountIn: BigInt(Math.round(amountUsd)) * LAMPORTS_PER_USD,
     bettor,
     wrapSol: true,
+    rentPayer: await sponsorSigner(),
   });
 
   const { error: betErr } = await db.from("bets").insert({

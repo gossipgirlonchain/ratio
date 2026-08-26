@@ -44,7 +44,9 @@ import {
 import {
   findAssociatedTokenPda,
   getCloseAccountInstruction,
+  getSyncNativeInstruction,
 } from "@solana-program/token";
+import { getTransferSolInstruction } from "@solana-program/system";
 
 import {
   sendInitializeLaunchWithLookupTable,
@@ -378,12 +380,17 @@ export class RatioMarketClient {
     minAmountOut?: bigint;
     /** Wrap native SOL into WSOL for the swap (quote must be WSOL). */
     wrapSol?: boolean;
+    /** Sponsorship: pays the tx fee and ATA rent, NEVER the stake. The
+     * SDK's own wrapSol funds the stake from the payer, so when a
+     * rentPayer is set the wrap is built here with the BETTOR as source. */
+    rentPayer?: TransactionSigner;
   }): Promise<{
     signature: string;
     outcomeTokenAccount: Address;
     quoteTokenAccount: Address;
   }> {
     const side = opts.refs.outcomes[opts.side];
+    const payer = opts.rentPayer ?? opts.bettor;
     const swap = await curveSwapExactIn({
       deployment: {
         ...this.deployment,
@@ -398,17 +405,33 @@ export class RatioMarketClient {
       launchFeeState: side.launchFeeState,
       baseMint: side.baseMint,
       quoteMint: opts.refs.quoteMint,
-      payer: opts.bettor,
+      payer,
+      user: opts.bettor,
       amountIn: opts.amountIn,
       minAmountOut: opts.minAmountOut ?? 0n,
       tradeDirection: initializer.TRADE_DIRECTION_BUY as 0 | 1,
       remainingAccounts: [opts.refs.oracleState],
-      wrapSol: opts.wrapSol ?? false,
+      // never let the SDK wrap: its transfer source is the payer
+      wrapSol: false,
     });
+    const instructions = [...swap.instructions];
+    if (opts.wrapSol ?? false) {
+      // stake from the BETTOR, after ATA setup, before the swap
+      instructions.splice(
+        instructions.length - 1,
+        0,
+        getTransferSolInstruction({
+          source: opts.bettor,
+          destination: swap.userQuoteAccount,
+          amount: opts.amountIn,
+        }),
+        getSyncNativeInstruction({ account: swap.userQuoteAccount }),
+      );
+    }
     const signature = await sendInstructions({
       clients: this.clients,
-      payer: opts.bettor,
-      instructions: swap.instructions,
+      payer,
+      instructions,
       label: `stake side=${opts.side}`,
     });
     return {

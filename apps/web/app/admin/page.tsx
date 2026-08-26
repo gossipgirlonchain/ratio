@@ -221,7 +221,7 @@ export default function AdminPage() {
               generate
             </button>
             <a className="admin-faucet" href="https://faucet.solana.com" target="_blank" rel="noreferrer">
-              devnet faucet ↗
+              devnet faucet
             </a>
           </div>
           {freshCodes.length > 0 && (

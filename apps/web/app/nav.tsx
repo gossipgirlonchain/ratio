@@ -83,7 +83,7 @@ export function Nav() {
       {viewer ? (
         <div className="nav-viewer">
           <a className="nav-faucet" href="https://faucet.solana.com" target="_blank" rel="noreferrer">
-            devnet faucet ↗
+            devnet faucet
           </a>
           <WalletChip
             stakedUsd={openPositionsFor(world, viewer).reduce((s, p) => s + p.netStakedUsd, 0)}

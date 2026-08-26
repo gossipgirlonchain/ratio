@@ -12,7 +12,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
-import { quotePayout } from "@ratio/ui";
+import { quotePayout, XLogo } from "@ratio/ui";
 
 import { MarketChart, SIDE_A_COLOR, SIDE_B_COLOR } from "../../../components/MarketChart";
 import { useAuth } from "../../../lib/auth";
@@ -178,7 +178,7 @@ export default function MarketPage() {
                     aria-label={`open @${side.handle}'s post on X`}
                     onClick={(e) => e.stopPropagation()}
                   >
-                    ↗
+                    <XLogo />
                   </a>
                 )}
               </div>

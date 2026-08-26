@@ -104,7 +104,7 @@ function Side({
     height: 300,
     borderRadius: 999,
     border: `5px solid ${LIME}`,
-    boxShadow: `0 0 40px ${LIME_GLOW}, inset 0 0 24px rgba(206,241,123,0.18)`,
+    boxShadow: `0 0 40px ${LIME_GLOW}`,
     display: "flex",
     overflow: "hidden",
     backgroundColor: CARD,
@@ -201,7 +201,6 @@ export default async function OgImage({ params }: { params: { id: string } }) {
                   fontWeight: 800,
                   color: LIME,
                   textShadow: `0 0 28px ${LIME_GLOW}`,
-                  transform: "skewX(-8deg)",
                 }}
               >
                 vs

@@ -7,7 +7,21 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { ACCESS_COOKIE, verifyAccess } from "./lib/access";
 
+/** Link-preview scrapers: allowed through to MARKET pages only, so the
+ * share card renders. They read og tags; the app shell behind them is
+ * useless without login. Everything else stays walled. */
+const CRAWLER_UA = /twitterbot|facebookexternalhit|linkedinbot|slackbot|discordbot|telegrambot|whatsapp/i;
+
 export async function middleware(req: NextRequest) {
+  const { pathname } = req.nextUrl;
+  // the share image itself is public: X fetches it with no cookie
+  if (/^\/m\/[^/]+\/opengraph-image/.test(pathname)) return NextResponse.next();
+  if (
+    /^\/m\/[^/]+$/.test(pathname) &&
+    CRAWLER_UA.test(req.headers.get("user-agent") ?? "")
+  ) {
+    return NextResponse.next();
+  }
   const secret = process.env.ACCESS_COOKIE_SECRET;
   // No secret configured (e.g. a fresh clone): fail CLOSED, not open.
   if (!secret) {

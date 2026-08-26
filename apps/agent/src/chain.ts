@@ -53,6 +53,13 @@ export interface MarketChain {
   }): Promise<{ tokensOut: number; feeUsd: number }>;
   getOdds(refs: ChainRefs): Promise<Odds>;
   settle(opts: { refs: ChainRefs; winner: 0 | 1 }): Promise<void>;
+  /** Post-settlement payout: claim a bettor's full winning balance into
+   * their wallet. null = they hold nothing on the winning side. */
+  claimFor(opts: {
+    refs: ChainRefs;
+    winner: 0 | 1;
+    bettor: string;
+  }): Promise<{ paidUsd: number } | null>;
 }
 
 // ---------------------------------------------------------------------------
@@ -176,5 +183,13 @@ export class MockMarketChain implements MarketChain {
     if (m.state !== "settled" || m.winner === undefined) throw new Error("not settled");
     const pot = m.sides[0].raisedUsd + m.sides[1].raisedUsd;
     return (tokensBurned / m.sides[m.winner].tokensOut) * pot;
+  }
+  async claimFor(_opts: {
+    refs: ChainRefs;
+    winner: 0 | 1;
+    bettor: string;
+  }): Promise<{ paidUsd: number } | null> {
+    // mock world settles by bookkeeping; payout math lives in the sim
+    return null;
   }
 }

@@ -42,6 +42,11 @@ import {
 } from "@whetstone-research/doppler-sdk/solana";
 
 import {
+  findAssociatedTokenPda,
+  getCloseAccountInstruction,
+} from "@solana-program/token";
+
+import {
   sendInitializeLaunchWithLookupTable,
   sendInstructions,
   withRetry429,
@@ -627,4 +632,70 @@ export async function recoverRefs(opts: {
     marketAuthority,
     outcomes: outcomes as [OutcomeRefs, OutcomeRefs],
   };
+}
+
+/**
+ * Claim a bettor's full winning balance and unwrap the payout: burns all
+ * their winner tokens for the pro-rata pot share (paid in WSOL), then
+ * closes their WSOL ATA so the payout lands as NATIVE SOL in the wallet
+ * and the WSOL account rent comes back too. Custodial flow: the agent
+ * runs this for every winner at settlement — winning must not require a
+ * claim button. Returns null when the bettor holds no winner tokens.
+ */
+export async function claimAndUnwrap(opts: {
+  clients: Clients;
+  refs: PairMarketRefs;
+  winner: 0 | 1;
+  claimer: TransactionSigner;
+}): Promise<{ signature: string; paidLamports: bigint } | null> {
+  const { clients, refs, winner, claimer } = opts;
+  const side = refs.outcomes[winner];
+  const [winnerAta] = await findAssociatedTokenPda({
+    mint: side.baseMint,
+    owner: claimer.address,
+    tokenProgram: TOKEN_PROGRAM_ADDRESS,
+  });
+  const winnerAcc = await clients.rpc
+    .getTokenAccountBalance(winnerAta)
+    .send()
+    .catch(() => null);
+  const burnAmount = BigInt(winnerAcc?.value.amount ?? "0");
+  if (burnAmount === 0n) return null;
+
+  const [quoteAta] = await findAssociatedTokenPda({
+    mint: refs.quoteMint,
+    owner: claimer.address,
+    tokenProgram: TOKEN_PROGRAM_ADDRESS,
+  });
+  const claimIx = await predictionMigrator.getClaimInstructionAsync({
+    market: refs.market,
+    potVault: refs.potVault,
+    winnerMint: side.baseMint,
+    quoteMint: refs.quoteMint,
+    entryByMint: side.entryByMint,
+    claimerWinnerAta: winnerAta,
+    claimerQuoteAta: quoteAta,
+    claimer,
+    payer: claimer,
+    baseTokenProgram: TOKEN_PROGRAM_ADDRESS,
+    quoteTokenProgram: TOKEN_PROGRAM_ADDRESS,
+    burnAmount,
+  });
+  // WSOL quote only: closing the quote ATA unwraps the payout to native
+  // SOL and refunds that account's rent in the same transaction. USDC
+  // production drops the close (you keep a USDC account).
+  const closeIx = getCloseAccountInstruction({
+    account: quoteAta,
+    destination: claimer.address,
+    owner: claimer,
+  });
+  const before = await clients.rpc.getBalance(claimer.address).send();
+  const signature = await sendInstructions({
+    clients,
+    payer: claimer,
+    instructions: [claimIx, closeIx],
+    label: "claim+unwrap",
+  });
+  const after = await clients.rpc.getBalance(claimer.address).send();
+  return { signature, paidLamports: after.value - before.value };
 }

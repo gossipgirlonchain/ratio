@@ -14,6 +14,7 @@
 import { address, type TransactionSigner } from "@solana/kit";
 
 import {
+  claimAndUnwrap,
   RatioMarketClient,
   readOdds,
   recoverRefs,
@@ -128,6 +129,21 @@ export class DopplerMarketChain implements MarketChain {
       refs: await this.refs(params.refs),
       winner: params.winner,
     });
+  }
+
+  async claimFor(params: {
+    refs: ChainRefs;
+    winner: 0 | 1;
+    bettor: string;
+  }): Promise<{ paidUsd: number } | null> {
+    const result = await claimAndUnwrap({
+      clients: this.clients,
+      refs: await this.refs(params.refs),
+      winner: params.winner,
+      claimer: this.opts.signerFor(params.bettor),
+    });
+    if (!result) return null;
+    return { paidUsd: Number(result.paidLamports) / Number(this.opts.lamportsPerUsd) };
   }
 
 }

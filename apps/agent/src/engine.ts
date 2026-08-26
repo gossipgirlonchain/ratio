@@ -567,6 +567,33 @@ export class RatioEngine {
       winner,
       ...snapshot,
     });
+
+    // Custodial payout: winning must not require a claim button. Every
+    // distinct winning-side bettor gets claimed for, payout unwrapped to
+    // native SOL in their wallet. Failures log loudly and never block the
+    // recap; the tokens stay claimable by a rerun.
+    const bets = await this.store.listBets(record.id);
+    const winnersSeen = new Set<string>();
+    for (const bet of bets) {
+      if (bet.side !== winnerSide || winnersSeen.has(bet.xUserId)) continue;
+      winnersSeen.add(bet.xUserId);
+      try {
+        const bettor =
+          bet.xUserId === "ratio:treasury"
+            ? this.config.protocolWallet
+            : (await this.wallets.getWallet(bet.xUserId)).address;
+        const paid = await this.chain.claimFor({
+          refs: record.chainRefs,
+          winner: winnerSide,
+          bettor,
+        });
+        if (paid) console.log(`  paid @${bet.handle} $${paid.paidUsd.toFixed(2)}`);
+      } catch (err) {
+        console.error(
+          `  PAYOUT FAILED for @${bet.handle} on market ${record.id}: ${(err as Error).message.slice(0, 160)}`,
+        );
+      }
+    }
     await this.x.postReply({
       // A forfeited side's thread may be gone — the card is ours, always safe.
       inReplyTo: forfeit ? (record.cardTweetId ?? record.tweetBId) : record.tweetBId,

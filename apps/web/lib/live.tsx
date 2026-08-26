@@ -135,6 +135,46 @@ export const likeGapSince = (w: LiveWorld, pos: OpenPosition): number => {
   return nowGap - entryGap;
 };
 
+export interface SettledOutcome {
+  marketId: string;
+  won: boolean;
+  sideHandle: string;
+  otherHandle: string;
+  stakedUsd: number;
+  /** Pot-share estimate; exact figure lands with recorded payouts. */
+  payoutUsd: number;
+  settledAtMs: number;
+}
+
+/** Every decided market the viewer had money in, newest first. */
+export const settledOutcomesFor = (w: LiveWorld, handle: string | null): SettledOutcome[] => {
+  if (!handle) return [];
+  const out: SettledOutcome[] = [];
+  for (const m of w.markets) {
+    if (m.data.status === "open" || !m.data.winner) continue;
+    const mine = (w.tradesByMarket[m.data.marketId] ?? []).filter(
+      (t) => t.handle === handle && t.direction === "buy",
+    );
+    if (mine.length === 0) continue;
+    const winner = m.data.winner;
+    const winStake = mine.filter((t) => t.side === winner).reduce((s, t) => s + t.amountUsd, 0);
+    const loseStake = mine.filter((t) => t.side !== winner).reduce((s, t) => s + t.amountUsd, 0);
+    const pot = (m.data.a.potUsd + m.data.b.potUsd) * (1 - 0.0125);
+    const winnerPot = (winner === "a" ? m.data.a : m.data.b).potUsd || 1;
+    const payout = winStake > 0 ? (winStake / winnerPot) * pot : 0;
+    out.push({
+      marketId: m.data.marketId,
+      won: payout > loseStake,
+      sideHandle: (winner === "a" ? m.data.a : m.data.b).handle,
+      otherHandle: (winner === "a" ? m.data.b : m.data.a).handle,
+      stakedUsd: winStake + loseStake,
+      payoutUsd: payout,
+      settledAtMs: m.data.settlesAtMs,
+    });
+  }
+  return out.sort((x, y) => y.settledAtMs - x.settledAtMs);
+};
+
 export const positionFor = (w: LiveWorld, viewer: string | null, marketId: string) => {
   const p = openPositionsFor(w, viewer).find((x) => x.marketId === marketId);
   return p ? { side: p.side, tokens: p.tokens, netStakedUsd: p.netStakedUsd } : null;

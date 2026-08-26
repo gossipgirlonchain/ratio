@@ -1036,7 +1036,7 @@ a { text-decoration: none; color: inherit; }
 
 /* the viewer's stake, pinned under the strip it lives in */
 .strip-position {
-  display: flex; justify-content: flex-start; align-items: center; gap: 18px;
+  display: flex; justify-content: flex-start; align-items: center; gap: 10px;
   margin: 2px 0 16px; padding: 7px 14px;
   border: 2px solid var(--edge); border-radius: 10px;
   font-size: 12px; font-weight: 700; color: var(--ink); text-decoration: none;
@@ -1078,3 +1078,39 @@ a { text-decoration: none; color: inherit; }
 .side-legal a { color: var(--gunmetal); text-decoration: none; }
 .side-legal a:hover { color: var(--ink-muted); }
 .side-legal span { color: var(--gunmetal); }
+
+/* -- notifications bell --------------------------------------------------- */
+.notif-wrap { position: relative; }
+.notif-bell {
+  position: relative; display: flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; border: 2px solid var(--edge); border-radius: 999px;
+  background: none; color: var(--ink-muted); cursor: pointer;
+}
+.notif-bell:hover { border-color: var(--lime); color: var(--ink); }
+.notif-count {
+  position: absolute; top: -6px; right: -6px; min-width: 16px; height: 16px;
+  border-radius: 999px; background: var(--accent); color: var(--on-accent);
+  font-size: 10px; font-weight: 800; display: flex; align-items: center;
+  justify-content: center; padding: 0 4px;
+}
+.notif-pop {
+  position: absolute; top: calc(100% + 6px); right: 0; z-index: 40; width: 250px;
+  background: var(--paper, var(--bg)); border: 2px solid var(--edge); border-radius: 10px;
+  box-shadow: 3px 3px 0 var(--lime); padding: 6px; display: flex;
+  flex-direction: column;
+}
+.notif-pop::before { content: ""; position: absolute; top: -10px; left: 0; right: 0; height: 10px; }
+.notif-row {
+  display: flex; flex-direction: column; gap: 1px; padding: 7px 9px;
+  border-radius: 8px; text-decoration: none;
+}
+.notif-row:hover { background: color-mix(in srgb, var(--lime) 14%, transparent); }
+.notif-result { font-size: 12.5px; font-weight: 800; color: var(--ink-muted); }
+.notif-won { color: var(--accent-text); }
+.notif-detail { font-size: 11.5px; color: var(--ink-muted); }
+
+/* position ribbon: one flowing line; result line on settled strips */
+.strip-position-lead { color: var(--ink-muted); font-weight: 800; }
+.strip-position-dot { color: var(--gunmetal); margin-right: 12px; }
+.strip-result { font-weight: 800; color: var(--ink-muted); }
+.strip-result-won { color: var(--accent-text); }

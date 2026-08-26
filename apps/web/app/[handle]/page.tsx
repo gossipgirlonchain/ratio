@@ -16,7 +16,7 @@ import { BOT_HANDLE } from "@ratio/config";
 import { MarketStrip } from "@ratio/ui";
 
 import { useAuth } from "../../lib/auth";
-import { likeGapSince, marketById, marketsByParticipant, openPositionsFor, profileFor, useLive } from "../../lib/live";
+import { likeGapSince, marketsByParticipant, openPositionsFor, profileFor, settledOutcomesFor, useLive } from "../../lib/live";
 import { useMounted } from "../../lib/useMounted";
 import { useWallet } from "../../lib/wallet";
 
@@ -217,22 +217,36 @@ export default function ProfilePage() {
             const marketPositions = openPositionsFor(world, handle).filter(
               (x) => x.marketId === m.data.marketId,
             );
+            const result = settledOutcomesFor(world, handle).find(
+              (o) => o.marketId === m.data.marketId,
+            );
             return (
               <div key={m.data.marketId}>
                 <MarketStrip data={m.data} marketHref={`/m/${m.data.marketId}`} onOpen={() => router.push(`/m/${m.data.marketId}`)} />
                 {marketPositions.length > 0 && (
                   <Link className="strip-position" href={`/m/${m.data.marketId}`}>
-                    {marketPositions.map((pos) => {
+                    <span className="strip-position-lead">you:</span>
+                    {marketPositions.map((pos, i) => {
                       const gap = likeGapSince(world, pos);
                       return (
                         <span className="strip-position-seg" key={pos.side}>
-                          {fmtUsd0(pos.netStakedUsd)} on @{pos.sideHandle}
+                          {i > 0 && <span className="strip-position-dot">·</span>}
+                          {fmtUsd0(pos.netStakedUsd)} @{pos.sideHandle}
                           <span className={gap >= 0 ? "strip-position-gap" : "strip-position-gap strip-position-down"}>
-                            {" "}{gap >= 0 ? "▲" : "▼"} {Math.abs(gap).toLocaleString("en-US")}
+                            {" "}{gap >= 0 ? "▲" : "▼"}{Math.abs(gap).toLocaleString("en-US")}
                           </span>
                         </span>
                       );
                     })}
+                  </Link>
+                )}
+                {result && (
+                  <Link className="strip-position" href={`/m/${m.data.marketId}`}>
+                    <span className={result.won ? "strip-result strip-result-won" : "strip-result"}>
+                      {result.won
+                        ? `you won ${fmtUsd(result.payoutUsd)}`
+                        : `you lost ${fmtUsd(result.stakedUsd - result.payoutUsd)}`}
+                    </span>
                   </Link>
                 )}
               </div>

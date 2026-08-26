@@ -8,6 +8,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { Notifications } from "../components/Notifications";
 import { WalletChip } from "../components/WalletChip";
 import { useAuth } from "../lib/auth";
 import { allHandles, openPositionsFor, useLive } from "../lib/live";
@@ -85,6 +86,7 @@ export function Nav() {
           <a className="nav-faucet" href="https://faucet.solana.com" target="_blank" rel="noreferrer">
             devnet faucet
           </a>
+          <Notifications viewer={viewer} />
           <WalletChip
             stakedUsd={openPositionsFor(world, viewer).reduce((s, p) => s + p.netStakedUsd, 0)}
           />

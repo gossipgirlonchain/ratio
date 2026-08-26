@@ -79,7 +79,7 @@ const fmtLikes = (n: number): string =>
 
 function Dashes({ flip }: { flip?: boolean }) {
   return (
-    <div style={{ display: "flex", gap: 6, opacity: 0.5, transform: flip ? "scaleX(-1)" : undefined }}>
+    <div style={{ display: "flex", flexDirection: flip ? "row-reverse" : "row", gap: 6, opacity: 0.5 }}>
       <div style={{ width: 14, height: 14, backgroundColor: "#3A3D41" }} />
       {[0, 1, 2, 3, 4, 5].map((i) => (
         <div key={i} style={{ width: 6, height: 6, backgroundColor: "#3A3D41", marginTop: 4 }} />
@@ -205,16 +205,7 @@ export default async function OgImage({ params }: { params: { id: string } }) {
               >
                 vs
               </span>
-              <div
-                style={{
-                  width: 3,
-                  height: 120,
-                  backgroundColor: LIME,
-                  opacity: 0.35,
-                  transform: "rotate(16deg)",
-                  marginTop: -14,
-                }}
-              />
+
             </div>
             <Side
               src={avatarB}

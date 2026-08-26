@@ -178,8 +178,9 @@ export function Sidebar() {
                 </svg>
               </button>
             </div>
-            {item("/how", "how it works")}
             <div className="side-legal">
+              <Link href="/how">how it works</Link>
+              <span aria-hidden="true">·</span>
               <Link href="/terms">terms</Link>
               <span aria-hidden="true">·</span>
               <Link href="/privacy">privacy</Link>

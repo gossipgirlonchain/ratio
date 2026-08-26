@@ -1,15 +1,18 @@
 /**
- * The market's share card, 1200x630, rendered at the edge.
+ * The market's share card, 1200x630, rendered at the edge — winny's
+ * glow-card design: dark rounded panel with a lime glow border, ratio
+ * wordmark top centre, two glowing lime-ringed avatars, a vs slash
+ * between them, pixel-dash corner decorations.
  *
- * OPEN markets: both avatars, colour-coded rings (chart colours), the
- * handles, a versus mark, the ratio wordmark. NOTHING time-sensitive —
- * X scrapes once and caches forever, so likes, pots, and countdowns
- * would freeze wrong. SETTLED markets get the result treatment instead
- * (safe: generated after the numbers stop moving): final counts and the
- * winner ringed in their colour.
+ * If apps/web/public/og-bg.png exists it becomes the exact background
+ * and this layout composites avatars + handles over it.
  *
- * Avatars are fetched here with a hard timeout; a failed fetch falls
- * back to an initial-letter disc, never a broken image.
+ * OPEN markets: no numbers of any kind — X scrapes once and caches
+ * forever. SETTLED markets add final like counts and dim the loser
+ * (safe: those numbers stop moving).
+ *
+ * Avatars fetch with a hard timeout; failure renders an empty glowing
+ * ring (matching the design's own placeholder), never a broken image.
  */
 import { ImageResponse } from "next/og";
 
@@ -18,12 +21,12 @@ export const alt = "ratio market";
 export const size = { width: 1200, height: 630 };
 export const contentType = "image/png";
 
-const A_COLOR = "#4E97D6";
-const B_COLOR = "#7FA32E";
-const BG = "#131416";
-const INK = "#EDEEF0";
-const MUTED = "#C6CACE";
 const LIME = "#CEF17B";
+const LIME_GLOW = "rgba(206, 241, 123, 0.55)";
+const BG = "#0C0D0E";
+const CARD = "#141517";
+const INK = "#F2F3F4";
+const MUTED = "#9BA0A6";
 
 interface MarketRow {
   author_a_handle: string;
@@ -74,37 +77,55 @@ async function fetchAvatar(handle: string): Promise<string | null> {
 const fmtLikes = (n: number): string =>
   n >= 1_000 ? `${(n / 1_000).toFixed(1)}K` : String(n);
 
-function Avatar({
+function Dashes({ flip }: { flip?: boolean }) {
+  return (
+    <div style={{ display: "flex", gap: 6, opacity: 0.5, transform: flip ? "scaleX(-1)" : undefined }}>
+      <div style={{ width: 14, height: 14, backgroundColor: "#3A3D41" }} />
+      {[0, 1, 2, 3, 4, 5].map((i) => (
+        <div key={i} style={{ width: 6, height: 6, backgroundColor: "#3A3D41", marginTop: 4 }} />
+      ))}
+    </div>
+  );
+}
+
+function Side({
   src,
   handle,
-  color,
+  likes,
   dim,
 }: {
   src: string | null;
   handle: string;
-  color: string;
+  likes: string | null;
   dim: boolean;
 }) {
   const ring = {
-    width: 240,
-    height: 240,
+    width: 300,
+    height: 300,
     borderRadius: 999,
-    border: `10px solid ${color}`,
+    border: `5px solid ${LIME}`,
+    boxShadow: `0 0 40px ${LIME_GLOW}, inset 0 0 24px rgba(206,241,123,0.18)`,
     display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
     overflow: "hidden",
-    backgroundColor: "#23262A",
+    backgroundColor: CARD,
     opacity: dim ? 0.45 : 1,
   } as const;
-  return src ? (
-    // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} width={240} height={240} style={{ ...ring, objectFit: "cover" }} alt="" />
-  ) : (
-    <div style={ring}>
-      <span style={{ fontSize: 110, fontWeight: 800, color: INK }}>
-        {handle[0]?.toUpperCase() ?? "?"}
-      </span>
+  return (
+    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 26 }}>
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={src} width={300} height={300} style={{ ...ring, objectFit: "cover" }} alt="" />
+      ) : (
+        <div style={ring} />
+      )}
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6 }}>
+        <span style={{ fontSize: 42, fontWeight: 700, color: dim ? MUTED : INK }}>@{handle}</span>
+        {likes && (
+          <span style={{ fontSize: 30, fontWeight: 600, color: dim ? MUTED : LIME }}>
+            {likes} likes
+          </span>
+        )}
+      </div>
     </div>
   );
 }
@@ -127,58 +148,93 @@ export default async function OgImage({ params }: { params: { id: string } }) {
           width: "100%",
           height: "100%",
           display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
           backgroundColor: BG,
-          gap: 34,
+          padding: 26,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 70 }}>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 22 }}>
-            <Avatar src={avatarA} handle={handleA} color={A_COLOR} dim={winner === "b"} />
-            <span style={{ fontSize: 44, fontWeight: 700, color: winner === "b" ? MUTED : INK }}>
-              @{handleA}
+        <div
+          style={{
+            flex: 1,
+            display: "flex",
+            flexDirection: "column",
+            borderRadius: 34,
+            border: `2px solid ${LIME}`,
+            boxShadow: `0 0 34px ${LIME_GLOW}`,
+            backgroundColor: CARD,
+            padding: "26px 46px 30px",
+          }}
+        >
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+            <Dashes />
+            <span
+              style={{
+                fontSize: 58,
+                fontWeight: 800,
+                color: LIME,
+                textShadow: `0 0 24px ${LIME_GLOW}`,
+                marginTop: -8,
+              }}
+            >
+              ratio
             </span>
-            {settled && (
-              <span style={{ fontSize: 36, fontWeight: 800, color: A_COLOR }}>
-                {fmtLikes(m?.likes_a_final ?? 0)} likes
-              </span>
-            )}
+            <Dashes flip />
           </div>
-          <span style={{ fontSize: 64, fontWeight: 800, color: LIME, marginBottom: settled ? 90 : 40 }}>
-            vs
-          </span>
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 22 }}>
-            <Avatar src={avatarB} handle={handleB} color={B_COLOR} dim={winner === "a"} />
-            <span style={{ fontSize: 44, fontWeight: 700, color: winner === "a" ? MUTED : INK }}>
-              @{handleB}
-            </span>
-            {settled && (
-              <span style={{ fontSize: 36, fontWeight: 800, color: B_COLOR }}>
-                {fmtLikes(m?.likes_b_final ?? 0)} likes
-              </span>
-            )}
-          </div>
-        </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 20 }}>
-          <span
+          <div
             style={{
-              backgroundColor: LIME,
-              color: "#131608",
-              fontSize: 34,
-              fontWeight: 800,
-              padding: "6px 26px",
-              borderRadius: 999,
+              flex: 1,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 90,
             }}
           >
-            ratio
-          </span>
-          {settled && (
-            <span style={{ fontSize: 34, fontWeight: 800, color: MUTED }}>
-              @{winner === "a" ? handleA : handleB} won
-            </span>
-          )}
+            <Side
+              src={avatarA}
+              handle={handleA}
+              likes={settled ? fmtLikes(m?.likes_a_final ?? 0) : null}
+              dim={winner === "b"}
+            />
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "center", marginBottom: 90 }}>
+              <span
+                style={{
+                  fontSize: 66,
+                  fontWeight: 800,
+                  color: LIME,
+                  textShadow: `0 0 28px ${LIME_GLOW}`,
+                  transform: "skewX(-8deg)",
+                }}
+              >
+                vs
+              </span>
+              <div
+                style={{
+                  width: 3,
+                  height: 120,
+                  backgroundColor: LIME,
+                  opacity: 0.35,
+                  transform: "rotate(16deg)",
+                  marginTop: -14,
+                }}
+              />
+            </div>
+            <Side
+              src={avatarB}
+              handle={handleB}
+              likes={settled ? fmtLikes(m?.likes_b_final ?? 0) : null}
+              dim={winner === "a"}
+            />
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+            <Dashes />
+            {settled ? (
+              <span style={{ fontSize: 30, fontWeight: 700, color: MUTED }}>
+                @{winner === "a" ? handleA : handleB} won
+              </span>
+            ) : (
+              <span />
+            )}
+            <Dashes flip />
+          </div>
         </div>
       </div>
     ),

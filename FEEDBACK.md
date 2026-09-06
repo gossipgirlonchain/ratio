@@ -33,14 +33,43 @@ which contracts appear in the deployments table. We found it by cross-referencin
 the contract-addresses page against the SDK's example directory, which is not a
 thing a developer should have to do to answer "can I build this here".
 
+**And the asymmetry is narrower than it first looks, which makes the silence
+worse rather than better.** The EVM side has clearly been prepared for this use
+case. `test/integration/ImmediateMigration.t.sol` in the contracts repo says, in
+its own words:
+
+> This is a key requirement for prediction markets where migration should be
+> gated by oracle, not by tick.
+
+It proves that setting `farTick == startTick` lets migration happen immediately
+with zero proceeds, i.e. that the tick gate can be taken out of the way so
+something else can do the gating. That constraint was removed deliberately, for
+prediction markets, and the test stands as evidence of intent.
+
+What is missing is the module that fills the hole. `src/migrators/` has
+`DopplerHookMigrator`, `NoOpMigrator` and `UniswapV2MigratorSplit`; the test
+itself uses a `MockMigrator` that accepts tokens and does nothing. On Solana the
+equivalent is a whole program — `registerEntry`, `migrateEntry`, `claim`,
+`previewPayoutIfWinner`, with a purpose-built error set (`OracleNotFinalized`,
+`MarketNotResolved`, `InvalidWinnerMint`, `ZeroClaimableSupply`). None of that
+has an EVM counterpart.
+
+So the honest version of this feedback is not "EVM cannot do prediction markets".
+It is: **the EVM stack was shaped to host one and the migrator was never
+shipped**, and nothing tells a developer that. A reader who finds
+`ImmediateMigration.t.sol` reasonably concludes the feature exists.
+
 **What would have saved us most of a day:** a per-feature support matrix with
 Solana and EVM as columns. Even a one-line note on the prediction-market example
-saying "Solana only; the EVM stack has no oracle-resolved migrator" would have
-been enough.
+saying "Solana only; on EVM the tick gate can be disabled but no oracle-resolved
+migrator ships" would have been enough.
 
-**What we did:** wrote the EVM settlement layer ourselves. Doppler prices entry,
-our contract owns escrow, resolution and payout. We are writing it as something
-we would be happy to hand over, in case it is useful upstream.
+**What we did:** wrote the missing piece as an `ILiquidityMigrator`, so it
+registers as an Airlock module rather than sitting beside the protocol as a
+private escrow. Doppler prices entry through the curves; our migrator holds the
+oracle gate, the pot, and the pro-rata claim. We are writing it as something we
+would be happy to hand over, because on this reading it is a module-shaped gap in
+your own architecture rather than an application-level workaround.
 
 ## 2. `allowSell: true` is accepted config that the hook silently overrides
 

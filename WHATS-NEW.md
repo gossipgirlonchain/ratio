@@ -44,32 +44,35 @@ The Solana build. Roughly 15,600 lines across the workspace.
   There is no Unichain Sepolia Doppler deployment. The Uniswap Foundation claim is
   structural (Doppler pools are v4 hooks) and does not depend on the chain.
 
-**`contracts/EVENTS.md` — the frozen event schema.** Six events designed and
-published *before* the contract body, so subgraph work and contract work can run
-in parallel instead of serialised behind each other. Documents what each product
-surface reads, the derivations the indexer performs, and the invariants it may
-assume.
+**Found Doppler's EVM prediction market, already deployed.** Three
+documentation searches said EVM had no prediction lifecycle. It does — it is on
+an open PR (#481) and deployed to Base Sepolia since February, whitelisted
+against the live Airlock, and mentioned nowhere in the docs, the SDK, the
+indexer, the API, or `Deployments.json`. Verified by RPC:
 
-**Series 1: the chain seam now actually covers the codebase.** Before this, the
-abstraction covered the agent and nothing else — `apps/web` had a second,
-parallel chain stack that built swaps and transfers directly against
-`@solana/kit` and `RatioMarketClient`, so a chain swap would have meant rewriting
-the money path twice.
+- `PredictionMigrator` `0x91aad599EfD70E633d091FC060cc6f9D3e5298BE` — Airlock module state 4
+- `NoSellDopplerHook` `0x21588C923de63914cbc624002417c2AA64a15bFe` — hook flags 3
+- `MockPredictionOracle` `0xaE92178EE4eDEa87273dbDe36dA015039115d46a`
 
-- `MarketChain` gained the reads and writes that were leaking around it:
-  `balanceUsd` (was injected into `EngineConfig` as an RPC closure),
-  `reservedUsd`, `transferUsd`, `isValidAddress`.
-- `packages/chain` extracted from `apps/agent`, so the web can reach the seam
-  without one app importing another. Interface and mock at the root entry, the
-  Solana implementation at `./solana`, the EVM one landing beside it as `./evm`.
-- `apps/web` rewired onto it. `lib/chain.ts` is now the only file in the web app
-  that names a chain; `betServer.ts` went from 106 lines to 71 with none of them
-  chain-shaped; `walletServer.ts` holds Privy identity and nothing else.
-- `placeBet` returns its transaction signature — the seam had been dropping it,
-  and the client treats a falsy signature as a failed bet.
-- `LAMPORTS_PER_USD` renamed out of the chain-neutral config package.
+Zero events had ever been emitted on that migrator. Ratio is its first
+integration. Recorded in `contracts/BASE-SEPOLIA.md` with re-verification
+commands.
 
-**Cut**: `apps/teaser`, 1,100 lines of isolated mock-data marketing site.
+**`contracts/EVENTS.md` — the event schema the subgraph is built against.**
+Written first, before any indexer work, so subgraph and contract work run in
+parallel. Rewritten once the deployed contracts were found: every event in it is
+now real and every topic0 was verified present in the emitting contract's
+on-chain runtime bytecode. Two findings came out of reading the real contracts —
+per-trade `tokensOut` is available from the initializer's own `Swap` event, and
+`Swap.sender` is the router rather than the bettor, which makes sponsored gas
+incompatible with per-user attribution.
+
+**`RatioOracle` + `RatioOracleFactory` — the only contract ratio owns on EVM.**
+Doppler holds the pot and pays claims; we answer "who won". One EIP-1167 clone
+per market, CREATE2-salted on the tweet id so the agent can compute the oracle
+address before deploying it. Resolution is agent-only, terminal, cannot land
+before `settlesAt`, and cannot land before entry tokens are attached. 21 Foundry
+tests including the tie-holds-for-side-A convention and a fuzz over the verdict.
 
 ### Still to come
 
@@ -85,6 +88,7 @@ Listed here only when they land.
 - `tokens_out` has always been recorded as `0` in production on Solana, because
   the position lands in an associated token account the swap never reports back.
   Every token-weighted number in the product was therefore correct in the sim and
-  empty in production. The EVM settlement contract fixes this by construction; it
-  is a real fix, and it is a fix to a pre-existing bug rather than a new feature.
+  empty in production. On EVM the value is carried in the initializer's `Swap`
+  event, so the subgraph recovers it. This is a fix to a pre-existing bug, not a
+  new feature, and it is the indexer that fixes it rather than anything we wrote.
 - The Solana implementation is not deleted. It stays beside the EVM one.

@@ -3,6 +3,14 @@ pragma solidity ^0.8.26;
 
 import { Test, console } from "forge-std/Test.sol";
 
+import { PoolSwapTest } from "@v4-core/test/PoolSwapTest.sol";
+import { IHooks } from "@v4-core/interfaces/IHooks.sol";
+import { IPoolManager } from "@v4-core/interfaces/IPoolManager.sol";
+import { PoolKey } from "@v4-core/types/PoolKey.sol";
+import { Currency } from "@v4-core/types/Currency.sol";
+import { SwapParams } from "@v4-core/types/PoolOperation.sol";
+import { TickMath } from "@v4-core/libraries/TickMath.sol";
+
 import { RatioOracle } from "src/RatioOracle.sol";
 import { RatioOracleFactory } from "src/RatioOracleFactory.sol";
 
@@ -71,6 +79,10 @@ interface IAirlock {
     function getModuleState(address module) external view returns (uint8);
     function owner() external view returns (address);
 }
+
+// The pool's fee is LPFeeLibrary.DYNAMIC_FEE_FLAG — the initializer sets it,
+// regardless of the `fee` we pass in InitData. Read off the live trace.
+uint24 constant DYNAMIC_FEE_FLAG = 0x800000;
 
 interface IPredictionMigratorView {
     function previewClaim(address oracle, uint256 tokenAmount) external view returns (uint256);
@@ -343,5 +355,164 @@ contract BaseSepoliaLifecycleTest is Test {
         returns (address)
     {
         return _createEntry(side, name, symbol, tokenFactory);
+    }
+
+    // -------------------------------------------------------------------
+    // The full cycle, with money in it
+    // -------------------------------------------------------------------
+
+    function _poolKey(address asset) internal pure returns (PoolKey memory) {
+        // currency0 is native ETH (address(0)), which always sorts first.
+        return PoolKey({
+            currency0: Currency.wrap(address(0)),
+            currency1: Currency.wrap(asset),
+            fee: DYNAMIC_FEE_FLAG,
+            tickSpacing: 8,
+            hooks: IHooks(HOOK_INITIALIZER)
+        });
+    }
+
+    /// Buy an entry token with native ETH: currency0 -> currency1, exact input.
+    function _bet(PoolSwapTest router, address asset, address bettor, uint256 amountIn)
+        internal
+        returns (uint256 tokensOut)
+    {
+        uint256 before = IERC20Like(asset).balanceOf(bettor);
+        vm.prank(bettor);
+        router.swap{ value: amountIn }(
+            _poolKey(asset),
+            SwapParams({
+                zeroForOne: true,
+                amountSpecified: -int256(amountIn),
+                sqrtPriceLimitX96: TickMath.MIN_SQRT_PRICE + 1
+            }),
+            PoolSwapTest.TestSettings({ takeClaims: false, settleUsingBurn: false }),
+            ""
+        );
+        tokensOut = IERC20Like(asset).balanceOf(bettor) - before;
+    }
+
+    /// The whole thing: two entries, real bets on both sides, resolve, migrate
+    /// both, and claim. Claim is the half that carries the payout maths.
+    function test_lifecycle_fullCycleWithBetsAndClaim() public {
+        PoolSwapTest router = new PoolSwapTest(IPoolManager(POOL_MANAGER));
+
+        address alice = address(0xA11CE);
+        address bob = address(0xB0B);
+        vm.deal(alice, 5 ether);
+        vm.deal(bob, 5 ether);
+
+        vm.prank(agent);
+        oracle = RatioOracle(oracleFactory.createOracle(MARKET_ID, settlesAt));
+        address assetA = _createEntry(0, "ratio A", "RTOA");
+        address assetB = _createEntry(1, "ratio B", "RTOB");
+        vm.prank(agent);
+        oracle.setEntryTokens(assetA, assetB);
+
+        // Two bettors back side B, one backs side A. Side B is going to win.
+        uint256 aliceTokens = _bet(router, assetB, alice, 0.02 ether);
+        uint256 bobTokens = _bet(router, assetB, bob, 0.01 ether);
+        uint256 loserTokens = _bet(router, assetA, alice, 0.03 ether);
+
+        console.log("alice side B tokens", aliceTokens);
+        console.log("bob   side B tokens", bobTokens);
+        console.log("alice side A tokens (losing)", loserTokens);
+        assertGt(aliceTokens, 0, "a bet must yield tokens");
+        assertGt(bobTokens, 0, "a bet must yield tokens");
+
+        assertGt(aliceTokens, bobTokens, "bigger stake, more tokens");
+
+        // OBSERVATION worth carrying into pricing: with these curve parameters
+        // the operating range is effectively LINEAR. Alice staked 2x Bob and
+        // received slightly MORE than 2x his tokens — because she bought first,
+        // and time priority outweighs her own price impact by orders of
+        // magnitude at this size. Her 0.02 ETH barely moves a curve minted
+        // against 1e24 tokens.
+        //
+        // This does not break anything, but it means the curve only prices size
+        // in if tickLower/tickUpper/shares are tuned so realistic stakes are
+        // material against the curve. Until they are, the linear pot-share
+        // approximation in packages/ui/payout.ts is not actually wrong here —
+        // it is wrong in the regime we have not reached yet.
+        assertGt(aliceTokens, bobTokens * 2, "first money in gets the better price");
+        console.log("alice tokens per wei x1e6", (aliceTokens * 1e6) / 0.02 ether);
+        console.log("bob   tokens per wei x1e6", (bobTokens * 1e6) / 0.01 ether);
+
+        vm.warp(settlesAt);
+        vm.prank(agent);
+        oracle.declareWinner(1, 120, 900, false);
+
+        AIRLOCK.migrate(assetA);
+        AIRLOCK.migrate(assetB);
+
+        uint256 pot = PREDICTION_MIGRATOR.balance;
+        console.log("pot (wei)", pot);
+        assertGt(pot, 0, "losing side's ETH must be in the pot");
+
+        // Claim. previewClaim first, then the real thing, and they must agree.
+        uint256 preview = IPredictionMigratorView(PREDICTION_MIGRATOR).previewClaim(
+            address(oracle), aliceTokens
+        );
+        uint256 aliceBefore = alice.balance;
+
+        vm.startPrank(alice);
+        IERC20Like(assetB).approve(PREDICTION_MIGRATOR, aliceTokens);
+        IPredictionMigratorView(PREDICTION_MIGRATOR).claim(address(oracle), aliceTokens);
+        vm.stopPrank();
+
+        uint256 alicePaid = alice.balance - aliceBefore;
+        console.log("alice preview", preview);
+        console.log("alice paid   ", alicePaid);
+        assertEq(alicePaid, preview, "previewClaim must match the real payout");
+        assertGt(alicePaid, 0, "a winner must be paid");
+
+        // Bob claims too. Both winners paid out of one pot, pro rata.
+        uint256 bobBefore = bob.balance;
+        vm.startPrank(bob);
+        IERC20Like(assetB).approve(PREDICTION_MIGRATOR, bobTokens);
+        IPredictionMigratorView(PREDICTION_MIGRATOR).claim(address(oracle), bobTokens);
+        vm.stopPrank();
+        uint256 bobPaid = bob.balance - bobBefore;
+        console.log("bob   paid   ", bobPaid);
+
+        // payout = tokens / claimableSupply * totalPot, so the ratio of
+        // payouts is the ratio of token holdings.
+        assertGt(alicePaid, bobPaid, "more tokens, more payout");
+        assertApproxEqRel(
+            alicePaid * bobTokens, bobPaid * aliceTokens, 1e12, "payout must be pro rata in TOKENS"
+        );
+
+        // Winners cannot take more than the pot.
+        assertLe(alicePaid + bobPaid, pot, "payouts cannot exceed the pot");
+        console.log("total paid   ", alicePaid + bobPaid);
+    }
+
+    /// The losing side gets nothing. Claiming with a losing token must fail.
+    function test_lifecycle_losingSideCannotClaim() public {
+        PoolSwapTest router = new PoolSwapTest(IPoolManager(POOL_MANAGER));
+        address alice = address(0xA11CE);
+        vm.deal(alice, 5 ether);
+
+        vm.prank(agent);
+        oracle = RatioOracle(oracleFactory.createOracle(MARKET_ID, settlesAt));
+        address assetA = _createEntry(0, "ratio A", "RTOA");
+        address assetB = _createEntry(1, "ratio B", "RTOB");
+        vm.prank(agent);
+        oracle.setEntryTokens(assetA, assetB);
+
+        uint256 loserTokens = _bet(router, assetA, alice, 0.02 ether);
+        _bet(router, assetB, alice, 0.01 ether);
+
+        vm.warp(settlesAt);
+        vm.prank(agent);
+        oracle.declareWinner(1, 120, 900, false);
+        AIRLOCK.migrate(assetA);
+        AIRLOCK.migrate(assetB);
+
+        vm.startPrank(alice);
+        IERC20Like(assetA).approve(PREDICTION_MIGRATOR, loserTokens);
+        vm.expectRevert();
+        IPredictionMigratorView(PREDICTION_MIGRATOR).claim(address(oracle), loserTokens);
+        vm.stopPrank();
     }
 }

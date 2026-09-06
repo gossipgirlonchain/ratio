@@ -74,13 +74,19 @@ export const HIDDEN_REPORT_THRESHOLD = 3;
 export const SWAP_FEE_BPS = 125; // 1.25%
 
 /**
- * Devnet WSOL sim rate: $1 = 0.01 SOL prices SOL at $100 (spot,
- * 2026-08-26) so rent, fees, and balances read like mainnet will.
- * USDC production replaces this with 1_000_000n at 1e6/$.
+ * Smallest quote-asset units per $1 of stake. PER CHAIN, not a product
+ * knob — it is here only because both the agent and the web assemble a
+ * MarketChain and need the same answer.
+ *
+ * Solana devnet: WSOL at $1 = 0.01 SOL, pricing SOL at $100 (spot,
+ * 2026-08-26), so rent, fees and balances read like mainnet will. USDC
+ * production is 1_000_000n at 1e6/$, and the EVM entry point carries its
+ * own value for whatever it settles in.
+ *
  * NOTE: the @nathan_liow/@solana test market was priced at the original
  * 500_000n rate; its chain-read numbers skew until it settles. Accepted.
  */
-export const LAMPORTS_PER_USD = 10_000_000n;
+export const QUOTE_UNITS_PER_USD_SOLANA = 10_000_000n;
 
 /**
  * Share of the swap fee per party, in bps of the fee (sums to 10_000).

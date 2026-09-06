@@ -40,7 +40,7 @@ const clock = () => simNow;
 // with a previous run's on-chain accounts.
 seedMockIds(Date.now());
 
-import { LAMPORTS_PER_USD } from "@ratio/config";
+import { QUOTE_UNITS_PER_USD_SOLANA } from "@ratio/config";
 
 async function main() {
   const clients = createClients();
@@ -61,7 +61,7 @@ async function main() {
   const wallets = new LocalWalletProvider(clients, operator, 200_000_000n);
   const chain = new DopplerMarketChain(clients, marketClient, {
     swapFeeBps: SWAP_FEE_BPS,
-    lamportsPerUsd: LAMPORTS_PER_USD,
+    lamportsPerUsd: QUOTE_UNITS_PER_USD_SOLANA,
     signerFor: (addr) =>
       addr === operator.address ? operator : wallets.signerFor(addr),
     operatorAddress: operator.address,

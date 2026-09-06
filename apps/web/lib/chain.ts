@@ -20,7 +20,7 @@
  */
 import "server-only";
 
-import { LAMPORTS_PER_USD } from "@ratio/config";
+import { QUOTE_UNITS_PER_USD_SOLANA, SWAP_FEE_BPS } from "@ratio/config";
 import type { MarketChain } from "@ratio/chain";
 import { DopplerMarketChain } from "@ratio/chain/solana";
 import { RatioMarketClient } from "@ratio/doppler/pair-market";
@@ -66,8 +66,8 @@ async function build(): Promise<MarketChain> {
   });
 
   return new DopplerMarketChain(getClients(), marketClient, {
-    swapFeeBps: 125,
-    lamportsPerUsd: LAMPORTS_PER_USD,
+    swapFeeBps: SWAP_FEE_BPS,
+    lamportsPerUsd: QUOTE_UNITS_PER_USD_SOLANA,
     signerFor: privySignerByAddress,
     operatorAddress: OPERATOR_ADDRESS,
     // Treasury sponsors tx fees and ATA rent, never the stake itself. The

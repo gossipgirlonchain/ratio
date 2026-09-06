@@ -13,7 +13,7 @@ import {
   BOT_HANDLE,
   FEE_SHARE_BPS,
   FRESHNESS_WINDOW_MS,
-  LAMPORTS_PER_USD,
+  QUOTE_UNITS_PER_USD_SOLANA,
   HIDDEN_REPORT_THRESHOLD,
   LIKES_SAMPLE_INTERVAL_MS,
   MARKET_DURATION_MS,
@@ -178,7 +178,7 @@ async function main() {
   const marketClient = await RatioMarketClient.create({ clients, operator });
   const chain = new DopplerMarketChain(clients, marketClient, {
     swapFeeBps: SWAP_FEE_BPS,
-    lamportsPerUsd: LAMPORTS_PER_USD,
+    lamportsPerUsd: QUOTE_UNITS_PER_USD_SOLANA,
     signerFor: (addr) => (addr === operator.address ? operator : wallets.signerFor(addr)),
     operatorAddress: operator.address,
     sponsorAddress: (await wallets.getWallet("ratio:treasury")).address,

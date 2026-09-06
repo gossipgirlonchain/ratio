@@ -142,6 +142,14 @@ winners, so a leak there is a leak of settlement authority, not just funds.
 `.env` is gitignored and has never been committed; `contracts/.env.example`
 records the shape without the value.
 
+Generate the key with the helper rather than by hand — it writes straight to
+`contracts/.env` (mode 600) and prints only the address, so the private key
+never reaches a terminal, a shell history, or a chat window:
+
+```bash
+cd contracts && ./new-operator-key.sh
+```
+
 To run one real market end to end and get block-explorer links:
 
 ```bash

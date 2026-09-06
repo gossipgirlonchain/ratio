@@ -88,12 +88,20 @@ interface IERC20Like {
  *         settlesAt is set to now, because a real chain cannot be warped. The
  *         "cannot resolve early" guard is covered by the unit tests instead.
  *
- *         Run:
+ *         Run from contracts/:
  *           forge script script/LifecycleBaseSepolia.s.sol:LifecycleBaseSepolia \
  *             --rpc-url https://sepolia.base.org \
+ *             --skip-simulation \
  *             --broadcast -vvv
  *
- *         Needs BASE_SEPOLIA_PRIVATE_KEY in the environment. TESTNET ONLY.
+ *         --skip-simulation is REQUIRED. Without it foundry's post-run replay
+ *         fails on Base Sepolia with "invalid fee token: 0x20C0...", an
+ *         OP-stack custom-gas-token path this foundry build mishandles. The
+ *         script body runs fine either way; it is the replay that breaks, and
+ *         the fork test already covers what the replay would have checked.
+ *
+ *         Needs BASE_SEPOLIA_PRIVATE_KEY in contracts/.env (foundry loads .env
+ *         from the working directory, not the repo root). TESTNET ONLY.
  */
 contract LifecycleBaseSepolia is Script {
     IAirlock constant AIRLOCK = IAirlock(0x3411306Ce66c9469BFF1535BA955503c4Bde1C6e);

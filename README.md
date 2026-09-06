@@ -147,8 +147,16 @@ To run one real market end to end and get block-explorer links:
 ```bash
 cd contracts
 forge script script/LifecycleBaseSepolia.s.sol:LifecycleBaseSepolia \
-  --rpc-url https://sepolia.base.org --broadcast -vvv
+  --rpc-url https://sepolia.base.org --skip-simulation --broadcast -vvv
 ```
+
+The key goes in `contracts/.env`, not the repo root — foundry loads `.env` from
+the directory you run in. It is gitignored at any depth.
+
+`--skip-simulation` is required: foundry's post-run replay fails on Base Sepolia
+with `invalid fee token: 0x20C0…`, an OP-stack custom-gas-token path this build
+mishandles. It is the replay that breaks, not the script, and the forked test
+covers what the replay would have checked.
 
 ## Layout
 

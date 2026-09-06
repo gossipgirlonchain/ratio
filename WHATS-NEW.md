@@ -35,14 +35,12 @@ The Solana build. Roughly 15,600 lines across the workspace.
 ### Sunday 6 September
 
 **Recon and decisions.**
-- Established that Doppler's prediction lifecycle — trusted oracle, oracle-gated
-  migration, pro-rata claim — **exists on Solana only**. EVM ships Airlock,
-  initializers, migrators and `dopplerLaunchHookV1`, with no oracle-resolved
-  prediction module and no prediction example. This is why the week is a port
-  *plus* a settlement contract rather than a port.
-- Chain selected: **Base Sepolia (84532)**, Doppler's only EVM testnet deployment.
-  There is no Unichain Sepolia Doppler deployment. The Uniswap Foundation claim is
-  structural (Doppler pools are v4 hooks) and does not depend on the chain.
+- Mapped the chain seam and every place the codebase reached around it, which
+  turned out to be most of `apps/web`.
+- Chain selected: **Base Sepolia (84532)**, the only chain where Doppler's
+  prediction market is deployed. There is no Unichain Sepolia deployment. The
+  Uniswap Foundation claim is structural — Doppler pools are v4 hooks — and does
+  not depend on the chain.
 
 **Found Doppler's EVM prediction market, already deployed.** Three
 documentation searches said EVM had no prediction lifecycle. It does — it is on
@@ -76,8 +74,9 @@ tests including the tie-holds-for-side-A convention and a fuzz over the verdict.
 
 ### Still to come
 
-Contract, EVM `MarketChain`, subgraph, quote correctness, Privy EVM wallets.
-Listed here only when they land.
+EVM `MarketChain` implementation, agent wiring against Airlock, the subgraph,
+quote correctness from `previewSwapExactIn`, and Privy EVM wallets. Listed here
+only when they land.
 
 ---
 

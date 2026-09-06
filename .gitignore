@@ -7,3 +7,6 @@ packages/doppler/scripts/.keys/
 .next/
 .vercel
 out/
+contracts/out/
+contracts/cache/
+contracts/lib/

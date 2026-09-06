@@ -122,7 +122,14 @@ contract LifecycleBaseSepolia is Script {
     /// Native ETH. One asset to fund, bet with, and pay gas with.
     address constant NUMERAIRE = address(0);
 
-    uint256 constant BET = 0.002 ether;
+    /// Deliberately tiny. Base Sepolia gas is 0.006 gwei, so the whole run
+    /// costs ~0.00007 ETH in gas; the bets are the only real spend. Keeping
+    /// them small means a single small faucet drip covers the entire cycle,
+    /// and the payout maths is identical at any size.
+    uint256 constant BET = 0.0002 ether;
+
+    /// Enough for both bets plus ~12M gas, with headroom.
+    uint256 constant NEEDED = 0.0005 ether;
 
     RatioOracle oracle;
     address operator;
@@ -132,7 +139,11 @@ contract LifecycleBaseSepolia is Script {
         operator = vm.addr(pk);
         console.log("operator", operator);
         console.log("balance ", operator.balance);
-        require(operator.balance > 0.02 ether, "fund the operator with Base Sepolia ETH first");
+        if (operator.balance < NEEDED) {
+            console.log("needed (wei)", NEEDED);
+            console.log("have   (wei)", operator.balance);
+            revert("fund the operator with Base Sepolia ETH first");
+        }
 
         uint256 marketId = block.timestamp; // stands in for side B's tweet id
         uint64 settlesAt = uint64(block.timestamp);

@@ -42,5 +42,6 @@ echo
 echo "Faucets: https://www.alchemy.com/faucets/base-sepolia"
 echo "         https://faucet.quicknode.com/base/sepolia"
 echo
-echo "~0.05 ETH is plenty. The run uses 0.004 for bets, the rest is gas."
+echo "0.0005 ETH is enough for the whole run: 0.0004 in bets and ~0.00007 in gas."
+echo "Base Sepolia gas is 0.006 gwei, so almost any drip covers it."
 rm -f .operator-address

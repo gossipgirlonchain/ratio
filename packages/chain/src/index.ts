@@ -40,7 +40,7 @@ export interface MarketChain {
     side: 0 | 1;
     amountUsd: number;
     bettor: string;
-  }): Promise<{ tokensOut: number }>;
+  }): Promise<{ tokensOut: number; signature: string }>;
   /**
    * Quote source for the UI (§7): NEVER computed client-side from pot
    * totals — the real implementation simulates previewSwapExactIn. Entry
@@ -105,6 +105,7 @@ interface MockMarket {
 
 export class MockMarketChain implements MarketChain {
   markets = new Map<string, MockMarket>();
+  private bets = 0;
 
   constructor(private readonly swapFeeBps: number) {}
 
@@ -147,7 +148,7 @@ export class MockMarketChain implements MarketChain {
     side: 0 | 1;
     amountUsd: number;
     bettor: string;
-  }): Promise<{ tokensOut: number }> {
+  }): Promise<{ tokensOut: number; signature: string }> {
     const m = this.market(opts.refs);
     if (m.state !== "open") throw new Error("market not open");
     const fee = (opts.amountUsd * this.swapFeeBps) / 10_000;
@@ -159,7 +160,8 @@ export class MockMarketChain implements MarketChain {
     side.virtualQuote += net;
     side.raisedUsd += net;
     side.tokensOut += tokensOut;
-    return { tokensOut };
+    this.bets += 1;
+    return { tokensOut, signature: `mock-bet-${this.bets}` };
   }
 
   /** Mirrors previewSwapExactIn: quote without mutating the curve. */

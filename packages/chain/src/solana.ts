@@ -111,7 +111,7 @@ export class DopplerMarketChain implements MarketChain {
     side: 0 | 1;
     amountUsd: number;
     bettor: string;
-  }): Promise<{ tokensOut: number }> {
+  }): Promise<{ tokensOut: number; signature: string }> {
     const result = await this.client.placeBet({
       refs: await this.refs(params.refs),
       side: params.side,
@@ -121,8 +121,10 @@ export class DopplerMarketChain implements MarketChain {
       wrapSol: true, // WSOL quote; USDC flips this off
       rentPayer: await this.sponsor(),
     });
-    void result.signature;
-    return { tokensOut: 0 }; // token amount lives in the bettor's ATA on-chain
+    // tokensOut is 0 on Solana: the position lands in the bettor's
+    // associated token account and the swap never reports the amount back.
+    // The EVM settlement contract emits it (contracts/EVENTS.md).
+    return { tokensOut: 0, signature: result.signature };
   }
 
   async previewStake(_params: {

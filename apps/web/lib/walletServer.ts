@@ -1,5 +1,7 @@
 /**
- * Server-side wallet plumbing for the logged-in viewer.
+ * Server-side wallet IDENTITY for the logged-in viewer. Chain operations
+ * live behind MarketChain (lib/chain.ts) — this file knows about Privy and
+ * about our wallets table, and nothing about how money moves.
  *
  * Identity: the Privy access token from the client is VERIFIED here
  * (never trust a client-passed x id for money paths), then resolved to
@@ -8,35 +10,13 @@
  * Provisioning mirrors apps/agent/src/privyWallets.ts exactly: wallets
  * table first, Privy create with the same idempotency key second, so
  * web and agent can never mint two wallets for one person.
- *
- * Denomination: devnet quote is WSOL at LAMPORTS_PER_USD (the same rate
- * DopplerMarketChain trades at), so balances and sends are USD-labeled
- * SOL. USDC production flips this to an SPL transfer at 1e6/$.
  */
 import "server-only";
 
 import { PrivyClient } from "@privy-io/server-auth";
-import { getTransferSolInstruction } from "@solana-program/system";
-import {
-  address,
-  appendTransactionMessageInstructions,
-  createSolanaRpc,
-  createTransactionMessage,
-  getBase64EncodedWireTransaction,
-  lamports,
-  pipe,
-  setTransactionMessageFeePayerSigner,
-  setTransactionMessageLifetimeUsingBlockhash,
-  signTransactionMessageWithSigners,
-  type Address,
-  type SignatureBytes,
-  type TransactionSigner,
-} from "@solana/kit";
+import type { Address, SignatureBytes, TransactionSigner } from "@solana/kit";
 
 import { supabaseAdmin } from "./supabaseServer";
-
-import { LAMPORTS_PER_USD } from "@ratio/config";
-export { LAMPORTS_PER_USD };
 
 const PRIVY_API = "https://api.privy.io/v1";
 
@@ -49,10 +29,6 @@ function privy(): PrivyClient {
     privyClient = new PrivyClient(appId, secret);
   }
   return privyClient;
-}
-
-function rpc() {
-  return createSolanaRpc(process.env.SOLANA_RPC_URL ?? "https://api.devnet.solana.com");
 }
 
 export interface Viewer {
@@ -75,7 +51,7 @@ export async function verifyViewer(authHeader: string | null): Promise<Viewer | 
   }
 }
 
-interface WalletRow {
+export interface WalletRow {
   x_user_id: string;
   privy_wallet_id: string;
   address: string;
@@ -133,75 +109,55 @@ export async function getOrCreateWallet(xUserId: string, handle?: string): Promi
   return up.data as WalletRow;
 }
 
-export async function balanceUsd(walletAddress: string): Promise<number> {
-  const { value } = await rpc().getBalance(address(walletAddress)).send();
-  return Number(value) / Number(LAMPORTS_PER_USD);
+/** Solana signatures are ed25519 over the message bytes, so Privy's
+ * signMessage maps 1:1 onto a partial signer with no round trip through
+ * full-transaction serialization. */
+async function signWithPrivy(
+  walletId: string,
+  walletAddress: string,
+  transactions: readonly { messageBytes: unknown }[],
+): Promise<Array<Record<string, SignatureBytes>>> {
+  const out: Array<Record<string, SignatureBytes>> = [];
+  for (const tx of transactions) {
+    const r = await privyRest<{ data: { signature: string } }>(`/wallets/${walletId}/rpc`, {
+      method: "signMessage",
+      params: {
+        message: Buffer.from(tx.messageBytes as Uint8Array).toString("base64"),
+        encoding: "base64",
+      },
+    });
+    out.push({
+      [walletAddress]: new Uint8Array(Buffer.from(r.data.signature, "base64")) as SignatureBytes,
+    });
+  }
+  return out;
 }
 
 /**
- * Lamports parked as rent in the wallet's token accounts (outcome tokens,
- * WSOL). At the devnet sim rate rent looks big in USD — showing it is the
- * difference between "numbers add up" and "where did $8 go".
+ * MarketChain resolves bettor and sponsor ADDRESSES to signers, and the
+ * interface is synchronous — but mapping an address to its Privy wallet id
+ * is a database read. So the lookup happens lazily inside signTransactions,
+ * the same shape the agent's PrivyWalletProvider uses, and is cached per
+ * process afterwards.
  */
-export async function rentUsd(walletAddress: string): Promise<number> {
-  const { value } = await rpc()
-    .getTokenAccountsByOwner(
-      address(walletAddress),
-      { programId: address("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA") },
-      { encoding: "jsonParsed" },
-    )
-    .send();
-  let lamports = 0n;
-  for (const acc of value) lamports += BigInt(acc.account.lamports);
-  return Number(lamports) / Number(LAMPORTS_PER_USD);
-}
+const walletIdByAddress = new Map<string, string>();
 
-export function privySigner(walletId: string, walletAddress: string): TransactionSigner {
+export function privySignerByAddress(walletAddress: string): TransactionSigner {
   return {
     address: walletAddress as Address,
     async signTransactions(transactions) {
-      const out: Array<Record<string, SignatureBytes>> = [];
-      for (const tx of transactions) {
-        const r = await privyRest<{ data: { signature: string } }>(`/wallets/${walletId}/rpc`, {
-          method: "signMessage",
-          params: {
-            message: Buffer.from(tx.messageBytes as unknown as Uint8Array).toString("base64"),
-            encoding: "base64",
-          },
-        });
-        out.push({
-          [walletAddress]: new Uint8Array(Buffer.from(r.data.signature, "base64")) as SignatureBytes,
-        });
+      let walletId = walletIdByAddress.get(walletAddress);
+      if (!walletId) {
+        const { data } = await supabaseAdmin()
+          .from("wallets")
+          .select()
+          .eq("address", walletAddress)
+          .maybeSingle();
+        if (!data) throw new Error(`no privy wallet for ${walletAddress}`);
+        walletId = (data as WalletRow).privy_wallet_id;
+        walletIdByAddress.set(walletAddress, walletId);
       }
-      return out;
+      return signWithPrivy(walletId, walletAddress, transactions);
     },
-  };
-}
-
-/** USD-denominated transfer out of the viewer's wallet. Returns the tx signature. */
-export async function sendUsd(wallet: WalletRow, to: string, amountUsd: number): Promise<string> {
-  const client = rpc();
-  const signer = privySigner(wallet.privy_wallet_id, wallet.address);
-  const { value: latestBlockhash } = await client.getLatestBlockhash().send();
-  const message = pipe(
-    createTransactionMessage({ version: 0 }),
-    (tx) => setTransactionMessageFeePayerSigner(signer, tx),
-    (tx) => setTransactionMessageLifetimeUsingBlockhash(latestBlockhash, tx),
-    (tx) =>
-      appendTransactionMessageInstructions(
-        [
-          getTransferSolInstruction({
-            source: signer,
-            destination: address(to),
-            amount: lamports(BigInt(Math.round(amountUsd * Number(LAMPORTS_PER_USD)))),
-          }),
-        ],
-        tx,
-      ),
-  );
-  const signed = await signTransactionMessageWithSigners(message);
-  const sig = await client
-    .sendTransaction(getBase64EncodedWireTransaction(signed), { encoding: "base64" })
-    .send();
-  return sig as string;
+  } as TransactionSigner;
 }

@@ -59,6 +59,21 @@ export interface MarketChain {
    * need an RPC handle to answer "can this person afford the bet".
    */
   balanceUsd(walletAddress: string): Promise<number>;
+  /**
+   * Quote-denominated funds a wallet holds but cannot spend, because the
+   * chain parks them in per-token accounting (Solana: ATA rent). Zero on
+   * chains with no such concept. Surfaced to users because otherwise the
+   * numbers do not add up and it reads as missing money.
+   */
+  reservedUsd(walletAddress: string): Promise<number>;
+  /** Withdraw/deposit rail: a plain quote-asset transfer between wallets. */
+  transferUsd(opts: {
+    from: string;
+    to: string;
+    amountUsd: number;
+  }): Promise<{ signature: string }>;
+  /** Address shape check for the withdraw form, in the chain's own format. */
+  isValidAddress(candidate: string): boolean;
   settle(opts: { refs: ChainRefs; winner: 0 | 1 }): Promise<void>;
   /** Post-settlement payout: claim a bettor's full winning balance into
    * their wallet. null = they hold nothing on the winning side. */
@@ -176,6 +191,23 @@ export class MockMarketChain implements MarketChain {
   }
   async balanceUsd(walletAddress: string): Promise<number> {
     return this.balances.get(walletAddress) ?? Number.POSITIVE_INFINITY;
+  }
+  /** No per-token account rent in the mock world. */
+  async reservedUsd(): Promise<number> {
+    return 0;
+  }
+  transfers: Array<{ from: string; to: string; amountUsd: number }> = [];
+  async transferUsd(opts: {
+    from: string;
+    to: string;
+    amountUsd: number;
+  }): Promise<{ signature: string }> {
+    this.transfers.push(opts);
+    return { signature: `mock-transfer-${this.transfers.length}` };
+  }
+  /** Mock addresses are `wallet:<x id>` — see MockWalletProvider. */
+  isValidAddress(candidate: string): boolean {
+    return candidate.startsWith("wallet:") && candidate.length > "wallet:".length;
   }
 
   async settle(opts: { refs: ChainRefs; winner: 0 | 1 }): Promise<void> {

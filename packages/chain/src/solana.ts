@@ -11,7 +11,8 @@
  *   marketId. The Supabase store serializes them alongside the market row
  *   when it lands (R4); the sim does not restart mid-run.
  */
-import { address, type TransactionSigner } from "@solana/kit";
+import { getTransferSolInstruction } from "@solana-program/system";
+import { address, lamports, type TransactionSigner } from "@solana/kit";
 
 import {
   claimAndUnwrap,
@@ -21,9 +22,11 @@ import {
   WSOL_MINT,
   type PairMarketRefs,
 } from "@ratio/doppler/pair-market";
-import type { Clients } from "@ratio/doppler/tx";
+import { sendInstructions, type Clients } from "@ratio/doppler/tx";
 
 import type { ChainRefs, FeeBeneficiary, MarketChain, Odds } from "./index.js";
+
+const TOKEN_PROGRAM = address("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 
 export class DopplerMarketChain implements MarketChain {
   private refsById = new Map<string, PairMarketRefs>();
@@ -148,6 +151,52 @@ export class DopplerMarketChain implements MarketChain {
   async balanceUsd(walletAddress: string): Promise<number> {
     const { value } = await this.clients.rpc.getBalance(address(walletAddress)).send();
     return Number(value) / Number(this.opts.lamportsPerUsd);
+  }
+
+  /**
+   * Lamports parked as rent in the wallet's token accounts (outcome tokens,
+   * WSOL). At the sim rate rent looks big in USD — showing it is the
+   * difference between "the numbers add up" and "where did $8 go".
+   */
+  async reservedUsd(walletAddress: string): Promise<number> {
+    const { value } = await this.clients.rpc
+      .getTokenAccountsByOwner(
+        address(walletAddress),
+        { programId: TOKEN_PROGRAM },
+        { encoding: "jsonParsed" },
+      )
+      .send();
+    let parked = 0n;
+    for (const acc of value) parked += BigInt(acc.account.lamports);
+    return Number(parked) / Number(this.opts.lamportsPerUsd);
+  }
+
+  async transferUsd(opts: {
+    from: string;
+    to: string;
+    amountUsd: number;
+  }): Promise<{ signature: string }> {
+    const signer = this.opts.signerFor(opts.from);
+    const signature = await sendInstructions({
+      clients: this.clients,
+      payer: signer,
+      label: `transfer $${opts.amountUsd} to ${opts.to}`,
+      instructions: [
+        getTransferSolInstruction({
+          source: signer,
+          destination: address(opts.to),
+          amount: lamports(
+            BigInt(Math.round(opts.amountUsd * Number(this.opts.lamportsPerUsd))),
+          ),
+        }),
+      ],
+    });
+    return { signature };
+  }
+
+  /** base58, 32-44 chars — the Solana address shape. */
+  isValidAddress(candidate: string): boolean {
+    return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(candidate);
   }
 
   async settle(params: { refs: ChainRefs; winner: 0 | 1 }): Promise<void> {

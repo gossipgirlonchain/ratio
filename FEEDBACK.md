@@ -76,7 +76,118 @@ implementation on top — and, as far as the chain can tell, the first real use 
 these contracts: there were zero `EntryRegistered`, `EntryMigrated` and `Claimed`
 events on that migrator before we arrived.
 
-## 2. `allowSell: true` is accepted config that the hook silently overrides
+## 2. The prediction-market path is blocked on Base Sepolia by two module-wiring problems
+
+Having found the deployment, we tried to use it. Both entries create fine and
+then the lifecycle stops. Neither problem is in `PredictionMigrator` itself —
+both are wiring — and between them they cost a day, which is why they are worth
+writing down precisely.
+
+We found these by forking Base Sepolia and running the real deployed bytecode.
+Reproduction is `contracts/test/BaseSepoliaLifecycle.t.sol` in our repo.
+
+### 2a. The deploy script points at a token factory that is not whitelisted
+
+`script/DeployPredictionMarketBaseSepolia.s.sol` reads its token factory from
+config as `clone_erc20_factory`:
+
+```solidity
+tokenFactory: config.get("clone_erc20_factory").toAddress(),
+```
+
+and validates it with `require(existing.tokenFactory.code.length > 0)`. That
+check passes. But `Airlock.getModuleState(0xbf4Ca4D5...)` returns **0
+(NotWhitelisted)**, so `airlock.create` reverts for anyone following the script's
+own choice of modules.
+
+The validation checks that the address has code, not that it is a usable module.
+Asserting `getModuleState == ModuleState.TokenFactory` in `_validateExistingAddresses`
+would have caught it at deploy time.
+
+### 2b. `migrate()` reverts because the migrator cannot burn the unsold tokens
+
+This is the more interesting one. With `token_factory_80` — which **is**
+whitelisted — markets create successfully, entries register, the oracle
+finalizes, and then `airlock.migrate(asset)` reverts with:
+
+```
+OwnableUnauthorizedAccount(0x91aad599EfD70E633d091FC060cc6f9D3e5298BE)
+                            ^ PredictionMigrator
+```
+
+The trace shows why. `Airlock.migrate` does this, in this order:
+
+```
+Airlock::migrate(asset)
+  ├─ asset::unlockPool()
+  ├─ asset::transferOwnership(0x…dEaD)        <- ownership moves to the timelock
+  ├─ initializer::exitLiquidity(asset)
+  ├─ asset::transfer(migrator, 999999999999999999999980)
+  └─ migrator::migrate(...)
+       ├─ oracle::getWinner(oracle)            -> (tokenB, true)
+       ├─ asset::balanceOf(migrator)
+       ├─ asset::totalSupply()
+       └─ asset::burn(999999999999999999999980)  <- REVERT, migrator is not owner
+```
+
+`PredictionMigrator.migrate` burns the unsold entry tokens to compute
+`claimableSupply = totalSupply - unsold`. But Airlock has already transferred
+token ownership to the timelock two calls earlier, and that token's `burn()` is
+owner-gated. The migrator can never satisfy it.
+
+The integration guide does warn that "if burn is unavailable/restricted,
+`migrate` reverts" — but it is the interaction that bites: ownership is moved by
+Airlock, mid-migration, before the migrator gets to run. No amount of care when
+choosing a token factory helps if the factory's burn is owner-gated, because the
+migrator is never the owner by the time it needs to be.
+
+**Suggestions, cheapest first:**
+
+1. State in the integration guide which deployed token factories are actually
+   compatible, per chain. "Entry tokens must support `burn(uint256)`" is true but
+   not actionable — a developer cannot tell from an address whether its burn is
+   owner-gated.
+2. Have `PredictionMigrator.initialize` reject a token whose burn it will not be
+   able to call, so the failure lands at `create` time with a clear error rather
+   than at `migrate`, after a market has taken real money.
+3. Point the Base Sepolia deploy script at a compatible factory and assert module
+   state during validation.
+
+### What actually works
+
+`clone_derc20_v2_votes_factory` (`0x16F5ACB64F4FA17296E942C51d3395aDC318f9e1`) is
+whitelisted, and its `CloneDERC20VotesV2.burn` is open:
+
+```solidity
+function burn(uint256 amount) external { _burn(msg.sender, amount); }
+```
+
+It takes a different `tokenFactoryData` shape — `(string, string, uint256,
+VestingSchedule[], address[], uint256[], uint256[], string)` rather than the two
+plain uints — which is not documented anywhere we could find, and which we
+recovered from `legacy/src/tokens/CloneDERC20VotesV2Factory.sol`.
+
+With that factory the full lifecycle completes: create both entries, bet on both
+sides, finalize, migrate both, claim pro rata. `previewClaim` matched the actual
+payout to the wei.
+
+We could not have routed around this by deploying our own token factory: the
+Airlock owner is `AirlockMultisigTestnet` and both `setModuleState` and
+`addSigner` are `onlySigner`. An integrator who hits 2b and has no compatible
+whitelisted factory is simply stuck until someone at Whetstone acts.
+
+## 3. The pool fee is dynamic regardless of what you pass
+
+`InitData.fee` is not the pool's fee. The initializer creates the pool with
+`LPFeeLibrary.DYNAMIC_FEE_FLAG` (`0x800000`) whatever you pass, so a `PoolKey`
+reconstructed with the fee you supplied will not find the pool — `extsload`
+returns an uninitialized slot and swaps revert somewhere unhelpful.
+
+We only worked this out by reading `modifyLiquidity` arguments out of a call
+trace. Either document that the fee is always dynamic, or ignore the field and
+remove it from `InitData`.
+
+## 4. `allowSell: true` is accepted config that the hook silently overrides
 
 On Solana, the launch is configured with `allowSell: true` and it looks like a
 working feature. It is not: the prediction hook rejects sells in **every** oracle
@@ -97,7 +208,7 @@ where on Solana the same behaviour is an undocumented override of config that
 claims the opposite. That naming is the right pattern; the Solana side should
 borrow it.
 
-## 3. Beneficiary limits are documented per chain, but only for one chain
+## 5. Beneficiary limits are documented per chain, but only for one chain
 
 Solana's five-beneficiary cap is clearly documented as a transaction-size limit,
 which is exactly the kind of constraint-with-a-reason that is useful — we designed
@@ -116,7 +227,7 @@ found in passing. It belongs somewhere more prominent than it is: it changes how
 you allocate a fee split, and a team that discovers it late has to redo their
 economics.
 
-## 4. Small things
+## 6. Small things
 
 - The SDK renamed `cpmmHookProgram` to `dopplerLaunchHookV1Program` around 1.0.30.
   Our integration carries a comment explaining that prediction launches must

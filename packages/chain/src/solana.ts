@@ -23,7 +23,7 @@ import {
 } from "@ratio/doppler/pair-market";
 import type { Clients } from "@ratio/doppler/tx";
 
-import type { ChainRefs, FeeBeneficiary, MarketChain, Odds } from "./chain.js";
+import type { ChainRefs, FeeBeneficiary, MarketChain, Odds } from "./index.js";
 
 export class DopplerMarketChain implements MarketChain {
   private refsById = new Map<string, PairMarketRefs>();

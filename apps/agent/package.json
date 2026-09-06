@@ -11,6 +11,7 @@
     "start": "tsx --env-file-if-exists=../../.env --env-file-if-exists=.env src/main.ts"
   },
   "dependencies": {
+    "@ratio/chain": "*",
     "@ratio/config": "*",
     "@ratio/doppler": "*",
     "@solana-program/system": "^0.12.2",

@@ -27,7 +27,7 @@ import { RatioMarketClient } from "@ratio/doppler/pair-market";
 import { createClients } from "@ratio/doppler/tx";
 import { createKeyPairSignerFromBytes } from "@solana/kit";
 
-import { DopplerMarketChain } from "./chainDevnet.js";
+import { DopplerMarketChain } from "@ratio/chain/solana";
 import { RatioEngine } from "./engine.js";
 import { PrivyWalletProvider } from "./privyWallets.js";
 import { SupabaseStore } from "./storeSupabase.js";

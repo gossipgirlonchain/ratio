@@ -27,8 +27,8 @@ import {
   forfeitRecap,
   type RejectionReason,
 } from "@ratio/config/copy";
+import type { FeeBeneficiary, MarketChain } from "@ratio/chain";
 
-import type { FeeBeneficiary, MarketChain } from "./chain.js";
 import { parseMention, substantiveText } from "./parse.js";
 import type { MarketRecord, PairType, Store } from "./store.js";
 import type { WalletProvider } from "./wallets.js";

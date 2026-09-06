@@ -26,7 +26,7 @@ import { RatioMarketClient } from "@ratio/doppler/pair-market";
 import { createClients } from "@ratio/doppler/tx";
 import { generateKeyPairSigner } from "@solana/kit";
 
-import { DopplerMarketChain } from "./chainDevnet.js";
+import { DopplerMarketChain } from "@ratio/chain/solana";
 import { RatioEngine } from "./engine.js";
 import { InMemoryStore } from "./store.js";
 import { LocalWalletProvider } from "./walletsDevnet.js";

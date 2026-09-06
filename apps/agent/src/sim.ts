@@ -21,7 +21,7 @@ import {
   marketUrl,
 } from "@ratio/config";
 
-import { MockMarketChain } from "./chain.js";
+import { MockMarketChain } from "@ratio/chain";
 import { RatioEngine } from "./engine.js";
 import { InMemoryStore } from "./store.js";
 import { MockWalletProvider } from "./wallets.js";

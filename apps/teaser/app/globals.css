@@ -1,9 +1,0 @@
-/* Reset only. ALL colour lives in skin.css as themed tokens — same rule
-   as apps/web. */
-* { box-sizing: border-box; margin: 0; padding: 0; }
-html { -webkit-text-size-adjust: 100%; }
-body {
-  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-}
-button { font-family: inherit; }
-input { font-family: inherit; }

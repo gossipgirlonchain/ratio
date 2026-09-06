@@ -4,5 +4,6 @@ node_modules/
 *.log
 .DS_Store
 packages/doppler/scripts/.keys/
-apps/web/.next/
+.next/
 .vercel
+out/

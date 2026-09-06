@@ -46,18 +46,30 @@ with zero proceeds, i.e. that the tick gate can be taken out of the way so
 something else can do the gating. That constraint was removed deliberately, for
 prediction markets, and the test stands as evidence of intent.
 
-What is missing is the module that fills the hole. `src/migrators/` has
-`DopplerHookMigrator`, `NoOpMigrator` and `UniswapV2MigratorSplit`; the test
-itself uses a `MockMigrator` that accepts tokens and does nothing. On Solana the
-equivalent is a whole program — `registerEntry`, `migrateEntry`, `claim`,
-`previewPayoutIfWinner`, with a purpose-built error set (`OracleNotFinalized`,
-`MarketNotResolved`, `InvalidWinnerMint`, `ZeroClaimableSupply`). None of that
-has an EVM counterpart.
+**And the module that fills the hole exists, is deployed, and is undiscoverable.**
+`PredictionMigrator`, `NoSellDopplerHook` and `MockPredictionOracle` are live on
+Base Sepolia and wired into the real Airlock — the migrator is whitelisted as a
+`LiquidityMigrator` and the hook is enabled on the `DopplerHookInitializer`. They
+ship with an integration guide, a versioned spec, unit and integration tests, and
+four invariant suites.
 
-So the honest version of this feedback is not "EVM cannot do prediction markets".
-It is: **the EVM stack was shaped to host one and the migrator was never
-shipped**, and nothing tells a developer that. A reader who finds
-`ImmediateMigration.t.sol` reasonably concludes the feature exists.
+None of it is on `main`. It lives on PR #481, open since February. The Base
+Sepolia deploy commit is not even on the PR branch — it is on a separate `pr-481`
+branch. The addresses are in `deployments.config.toml` and nowhere else:
+`Deployments.json`, `Deployments.md`, the docs, the SDK, the indexer and the API
+all have zero mentions.
+
+So the feedback is not "EVM cannot do prediction markets", and it is not "the
+module was never written". It is: **the module is written, deployed, whitelisted
+on a public testnet, and there is no path by which a developer reading the docs
+could ever find it.** We only found it by enumerating branches and pull requests
+on the contracts repo after three separate documentation searches said the
+capability did not exist.
+
+That is the expensive part. A working, deployed feature that the documentation
+actively implies is absent costs more than a missing feature, because a team will
+confidently build the thing you already built. We were one decision away from
+spending two days writing our own settlement contract.
 
 **What would have saved us most of a day:** a per-feature support matrix with
 Solana and EVM as columns. Even a one-line note on the prediction-market example

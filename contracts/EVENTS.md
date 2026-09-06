@@ -105,15 +105,32 @@ person betting.** This is the standard Uniswap v4 indexing trap and it would
 silently attribute every bet to one address.
 
 The bettor is `event.transaction.from`, because each bettor's Privy server wallet
-signs and sends its own transaction. The subgraph keys positions off that.
+signs and sends its own transaction.
 
-**This imposes a real constraint on the product: we cannot use a paymaster or a
-relayer for bets.** The moment gas is sponsored by a third party,
-`transaction.from` becomes the sponsor and per-user attribution collapses. On
-Solana we sponsored ATA rent from the treasury; the EVM equivalent is off the
-table unless we add our own router contract that emits a `BetPlaced(bettor, ...)`
-of its own. We are not doing that this week. **If sponsored gas ever comes back,
-this schema needs the router.**
+**This is settled, not a constraint we are working around: users pay their own
+gas.** No dusting, no treasury top-ups, no paymaster, no relayer. People betting
+on chain already accept gas and slippage, sponsoring it would cost us money and
+invite account farming, and it would break attribution for no benefit. The user
+signs from their own address, so `transaction.from` is the bettor. Nothing extra
+to build.
+
+## Denomination
+
+**Everything is ETH.** ETH is the numeraire for markets on Base — verified end to
+end on a fork of Base Sepolia with `numeraire = address(0)`, which is native ETH
+and is what Whetstone's own integration test uses. `PredictionMigrator` handles
+it first-class (`address(this).balance`, `SafeTransferLib.safeTransferETH`) and
+has dedicated ETH invariant suites.
+
+One asset: the user funds their embedded wallet with ETH once, bets with it, and
+pays gas with it. Pricing bets in USDC would leave a funded user with no ETH and
+a bet button that fails for a reason they cannot see.
+
+**Display is USD, transaction is ETH.** The product's voice is "@ratio $25 on A",
+not "@ratio 0.008 on A". Tweet amounts parse as dollars and convert at bet time.
+The price source is display-only: if the feed is wrong or down, nobody loses
+money and nothing settles incorrectly, because every on-chain amount, quote, fee
+and payout is ETH-denominated underneath.
 
 ## Derivations the subgraph performs
 

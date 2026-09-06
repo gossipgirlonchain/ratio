@@ -116,6 +116,40 @@ bot is **@ratiowtf** (registered 2026-08-20; `BOT_HANDLE` in
   auto-execution without its own workstream.
 - **Backlog (ordered): extension -> OG images.**
 
+## EVM (ETHOnline 2026)
+
+Ratio runs on Base Sepolia against Doppler's `PredictionMigrator`, which prices
+entry through Uniswap v4 pools and pays token-weighted parimutuel claims.
+Addresses and how to re-verify them: `contracts/BASE-SEPOLIA.md`. The event
+schema the subgraph is built against: `contracts/EVENTS.md`.
+
+We own exactly one contract, `RatioOracle` — it reports the 24h likes verdict
+and refuses to report it wrongly. Everything else is Doppler's.
+
+```bash
+cd contracts && forge test          # 29 tests: unit + forked against live state
+```
+
+### The operator key is testnet-only
+
+`BASE_SEPOLIA_PRIVATE_KEY` is the agent's operator key: it deploys the oracle
+factory, opens markets, and relays verdicts. On testnet the smoke-test signer and
+the operator are deliberately the same key.
+
+**It must never be reused on mainnet.** Mainnet needs a fresh key held somewhere
+that is not a developer's `.env` — the operator can open markets and declare
+winners, so a leak there is a leak of settlement authority, not just funds.
+`.env` is gitignored and has never been committed; `contracts/.env.example`
+records the shape without the value.
+
+To run one real market end to end and get block-explorer links:
+
+```bash
+cd contracts
+forge script script/LifecycleBaseSepolia.s.sol:LifecycleBaseSepolia \
+  --rpc-url https://sepolia.base.org --broadcast -vvv
+```
+
 ## Layout
 
 - `apps/agent` — mention loop, engine, settlement + likes-sampler crons, sim

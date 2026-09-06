@@ -1,195 +1,156 @@
-# Ratio settlement layer — event schema
+# Event schema — what the subgraph indexes
 
-**Status: FROZEN 2026-09-06.** Changes after Tuesday 8 September need winny's
-sign-off first. The subgraph is built against this document, not against the
-contract source, so that indexer work and contract work can run in parallel
-without either blocking the other.
+**Rewritten 2026-09-06, replacing the speculative schema frozen earlier the same
+day.** That version described events for a settlement contract we were going to
+write. We are not writing one: Doppler's `PredictionMigrator` is deployed and
+whitelisted on Base Sepolia (see `BASE-SEPOLIA.md`), so the events below are
+**real, already deployed, and verified against on-chain bytecode** rather than
+designed by us.
 
-## Why this document exists first
+Every topic0 here was confirmed present in the deployed runtime bytecode of the
+contract that emits it. None of this is guesswork.
 
-The Graph is our largest prize and the subgraph cannot start until events exist.
-Writing the contract body first would serialise a week we do not have. So the
-event surface is designed, frozen, and published before a line of Solidity is
-written; `subgraph/` and `contracts/` then proceed against the same fixed
-contract.
+## Architecture, in one paragraph
 
-## What the contract is
+Doppler prices entry: one Uniswap v4 pool per side, curve-priced, with
+`NoSellDopplerHook` making positions one-way. `PredictionMigrator` holds the pot
+and pays claims. We supply exactly one contract — `RatioOracle`, implementing
+`IPredictionOracle` — which reports the winner after the 24h likes verdict. The
+agent is its only writer, the same trust model as Solana.
 
-Doppler's prediction lifecycle (trusted oracle → `finalize(winner)` → migrate →
-claim) exists on Solana only. On EVM, Doppler ships Airlock, initializers and
-migrators, but no oracle-resolved prediction module. So Doppler prices entry —
-one XYK curve per side, `previewSwapExactIn` for quotes — and **we own resolution
-and payout**.
+## Identity mapping
 
-`RatioMarket` escrows both curves' net quote proceeds, records each bettor's
-outcome-token position at purchase time, and pays a token-weighted parimutuel
-claim after a trusted oracle finalizes the winner:
+| Ratio concept | On-chain |
+|---|---|
+| A market | One `RatioOracle` instance. `PredictionMigrator` keys markets by **oracle address** (`_markets[oracle]`), so one market means one oracle contract. Deployed as an EIP-1167 minimal proxy per market. |
+| Market id (side B's tweet id) | Stored on the oracle and emitted by us at creation; the migrator never sees it. |
+| Side A / side B | `entryId` = `bytes32(uint256(0))` and `bytes32(uint256(1))`. The migrator only requires uniqueness within a market, so the side index **is** the entry id. |
+| A side's token | The DERC20 minted by the entry's launch. Must support `burn(uint256)` or `migrate` reverts. |
+| The pot | `market.totalPot` on the migrator, in the shared numeraire. |
+| A bet | A swap on that side's v4 pool. |
 
-```
-payout = yourTokens / claimableSupply * netPot        netPot = gross * 0.9875
-```
+## Events we index
 
-The oracle is the agent's hot wallet — the same trust model as the Solana build.
-No decentralised resolution scheme this week.
-
-## A note on positions, and the bug this fixes
-
-On Solana, `tokensOut` was never captured: both `DopplerMarketChain.placeBet` and
-the web `placeRealBet` record `0`, because the token amount lived in the bettor's
-associated token account and nothing read it back. Every token-weighted number in
-the product — trader leaderboard, open positions, payout share — silently divided
-by zero-filled data in production while passing in the sim.
-
-Because `RatioMarket` is the contract that takes the position, it knows the token
-count by construction. `BetPlaced.tokensOut` is that number, and it is the
-authoritative source for every downstream surface.
-
-## Frozen event signatures
+### `PredictionMigrator` — `0x91aad599EfD70E633d091FC060cc6f9D3e5298BE`
 
 ```solidity
-/// Market opened. marketId is side B's tweet id, the same value used as the
-/// Doppler nonce, so a market is addressable from a tweet with no lookup.
-event MarketCreated(
-    uint256 indexed marketId,
-    address indexed oracle,        // trusted resolver: the agent hot wallet
-    address indexed creator,       // who paid to open it (agent operator)
-    address quoteToken,
-    address outcomeTokenA,         // Doppler curve base token, side A
-    address outcomeTokenB,
-    address curveA,                // Doppler pool/hook, side A
-    address curveB,
-    uint64  settlesAt,             // createdAt + 24h, seconds
-    uint16  swapFeeBps             // 125
+event EntryRegistered(
+    address indexed oracle,
+    bytes32 indexed entryId,
+    address token,
+    address numeraire
 );
+// topic0 0xf1c9c9c40614762e48ef0d778e98d0e8c6e8301e00115dd327158124b7780577
 
-/// The fee split, immutable from this point. Emitted once, immediately after
-/// MarketCreated, in the same transaction.
-///
-/// LOGICAL roles, not deduplicated: when the tagger is also side B's author the
-/// same wallet appears twice, with its two shares. The contract merges
-/// duplicates internally for transfer efficiency; the event keeps them apart so
-/// the fee leaderboard can attribute per role. Always 5 entries.
-event FeeBeneficiariesSet(
-    uint256 indexed marketId,
-    address[5] wallets,
-    uint16[5]  shareBps,           // sums to 10_000
-    uint8[5]   roles               // Role enum below
+event EntryMigrated(
+    address indexed oracle,
+    bytes32 indexed entryId,
+    address token,
+    uint256 contribution,      // numeraire added to the pot
+    uint256 claimableSupply    // totalSupply - unsold, the payout denominator
 );
+// topic0 0x26fbd82cf8c1fd663dd9930dc48978118f5e028fb7fb7bcc08ec0d869f3005d3
 
-/// One entry. Buys only — sells are not supported (see "Sells" below).
-///
-/// isSeed marks the $1-per-side treasury seed placed before the market card
-/// posts. Seeds are plumbing: excluded from participant lists, who's-in and
-/// positions, but counted in pot totals and in claimableSupply, because they
-/// hold real tokens and dilute payouts like anyone else.
-event BetPlaced(
-    uint256 indexed marketId,
-    address indexed bettor,
-    uint8   indexed side,          // 0 = A, 1 = B
-    uint256 amountIn,              // gross quote in
-    uint256 feeAmount,             // amountIn * swapFeeBps / 10_000
-    uint256 netAmount,             // amountIn - feeAmount, escrowed to the pot
-    uint256 tokensOut,             // position taken. never zero. see above
-    bool    isSeed
-);
-
-/// Oracle resolved the market. Terminal: a market is finalized exactly once.
-///
-/// forfeit = a side was unreadable at settlement (deleted, suspended, private,
-/// blocked). Nobody deletes their way out of losing, so the surviving side
-/// takes it. Both unreadable resolves to side A, the same convention as an
-/// exact tie. There is no void status and no refund path.
-event MarketFinalized(
-    uint256 indexed marketId,
-    uint8   indexed winner,        // 0 = A, 1 = B
-    uint256 netPot,                // total claimable, gross * 0.9875
-    uint256 claimableSupply,       // winning-side tokens outstanding
-    bool    forfeit
-);
-
-/// A winner burned their position for their share of the pot.
 event Claimed(
-    uint256 indexed marketId,
+    address indexed oracle,
     address indexed claimer,
     uint256 tokensBurned,
-    uint256 payout
+    uint256 numeraireReceived
 );
+// topic0 0x2f6639d24651730c7bf57c95ddbf96d66d11477e4ec626876f92c22e5f365e68
+```
 
-/// Fee withdrawn by a beneficiary. Accrual is derived (see below); this fires
-/// only on actual withdrawal, so the leaderboard can show earned vs collected.
-event FeesWithdrawn(
-    uint256 indexed marketId,
-    address indexed beneficiary,
-    uint256 amount
+### `DopplerHookInitializer` — `0xAA096F558f3d4c9226De77E7Cc05f18E180B2544`
+
+This is where trades live. The initializer emits its own `Swap` from `afterSwap`,
+which is richer than the raw PoolManager event.
+
+```solidity
+event Swap(
+    address indexed sender,          // the ROUTER, not the bettor — see below
+    PoolKey indexed poolKey,
+    PoolId  indexed poolId,
+    IPoolManager.SwapParams params,
+    int128  amount0,
+    int128  amount1,
+    bytes   hookData
 );
+// topic0 0x1d9f7b5e406d8c887155e1a78e070d2d41c5d0444dab8b21612f846835c27183
 
-enum Role { Doppler, Protocol, SideA, SideB, Tagger }   // 0..4
+event Graduate(address indexed asset);
+// topic0 0xbd2bd570c963e5fe6bdc6422e5741c710099e75c6d44b6c73e6acc397429bdf7
 ```
 
-## Deliberate omissions, and why
+### `RatioOracle` — ours, one per market
 
-**No `at`/timestamp field on any event.** Subgraph mappings get
-`event.block.timestamp` for free. Emitting a timestamp would be a per-bet gas
-cost for a value the indexer already has. Every time series in this product —
-the chart, rolling fee windows, trending windows — uses block timestamp.
+```solidity
+/// From IPredictionOracle. The migrator reads getWinner(); this is the log.
+event WinnerDeclared(address indexed oracle, address indexed winningToken);
 
-**No fee-accrual event per beneficiary per bet.** That would be five events on
-every bet. The split is immutable from `FeeBeneficiariesSet`, so the subgraph
-derives each beneficiary's accrual exactly from `BetPlaced.feeAmount`:
-
+/// Ours. The migrator has no idea what a tweet is, so this is the only place
+/// the chain records which market this oracle represents.
+event MarketOpened(
+    address indexed oracle,
+    uint256 indexed marketId,        // side B's tweet id
+    address tokenA,
+    address tokenB,
+    uint64  settlesAt
+);
 ```
-accrual[wallet] += feeAmount * shareBps[i] / 10_000
-```
 
-Cheaper on chain, exact off chain. `FeesWithdrawn` covers the one thing that
-cannot be derived — whether the money has actually been taken.
+## The attribution problem, and how we solve it
 
-**No likes, tweet text, handles, or pair type.** Those are X data, not chain
-data, and they cannot be indexed from events. They stay in Supabase and are
-joined at the read layer. The subgraph owns money and positions; Supabase owns
-the social record and the likes time series.
+**`Swap.sender` is the address that called the PoolManager — a router, not the
+person betting.** This is the standard Uniswap v4 indexing trap and it would
+silently attribute every bet to one address.
 
-**No sell event.** `SELLS_ENABLED = false`. On Solana this is a hard protocol
-constraint — the prediction hook rejects sells in every oracle state, confirmed
-by devnet proof and by the Doppler team. Our own EVM contract could lift it, and
-that is noted in `FEEDBACK.md` as something the EVM path unlocks, but we are not
-building it this week. Positions are locked from purchase to settlement and fees
-accrue on entry only.
+The bettor is `event.transaction.from`, because each bettor's Privy server wallet
+signs and sends its own transaction. The subgraph keys positions off that.
 
-**No void event.** Voids were deleted from the product on 2026-08-11 and stay
-deleted. The $1-per-side treasury seed guarantees a real holder on each side, so
-a winning side with no money — `claimableSupply == 0` — is unreachable by
-construction. The contract still reverts on it rather than dividing by zero; that
-is an invariant assertion, not a settlement path.
+**This imposes a real constraint on the product: we cannot use a paymaster or a
+relayer for bets.** The moment gas is sponsored by a third party,
+`transaction.from` becomes the sponsor and per-user attribution collapses. On
+Solana we sponsored ATA rent from the treasury; the EVM equivalent is off the
+table unless we add our own router contract that emits a `BetPlaced(bettor, ...)`
+of its own. We are not doing that this week. **If sponsored gas ever comes back,
+this schema needs the router.**
 
-## What each surface reads
+## Derivations the subgraph performs
 
-| Surface | Events | Derivation |
+| Surface | From | How |
 |---|---|---|
-| Trending, ranked by staked volume | `BetPlaced` | net staked per market, windowed by block timestamp. Never market count — tagging is free, counts inflate, volume cannot be faked without spending. |
-| Fee leaderboard | `FeeBeneficiariesSet`, `BetPlaced`, `FeesWithdrawn` | `feeAmount * shareBps / 10_000` per role. One combined board ranked on total earned, per-role breakdown underneath. |
-| Market page chart (money series) | `BetPlaced` | entry price = `netAmount / tokensOut`. This series exists nowhere else and cannot be backfilled. |
-| Open positions, profile | `BetPlaced`, `Claimed` | tokens held per market per side. |
-| Trader leaderboard | `BetPlaced`, `MarketFinalized`, `Claimed` | realised profit = `payout - sum(amountIn)`; seeds excluded from rows, included in `claimableSupply`. |
-| Market resolution | `MarketFinalized` | winner, netPot, forfeit flag. |
+| Position (tokens held) | `Swap` | `amount0`/`amount1` — the signed balance deltas give tokens received and numeraire paid, per trade. This is `tokensOut`, and it is why the Solana `tokens_out = 0` bug does not reproduce here. |
+| Entry price | `Swap` | `numeraireIn / tokensOut` per trade. Exists nowhere else and cannot be backfilled. |
+| Trending by staked volume | `Swap` | net numeraire in per market, windowed on block timestamp. Never market count. |
+| Pot | `EntryMigrated` | `sum(contribution)` per oracle, or `market.totalPot` read directly. |
+| Payout denominator | `EntryMigrated` | `claimableSupply` on the winning entry. |
+| Expected payout | both | `tokens / claimableSupply * totalPot`. |
+| Fee leaderboard | `Swap` + beneficiary config | fee is taken on entry at `SWAP_FEE_BPS`; the split is immutable from launch, so accrual derives per role without a per-beneficiary event. |
+| Resolution | `WinnerDeclared`, `EntryMigrated` | winner, then the migration that makes claims possible. |
+| Realised profit | `Claimed` + `Swap` | `numeraireReceived - sum(numeraire paid)`. |
 
-## Invariants the indexer may assume
+## What stays in Supabase
 
-1. `MarketCreated` and `FeeBeneficiariesSet` are emitted in the same transaction,
-   creation first.
-2. `shareBps` sums to exactly `10_000`.
-3. `BetPlaced.tokensOut > 0` always. A swap returning zero tokens reverts.
-4. `BetPlaced.netAmount == amountIn - feeAmount`.
-5. `MarketFinalized` fires at most once per market, and never before `settlesAt`.
-6. `Claimed` only ever follows `MarketFinalized` for that market.
-7. `sum(Claimed.payout) <= MarketFinalized.netPot`, with the remainder being
-   claim dust from integer division.
-8. `marketId` is stable and unique: it is side B's tweet id.
+Likes and their time series, tweet text, handles, pair type, mention idempotency,
+and the wallet map. None of it is chain data and none of it can be indexed. The
+market page joins subgraph money against Supabase social.
+
+## Ordering invariants the indexer may assume
+
+1. `EntryRegistered` fires twice per market, once per side, before any `Swap`.
+2. `WinnerDeclared` precedes `EntryMigrated`; the migrator reverts with
+   `OracleNotFinalized` otherwise.
+3. `EntryMigrated` fires at most once per entry (`AlreadyMigrated` guards it).
+4. `Claimed` only follows the winning entry's `EntryMigrated`
+   (`WinningEntryNotMigrated` guards it).
+5. `sum(Claimed.numeraireReceived) <= totalPot`, remainder is integer-division dust.
+6. A market with `claimableSupply == 0` on the winning side cannot be claimed —
+   `mulDiv` divides by zero and reverts. The $1-per-side treasury seed keeps this
+   unreachable, exactly as on Solana.
 
 ## Change policy
 
-Frozen as of 2026-09-06. Adding a **new** event is safe and does not require
-sign-off — it cannot break an existing mapping. Changing or reordering the
-parameters of an event listed above changes its topic0 or its ABI decoding and
-silently breaks the deployed subgraph, so it needs winny's sign-off, and after
-Tuesday 8 September it needs a good reason as well.
+Adding an event to `RatioOracle` is safe and needs no sign-off. The
+`PredictionMigrator` and `DopplerHookInitializer` events are **not ours to
+change** — they are deployed. If a mapping needs something they do not emit, the
+answer is either a `RatioOracle` event or a router, and that is a conversation.

@@ -86,7 +86,6 @@ async function main() {
     dopplerWallet: dopplerWallet.address,
     feeShareBps: FEE_SHARE_BPS,
     marketUrl,
-    walletBalanceUsd: async () => Number.POSITIVE_INFINITY, // sim wallets are pre-funded past every scripted stake
     now: clock,
   });
 

@@ -145,6 +145,11 @@ export class DopplerMarketChain implements MarketChain {
     };
   }
 
+  async balanceUsd(walletAddress: string): Promise<number> {
+    const { value } = await this.clients.rpc.getBalance(address(walletAddress)).send();
+    return Number(value) / Number(this.opts.lamportsPerUsd);
+  }
+
   async settle(params: { refs: ChainRefs; winner: 0 | 1 }): Promise<void> {
     await this.client.resolveAndMigrate({
       refs: await this.refs(params.refs),

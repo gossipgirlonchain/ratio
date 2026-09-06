@@ -55,8 +55,6 @@ export interface EngineConfig {
   };
   dopplerWallet: string;
   marketUrl: (marketId: string) => string;
-  /** On-chain spendable balance for a bettor wallet, in USD. */
-  walletBalanceUsd: (address: string) => Promise<number>;
   now: () => number;
 }
 
@@ -370,7 +368,7 @@ export class RatioEngine {
     // Broke check BEFORE the chain call: a failed swap is silent, but a
     // person trying to bet deserves to hear how to get in. 0.05 headroom
     // covers fees and rent.
-    const balance = await this.config.walletBalanceUsd(bettor.address);
+    const balance = await this.chain.balanceUsd(bettor.address);
     if (balance < capped + 0.05) {
       await this.x.postReply({
         inReplyTo: mention.mentionTweetId,

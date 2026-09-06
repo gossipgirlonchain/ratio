@@ -52,6 +52,13 @@ export interface MarketChain {
     amountUsd: number;
   }): Promise<{ tokensOut: number; feeUsd: number }>;
   getOdds(refs: ChainRefs): Promise<Odds>;
+  /**
+   * Spendable balance of a wallet, in USD. On the seam rather than injected
+   * into EngineConfig (where it lived until the EVM port): it is a chain
+   * read like any other, and a caller holding a MarketChain should not also
+   * need an RPC handle to answer "can this person afford the bet".
+   */
+  balanceUsd(walletAddress: string): Promise<number>;
   settle(opts: { refs: ChainRefs; winner: 0 | 1 }): Promise<void>;
   /** Post-settlement payout: claim a bettor's full winning balance into
    * their wallet. null = they hold nothing on the winning side. */
@@ -160,6 +167,15 @@ export class MockMarketChain implements MarketChain {
     const [a, b] = [m.sides[0].raisedUsd, m.sides[1].raisedUsd];
     const total = a + b;
     return { impliedA: total === 0 ? 0.5 : a / total, raisedUsd: [a, b] };
+  }
+
+  /** Mock world: everyone is solvent unless a scenario says otherwise. */
+  balances = new Map<string, number>();
+  setBalance(walletAddress: string, usd: number): void {
+    this.balances.set(walletAddress, usd);
+  }
+  async balanceUsd(walletAddress: string): Promise<number> {
+    return this.balances.get(walletAddress) ?? Number.POSITIVE_INFINITY;
   }
 
   async settle(opts: { refs: ChainRefs; winner: 0 | 1 }): Promise<void> {

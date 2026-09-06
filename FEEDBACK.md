@@ -9,79 +9,72 @@ Context: ETHOnline 2026, one week, porting `github.com/gossipgirlonchain/ratio`.
 
 ---
 
-## 1. The prediction lifecycle is Solana-only, and nothing says so
+## 1. EVM prediction markets are built, deployed, and undiscoverable
 
-**This was the single biggest finding of the port and it changed the shape of the
-week.**
+**This was the single biggest finding of the port, it changed the shape of our
+week twice, and it is the piece of feedback we would most want acted on.**
 
 On Solana, Doppler gives you a complete prediction-market lifecycle: a trusted
-oracle, per-outcome XYK curves, `finalize(winner)` gating migration, migration
-into a single pot, and a pro-rata `claim`. We built ratio on exactly that. The
-assumption going into the EVM port — reasonable, because Doppler is EVM-native
-and the Solana build was the port — was that the same lifecycle would be there,
-probably nicer.
+oracle, per-outcome curves, `finalize(winner)` gating migration, migration into a
+single pot, and a pro-rata claim. We built ratio on exactly that. Coming to EVM —
+where Doppler is native, and where the Solana build was the port rather than the
+original — we expected to find the same lifecycle.
 
-It is not there. EVM ships Airlock, the initializer families (Standard,
-Scheduled, Decay, Rehype, multicurve), the migrators (V2, V3, V4, Split, NoOp)
-and `dopplerLaunchHookV1`. There is no oracle-resolved migrator and no prediction
-module. The only prediction-market example in the SDK repo is
-`examples/solana-prediction-market.ts`.
+Three separate documentation passes told us it did not exist:
 
-**What made this expensive:** nothing in the docs states the asymmetry. The
-capability matrix is implicit — you infer it by noticing which examples exist and
-which contracts appear in the deployments table. We found it by cross-referencing
-the contract-addresses page against the SDK's example directory, which is not a
-thing a developer should have to do to answer "can I build this here".
+- `docs.doppler.lol` has zero mentions of prediction markets, oracles, or
+  resolution. We checked `llms-full.txt`, the complete docs corpus.
+- The contract-addresses page lists no oracle or prediction module on any chain.
+- The SDK's only prediction example is `examples/solana-prediction-market.ts`, and
+  every `predictionMigrator` path in the SDK sits under `src/solana/`.
 
-**And the asymmetry is narrower than it first looks, which makes the silence
-worse rather than better.** The EVM side has clearly been prepared for this use
-case. `test/integration/ImmediateMigration.t.sol` in the contracts repo says, in
-its own words:
+All of that is accurate, and all of it is misleading, because **the EVM
+implementation exists and is already deployed to a public testnet**. On Base
+Sepolia, right now:
 
-> This is a key requirement for prediction markets where migration should be
-> gated by oracle, not by tick.
+| Contract | Address | State |
+|---|---|---|
+| `PredictionMigrator` | `0x91aad599EfD70E633d091FC060cc6f9D3e5298BE` | Airlock module state 4 = `LiquidityMigrator` |
+| `NoSellDopplerHook` | `0x21588C923de63914cbc624002417c2AA64a15bFe` | `isDopplerHookEnabled` = 3 |
+| `MockPredictionOracle` | `0xaE92178EE4eDEa87273dbDe36dA015039115d46a` | live |
 
-It proves that setting `farTick == startTick` lets migration happen immediately
-with zero proceeds, i.e. that the tick gate can be taken out of the way so
-something else can do the gating. That constraint was removed deliberately, for
-prediction markets, and the test stands as evidence of intent.
+Whitelisted against the real Airlock, hook enabled on the real
+`DopplerHookInitializer`. It ships with an integration guide, a versioned spec, an
+`IPredictionOracle` interface, unit and integration tests, and four invariant
+suites. It is good work.
 
-**And the module that fills the hole exists, is deployed, and is undiscoverable.**
-`PredictionMigrator`, `NoSellDopplerHook` and `MockPredictionOracle` are live on
-Base Sepolia and wired into the real Airlock — the migrator is whitelisted as a
-`LiquidityMigrator` and the hook is enabled on the `DopplerHookInitializer`. They
-ship with an integration guide, a versioned spec, unit and integration tests, and
-four invariant suites.
-
-None of it is on `main`. It lives on PR #481, open since February. The Base
+It is on PR #481, open since 2026-02-06 and last touched 2026-03-01. The Base
 Sepolia deploy commit is not even on the PR branch — it is on a separate `pr-481`
-branch. The addresses are in `deployments.config.toml` and nowhere else:
+branch. The addresses appear in `deployments.config.toml` and nowhere else:
 `Deployments.json`, `Deployments.md`, the docs, the SDK, the indexer and the API
-all have zero mentions.
+have zero mentions between them.
 
-So the feedback is not "EVM cannot do prediction markets", and it is not "the
-module was never written". It is: **the module is written, deployed, whitelisted
-on a public testnet, and there is no path by which a developer reading the docs
-could ever find it.** We only found it by enumerating branches and pull requests
-on the contracts repo after three separate documentation searches said the
-capability did not exist.
+We found it only by enumerating every branch and pull request on the contracts
+repo, after the documentation had told us three times that the capability was
+absent. Then we verified it by RPC, because at that point we no longer trusted any
+written source.
 
-That is the expensive part. A working, deployed feature that the documentation
-actively implies is absent costs more than a missing feature, because a team will
-confidently build the thing you already built. We were one decision away from
-spending two days writing our own settlement contract.
+**Why this is more expensive than a missing feature.** A missing feature costs a
+team a decision. A feature that exists, works, and is documented as absent costs
+them the build. We had a plan, a frozen event schema, and two days of contract
+work scheduled to write something you had already written, tested and deployed. A
+less stubborn team ships the duplicate and never finds out.
 
-**What would have saved us most of a day:** a per-feature support matrix with
-Solana and EVM as columns. Even a one-line note on the prediction-market example
-saying "Solana only; on EVM the tick gate can be disabled but no oracle-resolved
-migrator ships" would have been enough.
+**What would fix it, cheaply, in rough order of value:**
 
-**What we did:** wrote the missing piece as an `ILiquidityMigrator`, so it
-registers as an Airlock module rather than sitting beside the protocol as a
-private escrow. Doppler prices entry through the curves; our migrator holds the
-oracle gate, the pot, and the pro-rata claim. We are writing it as something we
-would be happy to hand over, because on this reading it is a module-shaped gap in
-your own architecture rather than an application-level workaround.
+1. One line in the docs: "Prediction markets: Solana (mainnet, devnet) and Base
+   Sepolia (preview, PR #481)." Even flagged as unreleased, that is enough.
+2. A per-feature support matrix with Solana and EVM as columns. The asymmetries
+   between the two are currently something you infer from which examples exist.
+3. Get the deployed addresses into `Deployments.json` alongside everything else,
+   or mark them explicitly as preview. `deployments.config.toml` is not where a
+   developer looks.
+
+**What we did:** integrated against the deployed `PredictionMigrator` rather than
+writing our own, once we found it. Our contribution is the `IPredictionOracle`
+implementation on top — and, as far as the chain can tell, the first real use of
+these contracts: there were zero `EntryRegistered`, `EntryMigrated` and `Claimed`
+events on that migrator before we arrived.
 
 ## 2. `allowSell: true` is accepted config that the hook silently overrides
 

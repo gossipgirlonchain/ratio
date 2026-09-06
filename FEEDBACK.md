@@ -1,9 +1,9 @@
 # Developer feedback — Uniswap v4 / Doppler
 
 Written as we hit things, not reconstructed at the end. Ratio is a prediction
-market whose entry pricing is Doppler (Uniswap v4 hooks) and whose settlement we
-had to write ourselves. We built the Solana version first, so most of this is the
-experience of moving a working Doppler integration from Solana to EVM.
+market built on Doppler (Uniswap v4 hooks) for both entry pricing and settlement.
+We built the Solana version first, so most of this is the experience of moving a
+working Doppler integration from Solana to EVM.
 
 Context: ETHOnline 2026, one week, porting `github.com/gossipgirlonchain/ratio`.
 
@@ -91,10 +91,11 @@ an entire exit-fee ramp around a sell path that cannot exist. That design is
 still sitting in our config as a shelved constant with a comment explaining why
 it is wired to nothing.
 
-This one has a genuine EVM upside worth stating: because we now own the
-settlement contract on EVM, sells become possible again if we want them. We are
-not building it this week, but the EVM path unlocks something the Solana path
-structurally could not.
+On EVM the equivalent is `NoSellDopplerHook`, which is at least named for what it
+does — a developer reading the deploy script knows immediately that sells are off,
+where on Solana the same behaviour is an undocumented override of config that
+claims the opposite. That naming is the right pattern; the Solana side should
+borrow it.
 
 ## 3. Beneficiary limits are documented per chain, but only for one chain
 

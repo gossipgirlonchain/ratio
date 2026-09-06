@@ -10,3 +10,7 @@ out/
 contracts/out/
 contracts/cache/
 contracts/lib/
+
+# forge dry runs are noise; REAL broadcast artifacts are kept — they carry the
+# tx hashes the submission links to (Doppler records their deployments the same way)
+contracts/broadcast/*/*/dry-run/

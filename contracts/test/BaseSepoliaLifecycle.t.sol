@@ -515,4 +515,30 @@ contract BaseSepoliaLifecycleTest is Test {
         IPredictionMigratorView(PREDICTION_MIGRATOR).claim(address(oracle), loserTokens);
         vm.stopPrank();
     }
+
+    /// The subgraph attributes every swap by recomputing the pool id from the
+    /// entry token. If that derivation is wrong it matches nothing, indexes
+    /// nothing, and reports no error — the worst failure shape there is. So it
+    /// is pinned here against the real thing.
+    ///
+    /// Verified 2026-09-07 against the live Swap log of tx
+    /// 0xb766cc3f...11befd (side B bet in our first real market):
+    ///   expected 0xea7f426500b828d8efb96e94010053e1d6ee28bb8983fff46598b02fe83e722b
+    function test_subgraphPoolIdDerivationMatchesLiveLog() public pure {
+        address tokenB = 0x9CFa0D8F56F18C65185111c8277faa3235659693;
+        bytes32 poolId = keccak256(
+            abi.encode(
+                address(0), // native ETH is currency0: address(0) sorts first
+                tokenB,
+                DYNAMIC_FEE_FLAG, // NOT the fee passed in InitData
+                int24(8),
+                HOOK_INITIALIZER
+            )
+        );
+        assertEq(
+            poolId,
+            0xea7f426500b828d8efb96e94010053e1d6ee28bb8983fff46598b02fe83e722b,
+            "pool id derivation drifted from the live chain"
+        );
+    }
 }

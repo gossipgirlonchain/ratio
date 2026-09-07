@@ -931,11 +931,6 @@ a { text-decoration: none; color: inherit; }
   padding: 30px 26px 22px;
   display: flex; flex-direction: column; gap: 12px; align-items: center;
 }
-.gate-wordmark {
-  font-size: 30px; font-weight: 900; letter-spacing: -0.03em;
-  background: var(--lime); color: var(--on-accent);
-  padding: 1px 10px 3px; border-radius: 10px; transform: rotate(-1.2deg);
-}
 .gate-sub { color: var(--gunmetal); font-size: 12px; font-weight: 700; }
 .gate-form { display: flex; gap: 6px; width: 100%; margin-top: 6px; }
 .gate-input {
@@ -954,8 +949,6 @@ a { text-decoration: none; color: inherit; }
 }
 .gate-btn:disabled { background: none; color: var(--gunmetal); cursor: default; }
 .gate-error { color: var(--ink); font-size: 12px; }
-.gate-faucet { color: var(--gunmetal); font-size: 11.5px; margin-top: 8px; }
-.gate-faucet a { color: var(--accent-text); font-weight: 700; }
 
 /* admin */
 .admin-login { display: flex; gap: 8px; max-width: 360px; }

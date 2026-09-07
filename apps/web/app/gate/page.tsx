@@ -1,9 +1,11 @@
 "use client";
 
 /**
- * The front door of the closed devnet beta. Minimal on purpose: the
- * wordmark, one field, one button, and the faucet link testers need.
- * No product copy — behind the wall the product explains itself.
+ * The front door of the devnet beta. Unbranded on purpose: no wordmark, no
+ * product name, no chain, no faucet link. Two words, one field, one button.
+ *
+ * Anyone hitting this without a code should learn nothing from it, which
+ * includes not learning what the product is called.
  */
 import { useState } from "react";
 
@@ -33,8 +35,7 @@ export default function GatePage() {
   return (
     <main className="gate">
       <div className="gate-card">
-        <span className="gate-wordmark">ratio</span>
-        <p className="gate-sub">closed beta · solana devnet</p>
+        <p className="gate-sub">devnet beta</p>
         <form className="gate-form" onSubmit={submit}>
           <input
             className="gate-input"
@@ -51,12 +52,6 @@ export default function GatePage() {
           </button>
         </form>
         {state === "bad" && <p className="gate-error">{message}</p>}
-        <p className="gate-faucet">
-          testing needs devnet SOL:{" "}
-          <a href="https://faucet.solana.com" target="_blank" rel="noreferrer">
-            faucet.solana.com
-          </a>
-        </p>
       </div>
     </main>
   );

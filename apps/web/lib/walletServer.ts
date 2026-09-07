@@ -15,6 +15,8 @@ import "server-only";
 
 import { PrivyClient } from "@privy-io/server-auth";
 import type { Address, SignatureBytes, TransactionSigner } from "@solana/kit";
+import { hashMessage, hashTypedData, type Account } from "viem";
+import { toAccount } from "viem/accounts";
 
 import { supabaseAdmin } from "./supabaseServer";
 
@@ -50,6 +52,9 @@ export async function verifyViewer(authHeader: string | null): Promise<Viewer | 
     return null;
   }
 }
+
+/** address -> privy wallet id, cached per process for both chains. */
+const walletIdByAddress = new Map<string, string>();
 
 export interface WalletRow {
   x_user_id: string;
@@ -134,14 +139,71 @@ async function signWithPrivy(
 }
 
 /**
+ * The EVM counterpart: a viem Account whose signatures come from Privy.
+ * Same lazy address -> wallet-id lookup as the Solana signer below, because
+ * MarketChain hands us an address and the id lives in the database.
+ */
+export function privyEvmAccount(walletAddress: string): Account {
+  const lookup = async (): Promise<string> => {
+    const cached = walletIdByAddress.get(walletAddress.toLowerCase());
+    if (cached) return cached;
+    const { data } = await supabaseAdmin()
+      .from("wallets")
+      .select()
+      .eq("address", walletAddress)
+      .eq("chain", "ethereum")
+      .maybeSingle();
+    if (!data) throw new Error(`no privy evm wallet for ${walletAddress}`);
+    const id = (data as WalletRow).privy_wallet_id;
+    walletIdByAddress.set(walletAddress.toLowerCase(), id);
+    return id;
+  };
+  const rpc = async (method: string, params: unknown) => {
+    const r = await privyRest<{ data: Record<string, string> }>(
+      `/wallets/${await lookup()}/rpc`,
+      { method, params },
+    );
+    return r.data;
+  };
+  return toAccount({
+    address: walletAddress as `0x${string}`,
+    async signMessage({ message }) {
+      const { signature } = await rpc("secp256k1_sign", { hash: hashMessage(message) });
+      return signature as `0x${string}`;
+    },
+    async signTransaction(transaction) {
+      const { signed_transaction } = await rpc("eth_signTransaction", {
+        transaction: hexifyTx(transaction),
+      });
+      return signed_transaction as `0x${string}`;
+    },
+    async signTypedData(typedData) {
+      const { signature } = await rpc("secp256k1_sign", {
+        hash: hashTypedData(typedData as never),
+      });
+      return signature as `0x${string}`;
+    },
+  });
+}
+
+/** Privy's JSON wants hex strings where viem hands us bigints. */
+function hexifyTx(tx: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...tx };
+  for (const k of ["value", "gas", "nonce", "maxFeePerGas", "maxPriorityFeePerGas", "gasPrice"]) {
+    const v = out[k];
+    if (typeof v === "bigint") out[k] = `0x${v.toString(16)}`;
+    else if (typeof v === "number") out[k] = `0x${v.toString(16)}`;
+  }
+  return out;
+}
+
+/**
  * MarketChain resolves bettor and sponsor ADDRESSES to signers, and the
  * interface is synchronous — but mapping an address to its Privy wallet id
  * is a database read. So the lookup happens lazily inside signTransactions,
  * the same shape the agent's PrivyWalletProvider uses, and is cached per
  * process afterwards.
  */
-const walletIdByAddress = new Map<string, string>();
-
 export function privySignerByAddress(walletAddress: string): TransactionSigner {
   return {
     address: walletAddress as Address,

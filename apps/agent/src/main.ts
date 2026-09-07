@@ -13,23 +13,16 @@ import {
   BOT_HANDLE,
   FEE_SHARE_BPS,
   FRESHNESS_WINDOW_MS,
-  QUOTE_UNITS_PER_USD_SOLANA,
   HIDDEN_REPORT_THRESHOLD,
   LIKES_SAMPLE_INTERVAL_MS,
   MARKET_DURATION_MS,
   MAX_STAKE_USD,
   MIN_STAKE_USD,
   SEED_PER_SIDE_USD,
-  SWAP_FEE_BPS,
   marketUrl,
 } from "@ratio/config";
-import { RatioMarketClient } from "@ratio/doppler/pair-market";
-import { createClients } from "@ratio/doppler/tx";
-import { createKeyPairSignerFromBytes } from "@solana/kit";
-
-import { DopplerMarketChain } from "@ratio/chain/solana";
+import { assembleChain, chainKind } from "./assembleChain.js";
 import { RatioEngine } from "./engine.js";
-import { PrivyWalletProvider } from "./privyWallets.js";
 import { SupabaseStore } from "./storeSupabase.js";
 import { XApiClient } from "./xApi.js";
 import { StreamedXClient, ensureStreamRule } from "./xStream.js";
@@ -120,8 +113,8 @@ async function main() {
 
   // Prove the store the same way we prove X: connect and read.
   if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_KEY) {
-    const store = new SupabaseStore(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
-    const open = await store.listOpenMarketsDue(Date.now() + 365 * 24 * 3_600_000);
+    const probe = new SupabaseStore(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+    const open = await probe.listOpenMarketsDue(Date.now() + 365 * 24 * 3_600_000);
     console.log(`store connected: supabase reachable, ${open.length} open markets on record`);
   } else {
     console.log("store NOT configured (SUPABASE_URL / SUPABASE_SERVICE_KEY missing)");
@@ -153,41 +146,17 @@ async function main() {
     return;
   }
 
-  // -- ARMED: assemble the same machine the devnet sim proves ---------
-  const operatorBytes = process.env.OPERATOR_KEYPAIR;
-  if (!operatorBytes) {
-    console.error("armed but OPERATOR_KEYPAIR missing — refusing to start");
-    process.exit(1);
-  }
-  const clients = createClients();
-  const operator = await createKeyPairSignerFromBytes(
-    new Uint8Array(JSON.parse(operatorBytes)),
-  );
-  const balance = await clients.rpc.getBalance(operator.address).send();
-  console.log(`ARMED. operator ${operator.address}, ${Number(balance.value) / 1e9} SOL`);
-  if (Number(balance.value) < 200_000_000) {
-    console.error("WARNING: operator under 0.2 SOL — launches will start failing soon");
-  }
-
+  // -- ARMED: assemble whichever chain RATIO_CHAIN selects --------------
   const store = new SupabaseStore(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_KEY!);
-  const wallets = new PrivyWalletProvider(
-    { appId: process.env.PRIVY_APP_ID!, appSecret: process.env.PRIVY_APP_SECRET! },
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_KEY!,
-  );
-  const marketClient = await RatioMarketClient.create({ clients, operator });
-  const chain = new DopplerMarketChain(clients, marketClient, {
-    swapFeeBps: SWAP_FEE_BPS,
-    lamportsPerUsd: QUOTE_UNITS_PER_USD_SOLANA,
-    signerFor: (addr) => (addr === operator.address ? operator : wallets.signerFor(addr)),
-    operatorAddress: operator.address,
-    sponsorAddress: (await wallets.getWallet("ratio:treasury")).address,
-    labelsFor: async (marketId) => {
-      const record = await store.getMarketByTweet(marketId);
-      if (!record) throw new Error(`labelsFor: no market ${marketId} on record`);
-      return [`A @${record.authorAHandle}`, `B @${record.authorBHandle}`];
-    },
+  const { chain, wallets, dopplerWallet, protocolWallet, describe } = await assembleChain({
+    store,
+    supabaseUrl: process.env.SUPABASE_URL!,
+    supabaseServiceKey: process.env.SUPABASE_SERVICE_KEY!,
+    privyAppId: process.env.PRIVY_APP_ID!,
+    privyAppSecret: process.env.PRIVY_APP_SECRET!,
   });
+  console.log(`ARMED on ${chainKind()}: ${describe}`);
+
   // Push, not poll: mentions arrive over the filtered stream; the only
   // billed reads are one catch-up at boot and one per reconnect.
   await ensureStreamRule(process.env.X_BEARER_TOKEN!, BOT_HANDLE);
@@ -204,15 +173,10 @@ async function main() {
     minStakeUsd: MIN_STAKE_USD,
     maxStakeUsd: MAX_STAKE_USD,
     hiddenReportThreshold: HIDDEN_REPORT_THRESHOLD,
-    // operator doubles as treasury on devnet: seeds sign + fund from it
-    protocolWallet: operator.address,
-    // distinct from the protocol wallet — the initializer rejects
-    // duplicate beneficiaries, and defaulting both to the operator was
-    // exactly that. A dedicated Privy wallet fills the slot when no
-    // explicit address is configured.
-    dopplerWallet:
-      process.env.DOPPLER_FEE_WALLET ??
-      (await wallets.getWallet("ratio:doppler-fee")).address,
+    protocolWallet,
+    // On EVM this is the airlock owner, which Doppler requires as a fee
+    // beneficiary holding at least 5%. On Solana it is a wallet we control.
+    dopplerWallet,
     feeShareBps: FEE_SHARE_BPS,
     marketUrl,
     now: () => Date.now(),

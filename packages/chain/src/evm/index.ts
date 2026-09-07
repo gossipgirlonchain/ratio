@@ -58,6 +58,10 @@ import {
 } from "./abis.js";
 import { buildBeneficiaries } from "./beneficiaries.js";
 
+export { BASE_SEPOLIA, BASE_SEPOLIA_RPC, BASE_SEPOLIA_CHAIN_ID } from "./addresses.js";
+export { coinbaseEthUsd, fixedEthUsd, StalePriceError, type PriceSource } from "./price.js";
+export { buildBeneficiaries, BeneficiaryError } from "./beneficiaries.js";
+
 /** The initializer always creates the pool with the dynamic-fee flag, whatever
  * InitData.fee says. A PoolKey built with any other fee silently misses the
  * pool — found by reading modifyLiquidity args out of a call trace. */
@@ -523,6 +527,19 @@ export class EvmMarketChain implements MarketChain {
 
   isValidAddress(candidate: string): boolean {
     return /^0x[0-9a-fA-F]{40}$/.test(candidate);
+  }
+
+  /**
+   * The address Doppler's fee split must include with at least 5%. A protocol
+   * fact, not a configuration choice, so it is read rather than trusted from
+   * an env var that could go stale against a redeployed Airlock.
+   */
+  async airlockOwner(): Promise<Address> {
+    return this.pub.readContract({
+      address: this.opts.addresses.airlock,
+      abi: airlockAbi,
+      functionName: "owner",
+    });
   }
 
   private async tokenBalance(token: Address, owner: Address): Promise<bigint> {

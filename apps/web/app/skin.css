@@ -1144,3 +1144,17 @@ a { text-decoration: none; color: inherit; }
   background: var(--accent); color: var(--on-accent);
   font-size: 17px; font-weight: 900;
 }
+
+/* sign-up: post-signup links. Only reachable once someone has signed in. */
+.su-links { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; }
+.su-link {
+  display: flex; align-items: center; gap: 9px;
+  padding: 11px 16px; border-radius: 999px;
+  border: 2px solid var(--edge); color: var(--ink);
+  font-weight: 800; font-size: 14px; text-decoration: none;
+  transition: transform 0.08s ease, box-shadow 0.08s ease, background 0.08s ease;
+}
+.su-link:hover {
+  background: var(--accent); color: var(--on-accent);
+  transform: translate(-1px, -1px); box-shadow: 3px 3px 0 var(--edge);
+}

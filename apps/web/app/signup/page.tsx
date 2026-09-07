@@ -14,7 +14,20 @@
  * external wallet of any kind. See providers.tsx.
  */
 import { usePrivy } from "@privy-io/react-auth";
+import { XLogo } from "@ratio/ui";
 import { useEffect, useState } from "react";
+
+const TELEGRAM = "https://t.me/+g_F-r4Ck4yw4ZDY0";
+const X_PROFILE = "https://x.com/ratiowtf";
+
+/** Telegram mark. Inline rather than a dependency for one glyph. */
+function TelegramLogo({ size = 14 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path d="M21.94 4.3 18.9 19.1c-.23 1.02-.84 1.27-1.7.79l-4.7-3.46-2.27 2.18c-.25.25-.46.46-.94.46l.34-4.78 8.7-7.86c.38-.34-.08-.53-.59-.19L6.98 13.02 2.34 11.6c-1-.32-1.02-1 .21-1.49L20.65 3.1c.84-.3 1.57.2 1.29 1.2Z" />
+    </svg>
+  );
+}
 
 export default function SignupPage() {
   const { ready, authenticated, user, login } = usePrivy();
@@ -33,6 +46,19 @@ export default function SignupPage() {
           <>
             <h1 className="su-title">you&rsquo;re in.</h1>
             <p className="su-lede">{handle ? `@${handle}` : "see you soon"}</p>
+            {/* Only shown once someone is signed up. The teaser face stays
+                anonymous; there is no point hiding the name from a person who
+                just handed over their X account. */}
+            <div className="su-links">
+              <a className="su-link" href={TELEGRAM} target="_blank" rel="noreferrer">
+                <TelegramLogo />
+                join the telegram
+              </a>
+              <a className="su-link" href={X_PROFILE} target="_blank" rel="noreferrer">
+                <XLogo size={13} />
+                follow on X
+              </a>
+            </div>
           </>
         ) : (
           <>

@@ -16,7 +16,8 @@
   "dependencies": {
     "@ratio/doppler": "*",
     "@solana-program/system": "^0.12.2",
-    "@solana/kit": "^6.10.0"
+    "@solana/kit": "^6.10.0",
+    "viem": "^2.21.0"
   },
   "devDependencies": {
     "@types/node": "^22",

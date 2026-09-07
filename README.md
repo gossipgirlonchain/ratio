@@ -130,6 +130,44 @@ and refuses to report it wrongly. Everything else is Doppler's.
 cd contracts && forge test          # 29 tests: unit + forked against live state
 ```
 
+### For judges: what to look at, and where
+
+Uniswap Foundation asks that the README identify the relevant contracts and
+code lines. The Uniswap surface here is Doppler, which is Uniswap v4 hooks —
+each market is two v4 pools, and entry pricing is entirely theirs.
+
+| What | Where |
+|---|---|
+| The one contract we wrote | [`contracts/src/RatioOracle.sol`](contracts/src/RatioOracle.sol) — implements `IPredictionOracle`, reports the 24h likes verdict, refuses to report it twice or early |
+| One oracle per market | [`contracts/src/RatioOracleFactory.sol`](contracts/src/RatioOracleFactory.sol) — EIP-1167 clones, CREATE2-salted on the tweet id |
+| v4 pool construction | [`packages/chain/src/evm/index.ts`](packages/chain/src/evm/index.ts) `createEntry` — `airlock.create` per side, `farTick == startTick` so migration is oracle-gated rather than price-gated |
+| The bet, as a v4 swap | [`packages/chain/src/evm/index.ts`](packages/chain/src/evm/index.ts) `placeBet` / `poolKey` |
+| Quotes from simulation, not pot totals | [`packages/chain/src/evm/index.ts`](packages/chain/src/evm/index.ts) `previewStake` |
+| Doppler's fee-split rules | [`packages/chain/src/evm/beneficiaries.ts`](packages/chain/src/evm/beneficiaries.ts) + tests |
+| Proof it works, against live deployed code | [`contracts/test/BaseSepoliaLifecycle.t.sol`](contracts/test/BaseSepoliaLifecycle.t.sol) — forks Base Sepolia |
+| One real market, end to end | [`contracts/BASE-SEPOLIA.md`](contracts/BASE-SEPOLIA.md) — 13 transactions with hashes |
+| Friction we hit | [`FEEDBACK.md`](FEEDBACK.md) |
+
+The thing most worth a judge's attention: Doppler's EVM prediction market
+(`PredictionMigrator`, `NoSellDopplerHook`) is deployed and whitelisted on Base
+Sepolia but exists only on an unmerged PR, and appears in no documentation, SDK
+or indexer. **Ratio is its first transaction ever** — it had processed none
+between February and us. Two wiring bugs that block any integrator are written
+up with call traces in `FEEDBACK.md` section 2.
+
+### The Graph
+
+The subgraph is not decoration: on chain there are no entry prices and no trade
+history, because the pools drain at migration and Uniswap v4 is a singleton.
+Per-side stake is a sum over swaps or it does not exist.
+
+| What | Where |
+|---|---|
+| Schema and mappings | [`subgraph/`](subgraph/) |
+| Attribution: how a swap finds its market | [`subgraph/src/migrator.ts`](subgraph/src/migrator.ts) — an indexed `PoolKey` arrives hashed, so we index *forward* and record the `poolId` at registration |
+| The bettor is `transaction.from`, not `Swap.sender` | [`subgraph/src/swaps.ts`](subgraph/src/swaps.ts) — `sender` is the router; using it attributes every bet to one address |
+| The agent consuming it | [`packages/chain/src/evm/subgraph.ts`](packages/chain/src/evm/subgraph.ts), wired at [`apps/agent/src/assembleChain.ts`](apps/agent/src/assembleChain.ts) `raisedWeiFor` |
+
 ### The operator key is testnet-only
 
 `BASE_SEPOLIA_PRIVATE_KEY` is the agent's operator key: it deploys the oracle

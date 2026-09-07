@@ -24,7 +24,7 @@ import {
 } from "@ratio/doppler/pair-market";
 import { sendInstructions, type Clients } from "@ratio/doppler/tx";
 
-import type { ChainRefs, FeeBeneficiary, MarketChain, Odds } from "./index.js";
+import type { ChainRefs, FeeBeneficiary, MarketChain, Odds, Stake } from "./index.js";
 
 const TOKEN_PROGRAM = address("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA");
 
@@ -106,17 +106,23 @@ export class DopplerMarketChain implements MarketChain {
     return refs;
   }
 
+  /** Native is SOL here. lamportsPerUsd is the configured rate both ways. */
+  async stakeUsd(stake: Stake): Promise<number> {
+    if ("usd" in stake) return stake.usd;
+    return (stake.native * 1e9) / Number(this.opts.lamportsPerUsd);
+  }
+
   async placeBet(params: {
     refs: ChainRefs;
     side: 0 | 1;
-    amountUsd: number;
+    stake: Stake;
     bettor: string;
   }): Promise<{ tokensOut: number; signature: string }> {
+    const amountUsd = await this.stakeUsd(params.stake);
     const result = await this.client.placeBet({
       refs: await this.refs(params.refs),
       side: params.side,
-      amountIn:
-        BigInt(Math.round(params.amountUsd)) * this.opts.lamportsPerUsd,
+      amountIn: BigInt(Math.round(amountUsd)) * this.opts.lamportsPerUsd,
       bettor: this.opts.signerFor(params.bettor),
       wrapSol: true, // WSOL quote; USDC flips this off
       rentPayer: await this.sponsor(),
@@ -130,7 +136,7 @@ export class DopplerMarketChain implements MarketChain {
   async previewStake(_params: {
     refs: ChainRefs;
     side: 0 | 1;
-    amountUsd: number;
+    stake: Stake;
   }): Promise<{ tokensOut: number; feeUsd: number }> {
     // Real path (§7): build previewSwapExactIn for the side's launch and
     // SIMULATE it — never compute a quote from pot totals. Lands with the

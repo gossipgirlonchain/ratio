@@ -27,7 +27,7 @@ import {
   forfeitRecap,
   type RejectionReason,
 } from "@ratio/config/copy";
-import type { FeeBeneficiary, MarketChain } from "@ratio/chain";
+import type { FeeBeneficiary, MarketChain, Stake } from "@ratio/chain";
 
 import { parseMention, substantiveText } from "./parse.js";
 import type { MarketRecord, PairType, Store } from "./store.js";
@@ -120,7 +120,9 @@ export class RatioEngine {
       } else {
         side = intent.side;
       }
-      await this.placeBet(mention, record, side, intent.amountUsd);
+      const stake: Stake =
+        intent.unit === "usd" ? { usd: intent.amount } : { native: intent.amount };
+      await this.placeBet(mention, record, side, stake);
       return;
     }
 
@@ -293,7 +295,7 @@ export class RatioEngine {
       const result = await this.chain.placeBet({
         refs: chainRefs,
         side,
-        amountUsd: this.config.seedPerSideUsd,
+        stake: { usd: this.config.seedPerSideUsd },
         bettor: this.config.protocolWallet,
       });
       await this.store.saveBet({
@@ -358,18 +360,37 @@ export class RatioEngine {
     mention: XMention,
     record: MarketRecord,
     side: 0 | 1,
-    amountUsd: number,
+    stake: Stake,
   ): Promise<void> {
     const { config } = this;
+    // The min/max policy stays in dollars whichever unit they typed, so a cap
+    // means the same thing to everyone. Asking the chain keeps the rate in one
+    // place rather than giving the engine its own opinion about prices.
+    const amountUsd = await this.chain.stakeUsd(stake);
     if (amountUsd < config.minStakeUsd) return; // below min: no reply spend
-    const capped = Math.min(amountUsd, config.maxStakeUsd);
+
+    // Over the cap we do NOT silently shrink a native-denominated stake: "0.5"
+    // meaning half an ETH is more likely a typo than an intent to bet the max,
+    // and quietly placing the cap instead would be putting words in their
+    // mouth. Dollar stakes keep the old forgiving behaviour.
+    let capped = stake;
+    if (amountUsd > config.maxStakeUsd) {
+      if ("usd" in stake) capped = { usd: config.maxStakeUsd };
+      else {
+        console.log(
+          `  (stake from @${mention.authorHandle} is ~$${amountUsd.toFixed(0)}, over the $${config.maxStakeUsd} cap — skipped)`,
+        );
+        return;
+      }
+    }
+    const cappedUsd = await this.chain.stakeUsd(capped);
 
     const bettor = await this.wallets.getWallet(mention.authorId);
     // Broke check BEFORE the chain call: a failed swap is silent, but a
     // person trying to bet deserves to hear how to get in. 0.05 headroom
     // covers fees and rent.
     const balance = await this.chain.balanceUsd(bettor.address);
-    if (balance < capped + 0.05) {
+    if (balance < cappedUsd + 0.05) {
       await this.x.postReply({
         inReplyTo: mention.mentionTweetId,
         text: insufficientFunds(mention.authorHandle),
@@ -379,7 +400,7 @@ export class RatioEngine {
     const result = await this.chain.placeBet({
       refs: record.chainRefs,
       side,
-      amountUsd: capped,
+      stake: capped,
       bettor: bettor.address,
     });
     await this.store.saveBet({
@@ -387,7 +408,7 @@ export class RatioEngine {
       xUserId: mention.authorId,
       handle: mention.authorHandle,
       side,
-      amountUsd: capped,
+      amountUsd: cappedUsd,
       direction: "buy", // reply-stakes only buy; sells are an app-surface action
       tokensOut: result.tokensOut,
       placedAtMs: config.now(),
@@ -398,7 +419,7 @@ export class RatioEngine {
       inReplyTo: mention.mentionTweetId,
       text: betConfirm({
         handle: mention.authorHandle,
-        amountUsd: capped,
+        amountUsd: cappedUsd,
         backedHandle: side === 0 ? record.authorAHandle : record.authorBHandle,
         sideAHandle: record.authorAHandle,
         impliedAPct: Math.round(odds.impliedA * 100),

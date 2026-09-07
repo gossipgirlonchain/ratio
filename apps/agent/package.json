@@ -8,7 +8,8 @@
     "sim": "tsx src/sim.ts",
     "sim:devnet": "tsx --env-file-if-exists=../../.env src/sim-devnet.ts",
     "typecheck": "tsc --noEmit",
-    "start": "tsx --env-file-if-exists=../../.env --env-file-if-exists=.env src/main.ts"
+    "start": "tsx --env-file-if-exists=../../.env --env-file-if-exists=.env src/main.ts",
+    "test": "tsx src/parse.test.ts"
   },
   "dependencies": {
     "@ratio/chain": "*",

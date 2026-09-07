@@ -41,7 +41,10 @@ export async function placeRealBet(
   const result = await chain.placeBet({
     refs: { marketId },
     side: side === "a" ? 0 : 1,
-    amountUsd,
+    // The web amount grid is still a dollar ladder, so the web always speaks
+    // USD. The reply surface accepts either unit; when the grid grows an ETH
+    // mode this becomes the same Stake union the parser already produces.
+    stake: { usd: amountUsd },
     bettor: wallet.address,
   });
 

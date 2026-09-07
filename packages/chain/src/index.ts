@@ -23,6 +23,19 @@ export interface ChainRefs {
   marketId: string;
 }
 
+/**
+ * A stake, in whichever unit the person said it in.
+ *
+ * Both are accepted because both kinds of person show up: "$25" from someone
+ * thinking in dollars, "0.01" from someone thinking in ETH. Carrying the unit
+ * this far down rather than normalising at the edge means an exact "0.01 ETH"
+ * lands as exactly 0.01 ETH — converting to USD and back would round it into
+ * something slightly else, which is a bad thing to do to somebody's money.
+ *
+ * `native` is the chain's own quote asset: ETH on Base, SOL on Solana.
+ */
+export type Stake = { usd: number } | { native: number };
+
 export interface Odds {
   /** Money-implied probability of side A, from per-side raised quote. */
   impliedA: number;
@@ -38,9 +51,15 @@ export interface MarketChain {
   placeBet(opts: {
     refs: ChainRefs;
     side: 0 | 1;
-    amountUsd: number;
+    stake: Stake;
     bettor: string;
   }): Promise<{ tokensOut: number; signature: string }>;
+  /**
+   * What a stake is worth in USD. The engine needs it for the min/max policy,
+   * which stays denominated in dollars regardless of what the user typed, and
+   * the bot needs it to say the amount back to them.
+   */
+  stakeUsd(stake: Stake): Promise<number>;
   /**
    * Quote source for the UI (§7): NEVER computed client-side from pot
    * totals — the real implementation simulates previewSwapExactIn. Entry
@@ -49,7 +68,7 @@ export interface MarketChain {
   previewStake(opts: {
     refs: ChainRefs;
     side: 0 | 1;
-    amountUsd: number;
+    stake: Stake;
   }): Promise<{ tokensOut: number; feeUsd: number }>;
   getOdds(refs: ChainRefs): Promise<Odds>;
   /**
@@ -143,16 +162,22 @@ export class MockMarketChain implements MarketChain {
     );
   }
 
+  /** Mock world: one native unit is one dollar, so scenarios read plainly. */
+  async stakeUsd(stake: Stake): Promise<number> {
+    return "usd" in stake ? stake.usd : stake.native;
+  }
+
   async placeBet(opts: {
     refs: ChainRefs;
     side: 0 | 1;
-    amountUsd: number;
+    stake: Stake;
     bettor: string;
   }): Promise<{ tokensOut: number; signature: string }> {
+    const amountUsd = await this.stakeUsd(opts.stake);
     const m = this.market(opts.refs);
     if (m.state !== "open") throw new Error("market not open");
-    const fee = (opts.amountUsd * this.swapFeeBps) / 10_000;
-    const net = opts.amountUsd - fee;
+    const fee = (amountUsd * this.swapFeeBps) / 10_000;
+    const net = amountUsd - fee;
     m.feesUsd += fee;
     const side = m.sides[opts.side];
     const tokensOut = this.curveTokensOut(side, net);
@@ -168,13 +193,14 @@ export class MockMarketChain implements MarketChain {
   async previewStake(opts: {
     refs: ChainRefs;
     side: 0 | 1;
-    amountUsd: number;
+    stake: Stake;
   }): Promise<{ tokensOut: number; feeUsd: number }> {
+    const amountUsd = await this.stakeUsd(opts.stake);
     const m = this.market(opts.refs);
     if (m.state !== "open") throw new Error("market not open");
-    const feeUsd = (opts.amountUsd * this.swapFeeBps) / 10_000;
+    const feeUsd = (amountUsd * this.swapFeeBps) / 10_000;
     return {
-      tokensOut: this.curveTokensOut(m.sides[opts.side], opts.amountUsd - feeUsd),
+      tokensOut: this.curveTokensOut(m.sides[opts.side], amountUsd - feeUsd),
       feeUsd,
     };
   }

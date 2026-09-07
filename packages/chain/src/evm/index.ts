@@ -47,7 +47,7 @@ import {
 } from "viem";
 import { baseSepolia } from "viem/chains";
 
-import type { ChainRefs, FeeBeneficiary, MarketChain, Odds } from "../index.js";
+import type { ChainRefs, FeeBeneficiary, MarketChain, Odds, Stake } from "../index.js";
 import {
   airlockAbi,
   erc20Abi,
@@ -120,6 +120,21 @@ export class EvmMarketChain implements MarketChain {
       this.wallets.set(key, w);
     }
     return w;
+  }
+
+  /**
+   * A stake to wei. Said in ETH, it passes STRAIGHT through — no rate is
+   * consulted, so "0.01" is exactly 0.01 and a broken price feed cannot touch
+   * it. Only a dollar amount needs the rate.
+   */
+  private async stakeToWei(stake: Stake): Promise<bigint> {
+    if ("native" in stake) return parseEther(stake.native.toFixed(18));
+    return this.usdToWei(stake.usd);
+  }
+
+  async stakeUsd(stake: Stake): Promise<number> {
+    if ("usd" in stake) return stake.usd;
+    return stake.native * (await this.opts.ethUsd());
   }
 
   private async usdToWei(usd: number): Promise<bigint> {
@@ -320,13 +335,13 @@ export class EvmMarketChain implements MarketChain {
   async placeBet(params: {
     refs: ChainRefs;
     side: 0 | 1;
-    amountUsd: number;
+    stake: Stake;
     bettor: string;
   }): Promise<{ tokensOut: number; signature: string }> {
     const tokens = await this.entryTokens(params.refs.marketId);
     const token = tokens[params.side];
     const account = this.opts.signerFor(params.bettor);
-    const wei = await this.usdToWei(params.amountUsd);
+    const wei = await this.stakeToWei(params.stake);
 
     const before = await this.tokenBalance(token, account.address);
     const hash = await this.wallet(account).writeContract({
@@ -362,10 +377,10 @@ export class EvmMarketChain implements MarketChain {
   async previewStake(params: {
     refs: ChainRefs;
     side: 0 | 1;
-    amountUsd: number;
+    stake: Stake;
   }): Promise<{ tokensOut: number; feeUsd: number }> {
     const tokens = await this.entryTokens(params.refs.marketId);
-    const wei = await this.usdToWei(params.amountUsd);
+    const wei = await this.stakeToWei(params.stake);
 
     const { result } = await this.pub.simulateContract({
       address: this.opts.addresses.swapRouter,

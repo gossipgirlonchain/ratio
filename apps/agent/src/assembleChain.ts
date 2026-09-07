@@ -11,7 +11,13 @@
 import { QUOTE_UNITS_PER_USD_SOLANA, SWAP_FEE_BPS, MARKET_DURATION_MS } from "@ratio/config";
 import type { MarketChain } from "@ratio/chain";
 import { DopplerMarketChain } from "@ratio/chain/solana";
-import { EvmMarketChain, BASE_SEPOLIA, BASE_SEPOLIA_RPC, coinbaseEthUsd } from "@ratio/chain/evm";
+import {
+  EvmMarketChain,
+  RatioSubgraph,
+  BASE_SEPOLIA,
+  BASE_SEPOLIA_RPC,
+  coinbaseEthUsd,
+} from "@ratio/chain/evm";
 import { RatioMarketClient } from "@ratio/doppler/pair-market";
 import { createClients } from "@ratio/doppler/tx";
 import { createKeyPairSignerFromBytes } from "@solana/kit";
@@ -66,6 +72,21 @@ async function assembleEvm(opts: {
     opts.supabaseServiceKey,
   );
 
+  // Configured = the agent reads live indexed data. Unset = degraded mode on
+  // our own records, logged loudly so it is never a silent downgrade.
+  const subgraphUrl = process.env.RATIO_SUBGRAPH_URL;
+  const subgraph = subgraphUrl ? new RatioSubgraph({ url: subgraphUrl }) : null;
+  if (!subgraph) {
+    console.error(
+      "  RATIO_SUBGRAPH_URL unset — odds fall back to our own trade records",
+    );
+  }
+  const ethUsd = coinbaseEthUsd();
+
+  // Declared before the chain so raisedWeiFor can reach it; the oracle address
+  // is CREATE2-deterministic, so this is a pure derivation.
+  let evmOracleAddress: (marketId: string) => Promise<string>;
+
   const chain = new EvmMarketChain({
     rpcUrl: process.env.BASE_SEPOLIA_RPC_URL ?? BASE_SEPOLIA_RPC,
     addresses: BASE_SEPOLIA,
@@ -74,29 +95,39 @@ async function assembleEvm(opts: {
       addr.toLowerCase() === operator.address.toLowerCase()
         ? operator
         : wallets.accountFor(addr),
-    ethUsd: coinbaseEthUsd(),
+    ethUsd,
     marketDurationMs: MARKET_DURATION_MS,
     /**
-     * Per-side stake, until the subgraph lands.
+     * Per-side stake, READ FROM THE SUBGRAPH.
      *
-     * v4 is a singleton, so this is not a chain read (see EvmMarketChain's
-     * header). Backed by our own trade records in the meantime, which is exact
-     * for the number that actually matters: the odds are a RATIO, and both
-     * sides convert through the same rate, so the ratio is precise even though
-     * the absolute wei figure inherits whatever the rate was at bet time.
+     * v4 is a singleton, so this cannot be a chain read — per-side stake is a
+     * sum over that side's swaps, which is exactly what the subgraph indexes.
+     * The agent is therefore a real consumer of it: this is the number its
+     * odds are priced from and the number it quotes back to a bettor.
+     *
+     * When no subgraph is configured it falls back to our own trade records,
+     * which is honest but strictly worse — it cannot see a bet placed directly
+     * on chain rather than through us, where the subgraph can.
      */
     raisedWeiFor: async (marketId) => {
+      if (subgraph) {
+        const oracle = await evmOracleAddress(marketId);
+        const totals = await subgraph.sideTotals(oracle);
+        return totals.raisedWei;
+      }
       const bets = await opts.store.listBets(marketId);
       const usd: [number, number] = [0, 0];
       for (const b of bets) {
         const sign = b.direction === "buy" ? 1 : -1;
         usd[b.side] += sign * b.amountUsd;
       }
-      const rate = await coinbaseEthUsd()();
+      const rate = await ethUsd();
       const toWei = (u: number) => BigInt(Math.round((u / rate) * 1e18));
       return [toWei(usd[0]), toWei(usd[1])];
     },
   });
+
+  evmOracleAddress = (marketId) => chain.oracleFor(marketId);
 
   // Doppler's fee slice must pay to the airlock owner, which is a protocol
   // fact rather than a config choice — read it rather than trust an env var.

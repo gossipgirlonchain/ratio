@@ -61,6 +61,14 @@ import { buildBeneficiaries } from "./beneficiaries.js";
 export { BASE_SEPOLIA, BASE_SEPOLIA_RPC, BASE_SEPOLIA_CHAIN_ID } from "./addresses.js";
 export { coinbaseEthUsd, fixedEthUsd, StalePriceError, type PriceSource } from "./price.js";
 export { buildBeneficiaries, BeneficiaryError } from "./beneficiaries.js";
+export {
+  RatioSubgraph,
+  SubgraphError,
+  type SideTotals,
+  type TradePoint,
+  type TrendingMarket,
+  type LeaderRow,
+} from "./subgraph.js";
 
 /** The initializer always creates the pool with the dynamic-fee flag, whatever
  * InitData.fee says. A PoolKey built with any other fee silently misses the
@@ -158,6 +166,11 @@ export class EvmMarketChain implements MarketChain {
   // -------------------------------------------------------------------------
   // Refs: everything derives from the market id
   // -------------------------------------------------------------------------
+
+  /** Public form of the CREATE2 derivation, for the subgraph lookup. */
+  async oracleFor(marketId: string): Promise<Address> {
+    return this.oracleAddress(marketId);
+  }
 
   private async oracleAddress(marketId: string): Promise<Address> {
     return this.pub.readContract({

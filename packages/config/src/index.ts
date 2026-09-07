@@ -53,7 +53,17 @@ export const SEED_PER_SIDE_USD = 1;
 export const LIKES_SAMPLE_INTERVAL_MS = 60 * 60 * 1000;
 
 /** Stake caps ported from cue-wire launch sizing ($5 keeps confirms margin-positive). */
-export const MIN_STAKE_USD = 1; // matches the preset ladder — the buttons are the spec
+/**
+ * $2, matching fomo. Raised from $1 (2026-09-07).
+ *
+ * A dollar-denominated floor is also what keeps native-denominated stakes
+ * sane: the minimum is a policy in dollars whichever unit someone types, so a
+ * round ETH amount sitting right on the line flips in and out of validity as
+ * the price moves. At $1 that was live — 0.0004 ETH was $1.001 one minute and
+ * $0.99 the next, and the second was silently declined. $2 puts the common
+ * round amounts clear of the boundary.
+ */
+export const MIN_STAKE_USD = 2;
 export const MAX_STAKE_USD = 500;
 
 /**

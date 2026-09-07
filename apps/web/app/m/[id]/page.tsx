@@ -25,7 +25,8 @@ import {
 import { placeBet, usePendingBets } from "../../../lib/trade";
 import { useMounted } from "../../../lib/useMounted";
 
-const PRESETS = [1, 5, 25, 100, 250, 500] as const;
+// First rung is the minimum stake — a button that always fails is not a button.
+const PRESETS = [2, 5, 25, 100, 250, 500] as const;
 
 const fmtUsd = (n: number) => `$${n.toLocaleString("en-US", { maximumFractionDigits: 0 })}`;
 const fmtUsd2 = (n: number) => `$${n.toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;

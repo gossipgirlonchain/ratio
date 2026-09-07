@@ -274,7 +274,11 @@ export class EvmMarketChain implements MarketChain {
       abi: airlockAbi,
       functionName: "owner",
     });
+    // Still computed and validated even though it cannot be applied yet: it
+    // catches a malformed split at creation rather than whenever the upstream
+    // constraint lifts, and it keeps the five-way economics honest in the log.
     const beneficiaries = buildBeneficiaries(params.feeBeneficiaries, airlockOwner);
+    void beneficiaries;
 
     await this.send(operator, (w) =>
       w.writeContract({
@@ -347,7 +351,29 @@ export class EvmMarketChain implements MarketChain {
           // markets, and the whole design rests on it.
           0,
           [[0, 240_000, 10, 10n ** 18n]],
-          a.beneficiaries.map((b) => [b.beneficiary, b.shares]),
+          /**
+           * EMPTY, and it has to be. This is upstream's constraint, not a
+           * choice, and getting it wrong strands money permanently:
+           *
+           *   status: beneficiaries.length != 0 ? Locked : Initialized
+           *
+           * A pool with a fee split is created Locked. Airlock.migrate calls
+           * exitLiquidity, which requires Initialized and reverts
+           * WrongPoolStatus(Initialized, Locked). The other route out,
+           * graduate(), requires a doppler hook carrying ON_GRADUATION_FLAG
+           * (4) — and NoSellDopplerHook, the hook prediction markets must use,
+           * is enabled with flags 3. So a prediction pool with beneficiaries
+           * can never exit and never graduate: bets go in and nothing comes
+           * out, for anyone.
+           *
+           * So on Base Sepolia today a prediction market can take a fee split
+           * or it can settle, never both. A market that cannot pay out is not
+           * a market, so we take no fee and say so. Written up in FEEDBACK.md.
+           *
+           * buildBeneficiaries stays and stays tested — it is exactly what
+           * goes here the moment upstream lifts this.
+           */
+          [] as never[],
           addresses.noSellHook,
           "0x",
           "0x",

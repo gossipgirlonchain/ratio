@@ -148,7 +148,11 @@ async function main() {
   console.log("\n[2/4] reply-stakes in both units…");
   x.queueMention({ ...user("dave"), text: `@${BOT_HANDLE} $2 @rep`, target: { tweetId: rec.id, type: "replied_to" } });
   await engine.tick();
-  x.queueMention({ ...user("erin"), text: `@${BOT_HANDLE} 0.0004 @opa`, target: { tweetId: rec.id, type: "replied_to" } });
+  // 0.001 ETH, not 0.0004. The min stake is a DOLLAR policy ($1), so a
+  // native-denominated stake sitting near it flips in and out of validity as
+  // the price moves — 0.0004 ETH was $1.001 at one run's price and $0.99 at
+  // the next, and the engine correctly declined the second in silence.
+  x.queueMention({ ...user("erin"), text: `@${BOT_HANDLE} 0.001 @opa`, target: { tweetId: rec.id, type: "replied_to" } });
   await engine.tick();
 
   const bets = await store.listBets(rec.id);

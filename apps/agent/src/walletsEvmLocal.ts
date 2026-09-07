@@ -103,11 +103,16 @@ export class LocalEvmWalletProvider implements WalletProvider {
     });
 
     // A confirmed transfer is not immediately visible to every read replica
-    // behind a public RPC. The engine checks the bettor's balance before it
-    // will place a bet, so returning while that still reads zero makes the
-    // bot tell a funded person they are broke. Wait until it is visible.
-    for (let i = 0; i < 20; i++) {
-      if ((await this.pub.getBalance({ address: account.address })) > 0n) break;
+    // behind a public RPC, and the engine checks the bettor's balance before
+    // it will place a bet — so returning early makes the bot tell a funded
+    // person they are broke.
+    //
+    // Wait for the TARGET, not merely for non-zero. A wallet reused from a
+    // previous run already has a balance, so a non-zero check passes
+    // instantly while the top-up is still invisible, which is precisely the
+    // case that failed.
+    for (let i = 0; i < 30; i++) {
+      if ((await this.pub.getBalance({ address: account.address })) >= target) break;
       await new Promise((r) => setTimeout(r, 500));
     }
     console.log(`    funded ${xUserId} -> ${account.address} (${this.fundEth} ETH)`);

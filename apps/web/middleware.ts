@@ -16,6 +16,11 @@ import { ACCESS_COOKIE, verifyAccess } from "./lib/access";
  */
 const PUBLIC_PATHS = new Set(["/signup"]);
 
+/** Creator application: a static page shared with outside creators, so it
+ * lives outside the wall like /signup. Prefix match covers the rewrite
+ * target /creator-apply/index.html too. */
+const isCreatorApply = (p: string) => p === "/creator-apply" || p.startsWith("/creator-apply/");
+
 /** Link-preview scrapers: allowed through to MARKET pages only, so the
  * share card renders. They read og tags; the app shell behind them is
  * useless without login. Everything else stays walled. */
@@ -23,7 +28,7 @@ const CRAWLER_UA = /twitterbot|facebookexternalhit|linkedinbot|slackbot|discordb
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
+  if (PUBLIC_PATHS.has(pathname) || isCreatorApply(pathname)) return NextResponse.next();
   // the share image itself is public: X fetches it with no cookie
   if (/^\/m\/[^/]+\/opengraph-image/.test(pathname)) return NextResponse.next();
   if (

@@ -1,6 +1,11 @@
 /** @type {import('next').NextConfig} */
 export default {
   transpilePackages: ["@ratio/ui", "@ratio/config", "@ratio/doppler"],
+  async rewrites() {
+    // static creator application in /public; bare path needs the explicit
+    // index rewrite because the public dir does no directory resolution
+    return [{ source: "/creator-apply", destination: "/creator-apply/index.html" }];
+  },
   webpack: (config) => {
     // Privy's optional peer deps for features we will never use (Farcaster
     // mini-apps, Abstract, AA). Stub them so webpack stops resolving them;

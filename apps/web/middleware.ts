@@ -7,6 +7,15 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { ACCESS_COOKIE, verifyAccess } from "./lib/access";
 
+/**
+ * Public paths, reachable with no access cookie.
+ *
+ * /signup is the one page meant to be shared outside the beta, so it has to
+ * sit outside the wall. It is deliberately unbranded and does nothing except
+ * take an X login, so opening it exposes no product surface.
+ */
+const PUBLIC_PATHS = new Set(["/signup"]);
+
 /** Link-preview scrapers: allowed through to MARKET pages only, so the
  * share card renders. They read og tags; the app shell behind them is
  * useless without login. Everything else stays walled. */
@@ -14,6 +23,7 @@ const CRAWLER_UA = /twitterbot|facebookexternalhit|linkedinbot|slackbot|discordb
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
+  if (PUBLIC_PATHS.has(pathname)) return NextResponse.next();
   // the share image itself is public: X fetches it with no cookie
   if (/^\/m\/[^/]+\/opengraph-image/.test(pathname)) return NextResponse.next();
   if (

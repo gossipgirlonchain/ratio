@@ -71,6 +71,9 @@ export class DopplerMarketChain implements MarketChain {
     nonce: string;
     feeBeneficiaries: FeeBeneficiary[];
     outcomes: [string, string];
+    /** Unused: the Solana oracle has no on-chain deadline, it is finalized
+     * by the operator whenever the engine decides the clock has run out. */
+    settlesAtMs?: number;
   }): Promise<ChainRefs> {
     const refs = await this.client.createMarket({
       nonce: BigInt(params.nonce),

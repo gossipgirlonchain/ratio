@@ -251,6 +251,9 @@ export class RatioEngine {
         nonce: sideB.tweetId,
         feeBeneficiaries,
         outcomes: [`A @${sideA.authorHandle}`, `B @${sideB.authorHandle}`],
+        // The same value stored on the record below, so the contract and our
+        // database agree on the deadline to the millisecond.
+        settlesAtMs: now + this.config.marketDurationMs,
       }),
       new Promise<never>((_, rej) =>
         setTimeout(() => rej(new Error("chain launch timed out after 5min")), 300_000),

@@ -57,9 +57,11 @@ import {
   ratioOracleFactoryAbi,
 } from "./abis.js";
 import { buildBeneficiaries } from "./beneficiaries.js";
+import { SerialQueue } from "./serial.js";
 
 export { BASE_SEPOLIA, BASE_SEPOLIA_RPC, BASE_SEPOLIA_CHAIN_ID } from "./addresses.js";
 export { coinbaseEthUsd, fixedEthUsd, StalePriceError, type PriceSource } from "./price.js";
+export { SerialQueue } from "./serial.js";
 export { buildBeneficiaries, BeneficiaryError } from "./beneficiaries.js";
 export {
   RatioSubgraph,
@@ -116,12 +118,42 @@ export interface EvmMarketChainOpts {
 export class EvmMarketChain implements MarketChain {
   private readonly pub: PublicClient;
   private readonly wallets = new Map<string, WalletClient>();
+  /** One transaction in flight per account — EVM nonces are sequential. */
+  private readonly queue = new SerialQueue();
+  /**
+   * Entry tokens we set ourselves, by market id.
+   *
+   * Not an optimisation. waitForTransactionReceipt confirms setEntryTokens,
+   * but the very next readContract can land on a different node behind the
+   * RPC's load balancer that has not caught up, and read back two zero
+   * addresses — which is indistinguishable from "not attached yet". The
+   * treasury seed runs immediately after creation and hit exactly that.
+   *
+   * Remembering what we just wrote removes the race and a round trip per bet.
+   */
+  private readonly tokensByMarket = new Map<string, [Address, Address]>();
 
   constructor(private readonly opts: EvmMarketChainOpts) {
     this.pub = createPublicClient({
       chain: baseSepolia,
       transport: http(opts.rpcUrl),
     }) as PublicClient;
+  }
+
+  /**
+   * Send one transaction and wait for it, with at most one in flight per
+   * account. Both halves must be inside the queue: releasing after the send
+   * lets the next call ask for a nonce while the previous transaction is still
+   * in the mempool, and the node hands back the same one.
+   */
+  private async send(
+    account: Account,
+    write: (w: WalletClient) => Promise<`0x${string}`>,
+  ) {
+    return this.queue.run(account.address, async () => {
+      const hash = await write(this.wallet(account));
+      return this.pub.waitForTransactionReceipt({ hash });
+    });
   }
 
   private wallet(account: Account): WalletClient {
@@ -182,6 +214,8 @@ export class EvmMarketChain implements MarketChain {
   }
 
   private async entryTokens(marketId: string): Promise<[Address, Address]> {
+    const known = this.tokensByMarket.get(marketId);
+    if (known) return known;
     const oracle = await this.oracleAddress(marketId);
     const [a, b] = await Promise.all([
       this.pub.readContract({
@@ -200,6 +234,7 @@ export class EvmMarketChain implements MarketChain {
     if (a === NATIVE || b === NATIVE) {
       throw new Error(`market ${marketId}: entry tokens not attached yet`);
     }
+    this.tokensByMarket.set(marketId, [a, b]);
     return [a, b];
   }
 
@@ -221,11 +256,15 @@ export class EvmMarketChain implements MarketChain {
     nonce: string;
     feeBeneficiaries: FeeBeneficiary[];
     outcomes: [string, string];
+    settlesAtMs?: number;
   }): Promise<ChainRefs> {
     const { addresses, operator } = this.opts;
-    const wallet = this.wallet(operator);
-    const now = this.opts.now?.() ?? Date.now();
-    const settlesAt = BigInt(Math.floor((now + this.opts.marketDurationMs) / 1000));
+    // The engine's number, not ours. Deriving it here from a later clock is
+    // how the store and the contract end up disagreeing about when a market
+    // closes — by exactly the time creation takes.
+    const settlesAtMs =
+      params.settlesAtMs ?? (this.opts.now?.() ?? Date.now()) + this.opts.marketDurationMs;
+    const settlesAt = BigInt(Math.floor(settlesAtMs / 1000));
 
     // The airlock owner must be a beneficiary holding >= 5%; our Doppler slice
     // pays to it. Read rather than configured, so a chain swap cannot silently
@@ -237,15 +276,16 @@ export class EvmMarketChain implements MarketChain {
     });
     const beneficiaries = buildBeneficiaries(params.feeBeneficiaries, airlockOwner);
 
-    const oracleHash = await wallet.writeContract({
-      address: addresses.ratioOracleFactory,
-      abi: ratioOracleFactoryAbi,
-      functionName: "createOracle",
-      args: [BigInt(params.nonce), settlesAt],
-      chain: baseSepolia,
-      account: operator,
-    });
-    await this.pub.waitForTransactionReceipt({ hash: oracleHash });
+    await this.send(operator, (w) =>
+      w.writeContract({
+        address: addresses.ratioOracleFactory,
+        abi: ratioOracleFactoryAbi,
+        functionName: "createOracle",
+        args: [BigInt(params.nonce), settlesAt],
+        chain: baseSepolia,
+        account: operator,
+      }),
+    );
     const oracle = await this.oracleAddress(params.nonce);
 
     const tokens: Address[] = [];
@@ -261,16 +301,18 @@ export class EvmMarketChain implements MarketChain {
       );
     }
 
-    const setHash = await wallet.writeContract({
-      address: oracle,
-      abi: ratioOracleAbi,
-      functionName: "setEntryTokens",
-      args: [tokens[0]!, tokens[1]!],
-      chain: baseSepolia,
-      account: operator,
-    });
-    await this.pub.waitForTransactionReceipt({ hash: setHash });
+    await this.send(operator, (w) =>
+      w.writeContract({
+        address: oracle,
+        abi: ratioOracleAbi,
+        functionName: "setEntryTokens",
+        args: [tokens[0]!, tokens[1]!],
+        chain: baseSepolia,
+        account: operator,
+      }),
+    );
 
+    this.tokensByMarket.set(params.nonce, [tokens[0]!, tokens[1]!]);
     return { marketId: params.nonce };
   }
 
@@ -313,9 +355,9 @@ export class EvmMarketChain implements MarketChain {
       ],
     );
 
-    const wallet = this.wallet(operator);
-    const hash = await wallet.writeContract({
-      address: addresses.airlock,
+    const receipt = await this.send(operator, (w) =>
+      w.writeContract({
+        address: addresses.airlock,
       abi: airlockAbi,
       functionName: "create",
       args: [
@@ -340,12 +382,14 @@ export class EvmMarketChain implements MarketChain {
           salt: keccakSalt(a.marketId, a.side),
         },
       ],
-      chain: baseSepolia,
-      account: operator,
-    });
-    const receipt = await this.pub.waitForTransactionReceipt({ hash });
+        chain: baseSepolia,
+        account: operator,
+      }),
+    );
     const asset = assetFromCreateReceipt(receipt.logs, addresses.airlock);
-    if (!asset) throw new Error(`create side ${a.side}: no asset in receipt ${hash}`);
+    if (!asset) {
+      throw new Error(`create side ${a.side}: no asset in receipt ${receipt.transactionHash}`);
+    }
     return asset;
   }
 
@@ -360,9 +404,9 @@ export class EvmMarketChain implements MarketChain {
     const account = this.opts.signerFor(params.bettor);
     const wei = await this.stakeToWei(params.stake);
 
-    const before = await this.tokenBalance(token, account.address);
-    const hash = await this.wallet(account).writeContract({
-      address: this.opts.addresses.swapRouter,
+    const receipt = await this.send(account, (w) =>
+      w.writeContract({
+        address: this.opts.addresses.swapRouter,
       abi: poolSwapAbi,
       functionName: "swap",
       args: [
@@ -371,19 +415,28 @@ export class EvmMarketChain implements MarketChain {
         { takeClaims: false, settleUsingBurn: false },
         "0x",
       ],
-      value: wei,
-      chain: baseSepolia,
-      account,
-    });
-    await this.pub.waitForTransactionReceipt({ hash });
-    const after = await this.tokenBalance(token, account.address);
-
-    // The position, measured rather than assumed. This is the number that was
-    // hardcoded to 0 on Solana, where it lived in an ATA the swap never
-    // reported back and every token-weighted figure quietly divided by it.
-    const tokensOut = after - before;
-    if (tokensOut <= 0n) throw new Error(`bet landed (${hash}) but yielded no tokens`);
-    return { tokensOut: Number(tokensOut), signature: hash };
+        value: wei,
+        chain: baseSepolia,
+        account,
+      }),
+    );
+    /**
+     * The position, read out of the RECEIPT rather than from a balance delta.
+     *
+     * A before/after balance pair needs two reads around a write, and public
+     * RPCs are load balanced — the second read can land on a replica that has
+     * not seen the swap yet and report a delta of zero. The receipt is the
+     * authoritative record of what the transaction did and cannot be stale.
+     *
+     * This is also the number that was hardcoded to 0 on Solana, where it sat
+     * in an associated token account the swap never reported back and every
+     * token-weighted figure in the product quietly divided by it.
+     */
+    const tokensOut = tokensReceived(receipt.logs, token, account.address);
+    if (tokensOut <= 0n) {
+      throw new Error(`bet landed (${receipt.transactionHash}) but yielded no tokens`);
+    }
+    return { tokensOut: Number(tokensOut), signature: receipt.transactionHash };
   }
 
   /**
@@ -435,31 +488,32 @@ export class EvmMarketChain implements MarketChain {
   async settle(params: { refs: ChainRefs; winner: 0 | 1 }): Promise<void> {
     const { operator, addresses } = this.opts;
     const oracle = await this.oracleAddress(params.refs.marketId);
-    const wallet = this.wallet(operator);
 
     // The verdict. Terminal, and the migrator reads it exactly once.
-    const hash = await wallet.writeContract({
-      address: oracle,
-      abi: ratioOracleAbi,
-      functionName: "declareWinner",
-      args: [params.winner, 0n, 0n, false],
-      chain: baseSepolia,
-      account: operator,
-    });
-    await this.pub.waitForTransactionReceipt({ hash });
+    await this.send(operator, (w) =>
+      w.writeContract({
+        address: oracle,
+        abi: ratioOracleAbi,
+        functionName: "declareWinner",
+        args: [params.winner, 0n, 0n, false],
+        chain: baseSepolia,
+        account: operator,
+      }),
+    );
 
     // Migration is a separate step on EVM: Airlock moves each entry's proceeds
     // into the pot, and claims revert until the WINNING entry has migrated.
     for (const token of await this.entryTokens(params.refs.marketId)) {
-      const m = await wallet.writeContract({
-        address: addresses.airlock,
-        abi: airlockAbi,
-        functionName: "migrate",
-        args: [token],
-        chain: baseSepolia,
-        account: operator,
-      });
-      await this.pub.waitForTransactionReceipt({ hash: m });
+      await this.send(operator, (w) =>
+        w.writeContract({
+          address: addresses.airlock,
+          abi: airlockAbi,
+          functionName: "migrate",
+          args: [token],
+          chain: baseSepolia,
+          account: operator,
+        }),
+      );
     }
   }
 
@@ -484,26 +538,28 @@ export class EvmMarketChain implements MarketChain {
       args: [oracle, held],
     });
 
-    const wallet = this.wallet(account);
-    const approve = await wallet.writeContract({
-      address: winningToken,
-      abi: erc20Abi,
-      functionName: "approve",
-      args: [addresses.predictionMigrator, held],
-      chain: baseSepolia,
-      account,
-    });
-    await this.pub.waitForTransactionReceipt({ hash: approve });
-
-    const claim = await wallet.writeContract({
-      address: addresses.predictionMigrator,
-      abi: predictionMigratorAbi,
-      functionName: "claim",
-      args: [oracle, held],
-      chain: baseSepolia,
-      account,
-    });
-    await this.pub.waitForTransactionReceipt({ hash: claim });
+    // approve then claim: two transactions from one account back to back,
+    // which is exactly the nonce case, so both go through the queue.
+    await this.send(account, (w) =>
+      w.writeContract({
+        address: winningToken,
+        abi: erc20Abi,
+        functionName: "approve",
+        args: [addresses.predictionMigrator, held],
+        chain: baseSepolia,
+        account,
+      }),
+    );
+    await this.send(account, (w) =>
+      w.writeContract({
+        address: addresses.predictionMigrator,
+        abi: predictionMigratorAbi,
+        functionName: "claim",
+        args: [oracle, held],
+        chain: baseSepolia,
+        account,
+      }),
+    );
 
     return { paidUsd: await this.weiToUsd(payout) };
   }
@@ -528,14 +584,11 @@ export class EvmMarketChain implements MarketChain {
     amountUsd: number;
   }): Promise<{ signature: string }> {
     const account = this.opts.signerFor(opts.from);
-    const hash = await this.wallet(account).sendTransaction({
-      to: opts.to as Address,
-      value: await this.usdToWei(opts.amountUsd),
-      chain: baseSepolia,
-      account,
-    });
-    await this.pub.waitForTransactionReceipt({ hash });
-    return { signature: hash };
+    const value = await this.stakeToWei({ usd: opts.amountUsd });
+    const receipt = await this.send(account, (w) =>
+      w.sendTransaction({ to: opts.to as Address, value, chain: baseSepolia, account }),
+    );
+    return { signature: receipt.transactionHash };
   }
 
   isValidAddress(candidate: string): boolean {
@@ -576,6 +629,32 @@ function encodeAbi(types: string[], values: readonly unknown[]): Hex {
 
 function keccakSalt(marketId: string, side: number): Hex {
   return keccak256(encodePacked(["uint256", "uint8"], [BigInt(marketId), side]));
+}
+
+/** ERC20 Transfer(address,address,uint256). */
+const TRANSFER_TOPIC =
+  "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef" as const;
+
+/**
+ * Tokens of `token` credited to `to` in this receipt, summed across transfers.
+ * Reading the log rather than a balance avoids the read-replica race entirely.
+ */
+function tokensReceived(
+  logs: readonly { address: string; topics: readonly Hex[]; data: Hex }[],
+  token: Address,
+  to: Address,
+): bigint {
+  let total = 0n;
+  const want = to.toLowerCase();
+  for (const log of logs) {
+    if (log.address.toLowerCase() !== token.toLowerCase()) continue;
+    if (log.topics[0]?.toLowerCase() !== TRANSFER_TOPIC) continue;
+    const recipient = log.topics[2];
+    if (!recipient) continue;
+    if (`0x${recipient.slice(26)}`.toLowerCase() !== want) continue;
+    total += BigInt(log.data);
+  }
+  return total;
 }
 
 /** Airlock emits Create(asset, numeraire, initializer, poolOrHook). */

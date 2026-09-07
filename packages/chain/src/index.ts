@@ -47,6 +47,15 @@ export interface MarketChain {
     nonce: string;
     feeBeneficiaries: FeeBeneficiary[];
     outcomes: [string, string];
+    /**
+     * When this market closes, epoch ms. Passed in rather than computed by the
+     * chain: the engine stores this value and the contract enforces it, and if
+     * each derived its own from its own clock they would differ by however
+     * long market creation took — several transactions and a minute or more.
+     * The store would then call a market closed while the chain refused to
+     * settle it.
+     */
+    settlesAtMs: number;
   }): Promise<ChainRefs>;
   placeBet(opts: {
     refs: ChainRefs;
@@ -136,6 +145,7 @@ export class MockMarketChain implements MarketChain {
     nonce: string;
     feeBeneficiaries: FeeBeneficiary[];
     outcomes: [string, string];
+    settlesAtMs?: number;
   }): Promise<ChainRefs> {
     const totalBps = opts.feeBeneficiaries.reduce((s, b) => s + b.shareBps, 0);
     if (totalBps !== 10_000)

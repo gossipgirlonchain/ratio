@@ -81,13 +81,25 @@ async function privyRest<T>(path: string, body: unknown, idempotencyKey?: string
 
 export async function getOrCreateWallet(xUserId: string, handle?: string): Promise<WalletRow> {
   const db = supabaseAdmin();
-  const sel = await db.from("wallets").select().eq("x_user_id", xUserId).maybeSingle();
+  // Scoped to solana: since 0002 a person can hold one wallet per chain, so an
+  // unscoped lookup starts returning two rows and maybeSingle() throws.
+  const sel = await db
+    .from("wallets")
+    .select()
+    .eq("x_user_id", xUserId)
+    .eq("chain", "solana")
+    .maybeSingle();
   if (sel.error) throw new Error(`wallets lookup: ${sel.error.message}`);
   if (sel.data) {
     const row = sel.data as WalletRow & { handle?: string | null };
     // handles are display cache: keep it current on every login
     if (handle && row.handle !== handle) {
-      void db.from("wallets").update({ handle }).eq("x_user_id", xUserId).then(() => {});
+      void db
+        .from("wallets")
+        .update({ handle })
+        .eq("x_user_id", xUserId)
+        .eq("chain", "solana")
+        .then(() => {});
     }
     return row;
   }
@@ -104,8 +116,17 @@ export async function getOrCreateWallet(xUserId: string, handle?: string): Promi
   const up = await db
     .from("wallets")
     .upsert(
-      { x_user_id: xUserId, privy_wallet_id: created.id, address: created.address, created_at_ms: Date.now(), handle: handle ?? null },
-      { onConflict: "x_user_id", ignoreDuplicates: false },
+      {
+        x_user_id: xUserId,
+        chain: "solana",
+        privy_wallet_id: created.id,
+        address: created.address,
+        created_at_ms: Date.now(),
+        handle: handle ?? null,
+      },
+      // Must match the composite primary key from 0002; "x_user_id" alone is
+      // no longer a unique constraint and PostgREST rejects it outright.
+      { onConflict: "x_user_id,chain", ignoreDuplicates: false },
     )
     .select()
     .maybeSingle();

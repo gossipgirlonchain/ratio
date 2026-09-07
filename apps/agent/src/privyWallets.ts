@@ -65,6 +65,7 @@ export class PrivyWalletProvider implements WalletProvider {
       .from("wallets")
       .select()
       .eq("x_user_id", xUserId)
+      .eq("chain", "solana")
       .maybeSingle();
     if (error) throw new Error(`wallets lookup: ${error.message}`);
     if (data) {
@@ -80,13 +81,19 @@ export class PrivyWalletProvider implements WalletProvider {
     );
     const { error: insertErr } = await this.db.from("wallets").insert({
       x_user_id: xUserId,
+      chain: "solana",
       privy_wallet_id: created.id,
       address: created.address,
       created_at_ms: Date.now(),
     });
     // A concurrent provision can win the insert race; re-read and use it.
     if (insertErr) {
-      const { data: raced } = await this.db.from("wallets").select().eq("x_user_id", xUserId).maybeSingle();
+      const { data: raced } = await this.db
+        .from("wallets")
+        .select()
+        .eq("x_user_id", xUserId)
+        .eq("chain", "solana")
+        .maybeSingle();
       if (raced) {
         const row = raced as WalletRow;
         this.byAddress.set(row.address, { walletId: row.privy_wallet_id });
@@ -110,7 +117,7 @@ export class PrivyWalletProvider implements WalletProvider {
             .from("wallets")
             .select()
             .eq("address", walletAddress)
-            .maybeSingle();
+            .maybeSingle(); // address is globally unique, so no chain filter
           if (!data) throw new Error(`no privy wallet for ${walletAddress}`);
           entry = { walletId: (data as WalletRow).privy_wallet_id };
           provider.byAddress.set(walletAddress, entry);

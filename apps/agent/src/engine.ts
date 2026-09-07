@@ -288,31 +288,14 @@ export class RatioEngine {
     };
     await this.store.saveMarket(record);
 
-    // Treasury seed, BEFORE the card posts so nobody can bet first: $SEED
-    // on each side. Settlement insurance ONLY, not liquidity — the curve
-    // prices from virtual reserves and needs no real money to trade. The
-    // seed guarantees a real holder on each side so settlement can never
-    // hit ZeroClaimableSupply (unrefundable, since sells are impossible).
-    // Plumbing, not a participant.
-    for (const side of [0, 1] as const) {
-      const result = await this.chain.placeBet({
-        refs: chainRefs,
-        side,
-        stake: { usd: this.config.seedPerSideUsd },
-        bettor: this.config.protocolWallet,
-      });
-      await this.store.saveBet({
-        marketId: record.id,
-        xUserId: "ratio:treasury",
-        handle: "ratio",
-        side,
-        direction: "buy",
-        amountUsd: this.config.seedPerSideUsd,
-        tokensOut: result.tokensOut,
-        placedAtMs: now,
-        isSeed: true,
-      });
-    }
+    // NO SEED AT CREATION. It used to buy $1 on each side here, to guarantee
+    // a holder on the winning side so settlement could never divide by zero.
+    // But the LOSING side's seed always ends up distributed to the winners,
+    // which is a standing subsidy on every market — and opening a market is
+    // free, so anyone who can influence a like count farms it.
+    //
+    // The guarantee is now bought at SETTLEMENT instead, and only when it is
+    // actually needed. See resolveMarket.
 
     // The ONE linked post per market — the market card, a QUOTE TWEET of
     // side A (card spec 2026-08-25: the quoted tweet is its own context,
@@ -565,23 +548,64 @@ export class RatioEngine {
 
     // Snapshot BEFORE settle: vaults drain at migration, and the recap is
     // the distribution loop — without this it has nothing to say.
-    const odds = await this.chain.getOdds(record.chainRefs);
+    const snapshotOdds = await this.chain.getOdds(record.chainRefs);
+
+    // Nobody backed the winner. On-chain that is fatal rather than awkward:
+    // claimableSupply is zero, the claim divides by zero, and the whole pot is
+    // stranded with no refund path — sells are impossible and the migrator has
+    // no refund instruction.
+    //
+    // So the treasury buys the minimum on the winning side, here, once the
+    // result is known. Doing it now rather than at creation is what makes it
+    // unfarmable: the market has already closed, so nobody can bet alongside
+    // the rescue to capture it. The consequence, stated plainly because it is
+    // real money: the treasury then holds the only winning tokens and claims
+    // the pot. A market nobody backed correctly goes to the house.
+    let odds = snapshotOdds;
+    if (odds.raisedUsd[winnerSide] === 0) {
+      console.log(
+        `  market ${record.id}: nobody backed the winning side — treasury seeding $${this.config.seedPerSideUsd} to make it settleable`,
+      );
+      try {
+        const rescue = await this.chain.placeBet({
+          refs: record.chainRefs,
+          side: winnerSide,
+          stake: { usd: this.config.seedPerSideUsd },
+          bettor: this.config.protocolWallet,
+        });
+        await this.store.saveBet({
+          marketId: record.id,
+          xUserId: "ratio:treasury",
+          handle: "ratio",
+          side: winnerSide,
+          direction: "buy",
+          amountUsd: this.config.seedPerSideUsd,
+          tokensOut: rescue.tokensOut,
+          placedAtMs: this.config.now(),
+          isSeed: true,
+        });
+        // Re-read: the snapshot has to include the rescue, or the recap and
+        // the fee card describe a smaller pot than the one being paid out.
+        odds = await this.chain.getOdds(record.chainRefs);
+      } catch (err) {
+        // Better a market held open and retried next tick than one finalized
+        // into a pot nobody can ever claim.
+        console.error(
+          `  rescue seed failed for ${record.id}, settlement deferred: ${(err as Error).message.slice(0, 160)}`,
+        );
+        return;
+      }
+    }
+
+    // Snapshot AFTER any rescue, and before settle: the vaults drain at
+    // migration, so this is the last moment the pot is readable — and it must
+    // be the pot that is actually paid out, rescue included.
     const snapshot = {
       likesAFinal: likesA,
       likesBFinal: likesB,
       finalImpliedA: odds.impliedA,
       finalPotUsd: odds.raisedUsd[0] + odds.raisedUsd[1],
     };
-
-    // Treasury seeding makes a moneyless winning side unreachable. If it
-    // happens anyway the invariant is broken somewhere — never settle into
-    // an on-chain ZeroClaimableSupply throw; hold the market and shout.
-    if (odds.raisedUsd[winnerSide] === 0) {
-      console.error(
-        `  INVARIANT VIOLATED: market ${record.id} winning side has no money despite seeding — settlement held`,
-      );
-      return;
-    }
 
     await this.chain.settle({ refs: record.chainRefs, winner: winnerSide });
     await this.store.updateMarket(record.id, {

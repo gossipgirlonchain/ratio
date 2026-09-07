@@ -25,23 +25,26 @@ export const FRESHNESS_WINDOW_MS = 12 * 60 * 60 * 1000;
 export const MARKET_DURATION_MS = 24 * 60 * 60 * 1000;
 
 /**
- * Treasury seed: SETTLEMENT INSURANCE, NOT LIQUIDITY (corrected
- * 2026-08-15). Doppler is a liquidity bootstrapping protocol: it blocks
- * external LPs entirely and the curve prices from VIRTUAL reserves —
- * (curveVirtualQuote + quoteVault) / (curveVirtualBase − sold) — so a
- * market with zero real money is fully tradable and correctly priced.
- * The seed exists for exactly one reason: at least one real holder on
- * each side, so settlement can never hit ZeroClaimableSupply (sells are
- * impossible, so that state would be unrefundable).
+ * Treasury rescue, paid AT SETTLEMENT and only when it is needed.
  *
- * At creation, BEFORE the bot posts the card,
- * the treasury buys this much on EACH side. With sells impossible, a
- * winning side with no money hits ZeroClaimableSupply and nothing can
- * refund — seeding makes that state unreachable. Treasury keeps seed winnings,
- * eats seed losses; ~break-even at scale, worst case ~= this per market.
- * Seed positions are plumbing: excluded from who's-in and positions.
+ * This used to buy $1 on each side at creation, so that a holder always
+ * existed on the winning side and settlement could never divide by zero.
+ * That guarantee was real but the price was wrong: the LOSING side's seed is
+ * always distributed to the winners, so every market carried a standing
+ * subsidy — and opening a market is free, so anyone able to influence a like
+ * count could farm it (winny, 2026-09-07).
+ *
+ * Now the engine checks after the result is known. If nobody backed the
+ * winning side, the treasury buys this much on it so the pot can be claimed at
+ * all. That cannot be farmed: the market has already closed, so nobody can bet
+ * alongside the rescue to capture it.
+ *
+ * The trade, stated plainly: in that case the treasury holds the only winning
+ * tokens and claims the pot. A market nobody backed correctly goes to the
+ * house — which is the only outcome implementable without a refund path, since
+ * sells are impossible and the migrator has no refund.
  */
-export const SEED_PER_SIDE_USD = 1;
+export const SEED_PER_SIDE_USD = 2;
 
 /**
  * Likes sampling cadence for open markets. This replaced the mid-window

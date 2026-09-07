@@ -199,7 +199,7 @@ assert.equal(rec!.winner, "a", "tie: side A held the line");
 // ---------------------------------------------------------------------------
 // 6. One-sided market: the treasury seed makes it settleable (voids are gone)
 // ---------------------------------------------------------------------------
-scenario("6. seed makes a one-sided market settleable");
+scenario("6. nobody backs the winner -> treasury rescue at settlement");
 const m6 = seedPair({ type: "quoted", a: "liam", b: "mona", likesA: 100 });
 tagOn(m6.sideB.tweetId, "scout");
 await engine.tick();
@@ -208,9 +208,13 @@ await engine.tick();
 advance(MARKET_DURATION_MS + 1);
 await engine.resolveDueMarkets();
 rec = await store.getMarketByTweet(m6.sideB.tweetId);
-assert.equal(rec!.status, "settled", "seed on the winner side prevents ZeroClaimableSupply");
+assert.equal(rec!.status, "settled", "settlement-time rescue prevents ZeroClaimableSupply");
 assert.equal(rec!.winner, "a");
-assert.ok(rec!.finalPotUsd! > 40, "pot includes the loser's money for the seed to win");
+assert.ok(rec!.finalPotUsd! > 40, "snapshot is taken AFTER the rescue, so the pot includes it");
+// The rescue is the ONLY holder on the winning side, so it takes the pot —
+// a market nobody backed correctly goes to the house.
+const m6seeds = (await store.listBets(rec!.id)).filter((b) => b.isSeed);
+assert.equal(m6seeds.length, 0, "seeds are excluded from participant trades");
 
 // ---------------------------------------------------------------------------
 // 7. Deletion mid-window -> FORFEIT at settlement; sampler records likes
@@ -432,7 +436,10 @@ assert.ok(
   "each market self-contained, keyed to the post",
 );
 const trending = await store.trendingPosts(10);
-const SEEDS = 2 * SEED_PER_SIDE_USD; // per-market treasury seed, part of staked
+// No creation-time seed any more, so staked volume is exactly what people
+// staked. The treasury only buys at settlement, and only when nobody backed
+// the winner — none of these markets are settled yet.
+const SEEDS = 0;
 assert.equal(trending[0]!.tweetAId, postQ.tweetId, "volume outranks count");
 assert.equal(trending[0]!.marketCount, 1);
 assert.equal(trending[0]!.stakedVolumeUsd, 200 + SEEDS);
@@ -485,8 +492,9 @@ betOn(m15.sideB.tweetId, "dave", "$60 @yanni");
 await engine.tick();
 
 const board = await store.feeLeaderboard({ sinceMs: windowStart });
-// volume incl. seeds; fees split by FEE_SHARE_BPS — computed, not hardcoded
-const m15Volume = 160 + 2 * SEED_PER_SIDE_USD;
+// Volume is participant money only — no creation seed exists to inflate it,
+// and this market is still open so no rescue has happened either.
+const m15Volume = 160;
 const m15Fees = (m15Volume * SWAP_FEE_BPS) / 10_000;
 const expectSideA = (m15Fees * FEE_SHARE_BPS.sideA) / 10_000;
 const expectTagger = (m15Fees * FEE_SHARE_BPS.tagger) / 10_000;

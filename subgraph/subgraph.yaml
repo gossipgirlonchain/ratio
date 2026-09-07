@@ -1,0 +1,104 @@
+specVersion: 1.0.0
+description: >
+  ratio — head-to-head prediction markets on tweets, settled by likes.
+  Indexes Doppler's PredictionMigrator, the DopplerHookInitializer's swaps, and
+  ratio's own per-market oracles on Base Sepolia.
+repository: https://github.com/gossipgirlonchain/ratio
+schema:
+  file: ./schema.graphql
+
+dataSources:
+  # Ratio's oracle factory. Each market deploys a minimal-proxy oracle, so this
+  # is also where the dynamic RatioOracle template gets instantiated from.
+  - kind: ethereum
+    name: RatioOracleFactory
+    network: base-sepolia
+    source:
+      address: "0xCFeBFF30bf95E9bD5EEBBA7cD6c78c5764d090Dd"
+      abi: RatioOracleFactory
+      startBlock: 46488000
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      file: ./src/factory.ts
+      entities: [Market, Protocol]
+      abis:
+        - name: RatioOracleFactory
+          file: ./abis/RatioOracleFactory.json
+      eventHandlers:
+        - event: OracleCreated(indexed uint256,indexed address,uint64)
+          handler: handleOracleCreated
+
+  # Doppler's PredictionMigrator. Deployed Feb 2026, unused until ratio — see
+  # contracts/BASE-SEPOLIA.md.
+  - kind: ethereum
+    name: PredictionMigrator
+    network: base-sepolia
+    source:
+      address: "0x91aad599EfD70E633d091FC060cc6f9D3e5298BE"
+      abi: PredictionMigrator
+      startBlock: 46488000
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      file: ./src/migrator.ts
+      entities: [Market, Entry, Claim, Position, User, Protocol]
+      abis:
+        - name: PredictionMigrator
+          file: ./abis/PredictionMigrator.json
+      eventHandlers:
+        - event: EntryRegistered(indexed address,indexed bytes32,address,address)
+          handler: handleEntryRegistered
+        - event: EntryMigrated(indexed address,indexed bytes32,address,uint256,uint256)
+          handler: handleEntryMigrated
+        - event: Claimed(indexed address,indexed address,uint256,uint256)
+          handler: handleClaimed
+
+  # Where trades live. The initializer emits its own Swap from afterSwap, which
+  # carries the balance deltas the raw PoolManager event does not.
+  - kind: ethereum
+    name: DopplerHookInitializer
+    network: base-sepolia
+    source:
+      address: "0xAA096F558f3d4c9226De77E7Cc05f18E180B2544"
+      abi: DopplerHookInitializer
+      startBlock: 46488000
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      file: ./src/swaps.ts
+      entities: [Market, Entry, Trade, Position, User, Protocol, FeeShare, Beneficiary]
+      abis:
+        - name: DopplerHookInitializer
+          file: ./abis/DopplerHookInitializer.json
+      eventHandlers:
+        - event: Swap(indexed address,(indexed address,address,uint24,int24,address),indexed bytes32,(bool,int256,uint160),int128,int128,bytes)
+          handler: handleSwap
+
+templates:
+  # One oracle per market, so it has to be dynamic — the addresses do not exist
+  # until a market opens.
+  - kind: ethereum
+    name: RatioOracle
+    network: base-sepolia
+    source:
+      abi: RatioOracle
+    mapping:
+      kind: ethereum/events
+      apiVersion: 0.0.9
+      language: wasm/assemblyscript
+      file: ./src/oracle.ts
+      entities: [Market]
+      abis:
+        - name: RatioOracle
+          file: ./abis/RatioOracle.json
+      eventHandlers:
+        - event: MarketOpened(indexed address,indexed uint256,indexed address,uint64)
+          handler: handleMarketOpened
+        - event: EntryTokensSet(indexed address,address,address)
+          handler: handleEntryTokensSet
+        - event: RatioResolved(indexed address,indexed uint256,uint8,uint256,uint256,bool)
+          handler: handleRatioResolved

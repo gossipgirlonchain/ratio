@@ -1,0 +1,88 @@
+[
+  {
+    "type": "event",
+    "name": "EntryRegistered",
+    "anonymous": false,
+    "inputs": [
+      {
+        "name": "oracle",
+        "type": "address",
+        "indexed": true
+      },
+      {
+        "name": "entryId",
+        "type": "bytes32",
+        "indexed": true
+      },
+      {
+        "name": "token",
+        "type": "address",
+        "indexed": false
+      },
+      {
+        "name": "numeraire",
+        "type": "address",
+        "indexed": false
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "EntryMigrated",
+    "anonymous": false,
+    "inputs": [
+      {
+        "name": "oracle",
+        "type": "address",
+        "indexed": true
+      },
+      {
+        "name": "entryId",
+        "type": "bytes32",
+        "indexed": true
+      },
+      {
+        "name": "token",
+        "type": "address",
+        "indexed": false
+      },
+      {
+        "name": "contribution",
+        "type": "uint256",
+        "indexed": false
+      },
+      {
+        "name": "claimableSupply",
+        "type": "uint256",
+        "indexed": false
+      }
+    ]
+  },
+  {
+    "type": "event",
+    "name": "Claimed",
+    "anonymous": false,
+    "inputs": [
+      {
+        "name": "oracle",
+        "type": "address",
+        "indexed": true
+      },
+      {
+        "name": "claimer",
+        "type": "address",
+        "indexed": true
+      },
+      {
+        "name": "tokensBurned",
+        "type": "uint256",
+        "indexed": false
+      },
+      {
+        "name": "numeraireReceived",
+        "type": "uint256",
+        "indexed": false
+      }
+    ]
+  }
+]

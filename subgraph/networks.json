@@ -1,0 +1,16 @@
+{
+  "base-sepolia": {
+    "RatioOracleFactory": {
+      "address": "0xCFeBFF30bf95E9bD5EEBBA7cD6c78c5764d090Dd",
+      "startBlock": 46488000
+    },
+    "PredictionMigrator": {
+      "address": "0x91aad599EfD70E633d091FC060cc6f9D3e5298BE",
+      "startBlock": 46488000
+    },
+    "DopplerHookInitializer": {
+      "address": "0xAA096F558f3d4c9226De77E7Cc05f18E180B2544",
+      "startBlock": 46488000
+    }
+  }
+}

@@ -1,0 +1,203 @@
+"""
+A ratio market. Keyed by ORACLE ADDRESS, because that is how Doppler's
+PredictionMigrator keys them (`_markets[oracle]`) — one market is one
+RatioOracle instance.
+
+The tweet ids and handles are not here. They are X data, not chain data, and
+cannot be indexed; the app joins them at the read layer. What lives here is
+money and positions, which is the half that cannot be reconstructed from
+anywhere else once the pools drain.
+"""
+type Market @entity(immutable: false) {
+  "The oracle contract address."
+  id: Bytes!
+  "Side B's tweet id, from RatioOracle.MarketOpened."
+  marketId: BigInt!
+  "createdAt + 24h."
+  settlesAt: BigInt!
+  createdAtBlock: BigInt!
+  createdAtTime: BigInt!
+
+  entries: [Entry!]! @derivedFrom(field: "market")
+  trades: [Trade!]! @derivedFrom(field: "market")
+  positions: [Position!]! @derivedFrom(field: "market")
+  claims: [Claim!]! @derivedFrom(field: "market")
+
+  "Gross quote in, both sides. The trending ranking key."
+  totalStaked: BigInt!
+  "Net of any exits. Sells are protocol-impossible today, so equal to gross."
+  netStaked: BigInt!
+  tradeCount: Int!
+
+  resolved: Boolean!
+  winnerSide: Int
+  winningToken: Bytes
+  "True when a side became unreadable rather than losing on counts."
+  forfeit: Boolean!
+  "Final like counts, relayed on-chain by RatioOracle.RatioResolved."
+  likesA: BigInt
+  likesB: BigInt
+  resolvedAtTime: BigInt
+
+  "Sum of migrated contributions. The claimable pot."
+  totalPot: BigInt!
+  totalClaimed: BigInt!
+}
+
+"""
+One side of a market. entryId is the side index — the migrator only requires
+uniqueness within a market, so side IS the id.
+"""
+type Entry @entity(immutable: false) {
+  "market id + side"
+  id: Bytes!
+  market: Market!
+  side: Int!
+  token: Bytes!
+  numeraire: Bytes!
+  "keccak of the v4 PoolKey. How a Swap is attributed back to a market."
+  poolId: Bytes!
+
+  staked: BigInt!
+  tradeCount: Int!
+
+  migrated: Boolean!
+  "Numeraire this entry contributed to the pot."
+  contribution: BigInt!
+  "totalSupply - unsold. The payout denominator."
+  claimableSupply: BigInt!
+}
+
+"""
+poolId -> entry.
+
+Swap events carry a poolId and an INDEXED (therefore hashed, therefore
+undecodable) PoolKey. Rather than try to reverse that, we index forward: when
+an entry registers we compute the poolId its pool will have and record the
+lookup here, so every swap resolves by direct read.
+"""
+type Pool @entity(immutable: true) {
+  "The v4 pool id."
+  id: Bytes!
+  entry: Entry!
+  market: Market!
+}
+
+"""
+One entry into a market.
+
+This is the ONLY record of entry prices that exists. Nothing on chain stores
+what a position cost — the pools drain at migration — so `price` here is
+unreconstructable if it is not captured at the moment of the swap.
+"""
+type Trade @entity(immutable: true) {
+  "tx hash + log index"
+  id: Bytes!
+  market: Market!
+  entry: Entry!
+  side: Int!
+
+  """
+  The bettor. Taken from transaction.from, NOT from the Swap event's `sender`,
+  which is the router and would attribute every bet in the protocol to one
+  address. This is why bets are never gas-sponsored: a paymaster would make
+  transaction.from the sponsor and collapse attribution.
+  """
+  bettor: Bytes!
+
+  "Quote in, wei."
+  amountIn: BigInt!
+  "Outcome tokens received."
+  tokensOut: BigInt!
+  "amountIn / tokensOut, scaled 1e18. Exists nowhere else."
+  price: BigInt!
+
+  blockNumber: BigInt!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+"""
+A bettor's net holding in one side of one market.
+"""
+type Position @entity(immutable: false) {
+  "market id + bettor + side"
+  id: Bytes!
+  market: Market!
+  entry: Entry!
+  bettor: Bytes!
+  user: User!
+  side: Int!
+
+  tokens: BigInt!
+  "Net quote in. Average entry derives from this and nothing else."
+  netStaked: BigInt!
+  tradeCount: Int!
+
+  claimed: Boolean!
+  payout: BigInt!
+}
+
+type Claim @entity(immutable: true) {
+  id: Bytes!
+  market: Market!
+  claimer: Bytes!
+  user: User!
+  tokensBurned: BigInt!
+  payout: BigInt!
+  timestamp: BigInt!
+  txHash: Bytes!
+}
+
+"""
+A trader, by address. The trader leaderboard: people good at BETTING, as
+distinct from people being bet on, who are ranked by fees. Never merged —
+different populations.
+"""
+type User @entity(immutable: false) {
+  id: Bytes!
+  totalStaked: BigInt!
+  totalPaidOut: BigInt!
+  "totalPaidOut - staked on decided markets. Can be negative."
+  realisedProfit: BigInt!
+  tradeCount: Int!
+  wins: Int!
+  losses: Int!
+  positions: [Position!]! @derivedFrom(field: "user")
+  claims: [Claim!]! @derivedFrom(field: "user")
+}
+
+"""
+Fees earned by a beneficiary, per market and in total.
+
+Accrual is DERIVED rather than emitted: the split is immutable from launch, so
+a per-beneficiary event on every bet would be five logs for a number the
+indexer can compute exactly from the fee and the shares.
+"""
+type Beneficiary @entity(immutable: false) {
+  id: Bytes!
+  totalFees: BigInt!
+  marketCount: Int!
+  shares: [FeeShare!]! @derivedFrom(field: "beneficiary")
+}
+
+type FeeShare @entity(immutable: false) {
+  "market id + beneficiary"
+  id: Bytes!
+  market: Market!
+  beneficiary: Beneficiary!
+  "Share of the swap fee, in WAD. Immutable from launch."
+  sharesWad: BigInt!
+  accrued: BigInt!
+}
+
+"""
+Protocol totals, for the trending view and the front page.
+"""
+type Protocol @entity(immutable: false) {
+  id: Bytes!
+  marketCount: Int!
+  tradeCount: Int!
+  totalStaked: BigInt!
+  totalPaidOut: BigInt!
+}

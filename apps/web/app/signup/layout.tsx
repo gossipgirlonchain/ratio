@@ -12,16 +12,16 @@ import type { Metadata } from "next";
  * component, and client components cannot export metadata.
  */
 export const metadata: Metadata = {
-  title: "two tweets go in. one comes out.",
-  description: "a reply and the post it answers. most likes after 24 hours wins.",
+  title: "long the reply guys",
+  description: "",
   openGraph: {
-    title: "two tweets go in. one comes out.",
-    description: "a reply and the post it answers. most likes after 24 hours wins.",
+    title: "long the reply guys",
+    description: "",
   },
   twitter: {
     card: "summary",
-    title: "two tweets go in. one comes out.",
-    description: "a reply and the post it answers. most likes after 24 hours wins.",
+    title: "long the reply guys",
+    description: "",
   },
   // Nothing here should be indexed before launch.
   robots: { index: false, follow: false },

@@ -62,11 +62,7 @@ export default function SignupPage() {
           </>
         ) : (
           <>
-            <h1 className="su-title">
-              two tweets go in.
-              <br />
-              one comes out.
-            </h1>
+            <h1 className="su-title">long the reply guys</h1>
             <button className="su-btn" onClick={login} disabled={!settled}>
               {settled ? "sign up with X" : "…"}
             </button>

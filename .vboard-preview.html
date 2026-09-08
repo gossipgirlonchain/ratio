@@ -1,0 +1,315 @@
+<title>Creator Value Board</title>
+<style>
+/* ratio neobrutalism, dark-first. Tokens mirror apps/web/app/skin.css. */
+:root {
+  --bg: #131416; --surface: #1E2023; --ink: #E9EAEC; --muted: #A2A8AD;
+  --accent: #CEF17B; --on-accent: #131608; --accent-2: #8FB0AB;
+  --edge: #4A5056;
+  --good: #7FA32E; --over: #4E97D6;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg: #F4F3EE; --surface: #F4F3EE; --ink: #17191B; --muted: #4C5155;
+    --accent: #B8DD57; --on-accent: #131608; --accent-2: #52736D;
+    --edge: #17191B;
+    --good: #7A9A2E; --over: #2E7DBF;
+  }
+}
+:root[data-theme="light"] {
+  --bg: #F4F3EE; --surface: #F4F3EE; --ink: #17191B; --muted: #4C5155;
+  --accent: #B8DD57; --on-accent: #131608; --accent-2: #52736D;
+  --edge: #17191B;
+  --good: #7A9A2E; --over: #2E7DBF;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  background: var(--bg); color: var(--ink); padding: 22px 16px 80px;
+}
+.wrap { max-width: 980px; margin: 0 auto; }
+.masthead { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+.wordmark {
+  font-size: 24px; font-weight: 900; letter-spacing: -0.03em; line-height: 1;
+  background: var(--accent); color: var(--on-accent);
+  padding: 1px 7px 3px; border-radius: 8px; display: inline-block; transform: rotate(-1.2deg);
+}
+.masthead h1 { font-size: 17px; font-weight: 900; letter-spacing: -0.01em; }
+.sub { color: var(--muted); font-size: 12.5px; margin: 6px 0 18px; max-width: 70ch; line-height: 1.5; }
+.sub b { color: var(--ink); }
+
+.tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.tile { background: var(--surface); border: 2px solid var(--edge); border-radius: 12px; padding: 12px 14px; }
+.tile .n { font-size: 24px; font-weight: 900; font-variant-numeric: tabular-nums; line-height: 1.1; }
+.tile .l { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin-top: 3px; }
+.tile.hero { box-shadow: 4px 4px 0 var(--accent); }
+
+.card {
+  background: var(--surface); border: 2px solid var(--edge); border-radius: 12px;
+  padding: 16px; margin-bottom: 20px;
+}
+.card h2 { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+.card .note { color: var(--muted); font-size: 12px; margin-bottom: 12px; line-height: 1.45; }
+.legend { display: flex; gap: 16px; font-size: 11.5px; color: var(--muted); font-weight: 600; margin-bottom: 8px; flex-wrap: wrap; }
+.legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-right: 5px; vertical-align: -1px; }
+.chart-wrap { width: 100%; overflow-x: auto; }
+svg { display: block; }
+.tick { font-size: 10px; fill: var(--muted); }
+.gline { stroke: var(--edge); stroke-opacity: 0.35; stroke-width: 1; }
+.guide { stroke: var(--muted); stroke-opacity: 0.55; stroke-width: 1; stroke-dasharray: 4 4; }
+.glabel { font-size: 9.5px; fill: var(--muted); font-weight: 700; }
+.dlabel { font-size: 10px; fill: var(--ink); font-weight: 700; }
+.blabel { font-size: 11px; fill: var(--ink); font-weight: 700; }
+.bval { font-size: 11px; font-weight: 800; fill: var(--ink); font-variant-numeric: tabular-nums; }
+
+#tip {
+  position: fixed; z-index: 50; pointer-events: none; display: none;
+  background: var(--bg); color: var(--ink); border: 2px solid var(--edge);
+  border-radius: 10px; padding: 8px 11px; font-size: 12px; line-height: 1.45;
+  box-shadow: 3px 3px 0 var(--accent); max-width: 260px;
+}
+#tip b { font-weight: 800; }
+#tip .m { color: var(--muted); font-size: 11px; }
+
+table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+th { text-align: left; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); padding: 6px 10px 6px 0; border-bottom: 2px solid var(--edge); white-space: nowrap; }
+td { padding: 7px 10px 7px 0; border-top: 1px solid color-mix(in srgb, var(--edge) 45%, transparent); vertical-align: top; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.num { font-weight: 700; }
+.handle { font-weight: 800; white-space: nowrap; }
+.why { color: var(--muted); font-size: 11.5px; line-height: 1.4; }
+.cpm-chip { display: inline-block; border-radius: 999px; padding: 1px 8px 2px; font-weight: 800; font-size: 11px; color: #fff; }
+.chip-good { background: var(--good); color: var(--on-accent); }
+.chip-over { background: var(--over); color: #0E1418; }
+:root[data-theme="light"] .chip-over, :root:not([data-theme="dark"]) .chip-over { color: #F4F3EE; }
+.pick-tag { display: inline-block; background: var(--accent); color: var(--on-accent); border-radius: 999px; padding: 1px 8px 2px; font-weight: 800; font-size: 10.5px; margin-left: 6px; }
+.flags li { margin: 0 0 8px 18px; font-size: 12.5px; line-height: 1.45; }
+.flags b { font-weight: 800; }
+.total-row td { border-top: 2px solid var(--edge); font-weight: 900; }
+.scroll-x { overflow-x: auto; }
+</style>
+
+<div class="wrap">
+  <header class="masthead"><span class="wordmark">ratio</span><h1>creator value board</h1></header>
+  <p class="sub">23 applications (your test submission excluded). Value = <b>implied CPM</b>: standing-post price ÷ midpoint of the creator's claimed avg-views band, per 1,000 views. Benchmark: Creatorverse prices Post Raids at <b>$22–28 CPM</b> — anyone under ~$20 is a good deal on paper. Views are self-reported bands; verify with their linked posts before booking.</p>
+
+  <div class="tiles">
+    <div class="tile"><div class="n">23</div><div class="l">applicants with rates: 22</div></div>
+    <div class="tile"><div class="n">$18</div><div class="l">median implied post CPM</div></div>
+    <div class="tile hero"><div class="n">12 / 22</div><div class="l">beat the $22 agency floor</div></div>
+    <div class="tile"><div class="n">$1,870</div><div class="l">suggested slate · ~110K+ est. views</div></div>
+  </div>
+
+  <div class="card">
+    <h2>Price vs claimed reach — standing post</h2>
+    <p class="note">Both axes log. Diagonal guides are constant-CPM lines; the shaded diagonal band is the $22–28 agency benchmark. Below the band = cheaper per view than the agency. Hover any dot.</p>
+    <div class="legend">
+      <span><i style="background:var(--good)"></i>under $22 CPM</span>
+      <span><i style="background:var(--over)"></i>$22 CPM or more</span>
+      <span><i style="background:var(--accent);border-radius:999px"></i>recommended slate</span>
+    </div>
+    <div class="chart-wrap"><svg id="scatter" width="920" height="430" viewBox="0 0 920 430"></svg></div>
+  </div>
+
+  <div class="card">
+    <h2>Implied post CPM, ranked</h2>
+    <p class="note">Shorter bar = cheaper per view. Shaded band = the $22–28 agency benchmark. Hover a bar for the creator's full rate card.</p>
+    <div class="chart-wrap"><svg id="bars" width="920" height="600" viewBox="0 0 920 600"></svg></div>
+  </div>
+
+  <div class="card">
+    <h2>Suggested launch slate — $1,870</h2>
+    <p class="note">Best value at each tier plus the pump.fun tail play (overpay small creators; the marginal creator is the acquisition target). Est. views use band midpoints and exclude the xpharma wildcard until verified.</p>
+    <div class="scroll-x"><table>
+      <thead><tr><th>creator</th><th>deliverable</th><th class="num">price</th><th class="num">est. views</th><th class="num">CPM</th><th>why</th></tr></thead>
+      <tbody>
+        <tr><td class="handle">@themiamiape</td><td>standing post</td><td class="num">$600</td><td class="num">47.5K</td><td class="num">$12.6</td><td class="why">the anchor: only real scale in the batch (50–150K followers, 20–75K views), priced UNDER the agency floor; track record incl. adidas / TIME / BAYC campaigns</td></tr>
+        <tr><td class="handle">@jessyfries</td><td>30s video</td><td class="num">$500</td><td class="num">12.5K</td><td class="num">$40</td><td class="why">video-native since 2022; past paid work incl. OKX, Base, WalletConnect; multi-platform repost (IG/TikTok/YT) makes video CPM better than it looks</td></tr>
+        <tr><td class="handle">@Anitalondon19 (KAFANI)</td><td>30s video</td><td class="num">$350</td><td class="num">12.5K</td><td class="num">$28</td><td class="why">already made a Cue video (KAFANI Tries) — knows the product; pitched a story-led launch concept unprompted</td></tr>
+        <tr><td class="handle">@vers_laLune</td><td>standing post</td><td class="num">$100</td><td class="num">12.5K</td><td class="num">$8</td><td class="why">15–50K followers at tail pricing; disclosed current sponsors unprompted (good sign)</td></tr>
+        <tr><td class="handle">@mazionchain</td><td>standing post</td><td class="num">$100</td><td class="num">12.5K</td><td class="num">$8</td><td class="why">cheap verified-band reach, runs a TG channel for the telegram-post add-on later</td></tr>
+        <tr><td class="handle">@omaofweb3</td><td>standing post</td><td class="num">$70</td><td class="num">12.5K</td><td class="num">$5.6</td><td class="why">cheapest credible CPM in the batch</td></tr>
+        <tr><td class="handle">@xpharmax</td><td>standing post</td><td class="num">$100</td><td class="num">—</td><td class="num">$0.62?</td><td class="why">WILDCARD: claims 75–250K views on &lt;5K followers. If the two linked posts back it, the steal of the campaign. Verify first, then book instantly</td></tr>
+        <tr><td class="handle">@0xWilly_</td><td>post + comment</td><td class="num">$11</td><td class="num">2.5K</td><td class="num">$4</td><td class="why">prediction-market native (Playtaunt ambassador) — exactly ratio's audience, writes in own voice; nearly free</td></tr>
+        <tr><td class="handle">@Angeldearahobed</td><td>standing post</td><td class="num">$10</td><td class="num">2.5K</td><td class="num">$4</td><td class="why">tail play, content writer, costs nothing</td></tr>
+        <tr><td class="handle">@Samueldaodu22</td><td>30s video</td><td class="num">$30</td><td class="num">2.5K</td><td class="num">$12</td><td class="why">cheapest video in the batch, does video for other crypto brands</td></tr>
+        <tr class="total-row"><td>total</td><td></td><td class="num">$1,871</td><td class="num">~110K+</td><td class="num">~$16.5</td><td class="why">blended CPM beats the agency floor; drops to ~$7 if xpharma verifies</td></tr>
+      </tbody>
+    </table></div>
+  </div>
+
+  <div class="card">
+    <h2>Flags before you DM anyone</h2>
+    <ul class="flags">
+      <li><b>@xpharmax</b> — the ratio of claimed views (75–250K) to followers (&lt;5K) is extreme. Open their two linked posts and check real view counts before paying anything.</li>
+      <li><b>@raynerheanyi</b> — the two "best posts from the last 30 days" are from May 2025 (old tweet IDs). Broke the one verification rule the form has; deprioritize.</li>
+      <li><b>@skyler_tea</b> — wants a $2,500/mo retainer, not a one-off; their per-item prices ($1,500 video, $300 post at 5–20K views) are agency-level or worse. Pass for launch, maybe revisit post-launch.</li>
+      <li><b>@Dashke ($80) and @ioachimvijiu ($100)</b> — worst CPMs in the batch, 3–4× the agency you're trying to undercut. Pass.</li>
+      <li><b>@probaaron</b> — submitted no rates, note says "just curious to get involved." Prediction-markets audience though; worth a free beta code instead of a paid slot.</li>
+      <li><b>@doncurrent, @ubong_ephraim, @rukizcukiz, @copertoxbt</b> — $32–40 CPM on unverified sub-5K views; only worth it at half their quoted price.</li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>All applicants — full rate card</h2>
+    <p class="note">Sorted by implied post CPM. All prices USD, views = midpoint of claimed band.</p>
+    <div class="scroll-x"><table id="fulltable">
+      <thead><tr><th>creator</th><th>followers</th><th>avg views</th><th class="num">post</th><th class="num">video</th><th class="num">thread</th><th class="num">QT</th><th class="num">RT</th><th class="num">comment</th><th class="num">TG</th><th class="num">pin +</th><th class="num">bundle</th><th class="num">post CPM</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+  </div>
+</div>
+<div id="tip"></div>
+
+<script>
+const BENCH_LO = 22, BENCH_HI = 28;
+// views/followers = band midpoints (self-reported)
+const DATA = [
+ {h:"themiamiape",  f:"50K–150K", fm:100000, vb:"20K–75K",  v:47500, r:{post:600,video:1000,thread:800,qt:550,rt:400,comment:250,pin:1000}, pick:true,  aud:"DeFi · NFTs · Consumer", note:"adidas / TIME / BAYC campaigns; bilingual EN/ES"},
+ {h:"xpharmax",     f:"Under 5K", fm:2500,  vb:"75K–250K", v:162500,r:{post:100,video:50,thread:150,qt:75,rt:50,comment:20,tg:50,pin:75,bundle:200}, pick:true, aud:"DeFi · TA · Technical", note:"VERIFY the views claim before booking"},
+ {h:"jconnorholliman",f:"5K–15K", fm:10000, vb:"5K–20K",   v:12500, r:{post:250,video:500,thread:600,qt:150,rt:100,comment:100,tg:250,pin:1000,bundle:450}, aud:"DeFi · Consumer · Technical"},
+ {h:"EzekielCrrypt",f:"5K–15K",  fm:10000, vb:"5K–20K",   v:12500, r:{post:300,video:300,thread:200,qt:100,rt:50,comment:35,tg:100,pin:100}, aud:"DeFi · Trenches · Technical", note:"runs a TG tribe channel"},
+ {h:"ioachimvijiu", f:"Under 5K", fm:2500,  vb:"Under 5K", v:2500,  r:{post:250,video:400,thread:350,qt:150,rt:100,comment:50,pin:66,bundle:700}, aud:"DeFi · Trenches · TA"},
+ {h:"ubong_ephraim",f:"5K–15K",  fm:10000, vb:"Under 5K", v:2500,  r:{post:100,video:200,thread:150,qt:75,rt:50,comment:30,tg:50,pin:100,bundle:400}, aud:"DeFi · Trenches · Consumer", note:"TG channel 617 members"},
+ {h:"Samueldaodu22",f:"Under 5K", fm:2500,  vb:"Under 5K", v:2500,  r:{post:30,video:30,thread:100,qt:20,rt:20,comment:20,tg:30,pin:50,bundle:150}, pick:true, aud:"DeFi · NFTs · Consumer", note:"video creator for other crypto brands"},
+ {h:"Anitalondon19",f:"Under 5K", fm:2500,  vb:"5K–20K",   v:12500, r:{post:150,video:350,thread:280,qt:100,rt:75,comment:75,pin:100,bundle:750}, pick:true, aud:"DeFi · NFTs · Consumer", note:"made a Cue video before (KAFANI Tries)"},
+ {h:"rukizcukiz",   f:"5K–15K",  fm:10000, vb:"Under 5K", v:2500,  r:{post:100,video:200,thread:200,qt:75,rt:20,comment:10,pin:30,bundle:450}, aud:"DeFi · TA · Consumer"},
+ {h:"omaofweb3",    f:"5K–15K",  fm:10000, vb:"5K–20K",   v:12500, r:{post:70,thread:100,qt:60,rt:30,comment:10,pin:150,bundle:250}, pick:true, aud:"DeFi · Trenches · NFTs"},
+ {h:"copertoxbt",   f:"Under 5K", fm:2500,  vb:"Under 5K", v:2500,  r:{post:80,video:150,thread:100,qt:50,rt:30,comment:10,tg:30,pin:50,bundle:350}, aud:"Trenches · NFTs · Airdrops"},
+ {h:"notKooki_",    f:"Under 5K", fm:2500,  vb:"Under 5K", v:2500,  r:{post:60,video:50,thread:100,qt:25,rt:20,comment:20,pin:50,bundle:160}, aud:"DeFi · Trenches · NFTs"},
+ {h:"yinusaweb3",   f:"Under 5K", fm:2500,  vb:"Under 5K", v:2500,  r:{post:50,video:100,thread:70,qt:50,rt:30,comment:10,pin:50,bundle:150}, aud:"DeFi · Consumer", note:"offered to host a space/stream"},
+ {h:"raynerheanyi", f:"Under 5K", fm:2500,  vb:"Under 5K", v:2500,  r:{post:25,video:50,thread:40,qt:15,rt:5,comment:5,tg:25,pin:10,bundle:105}, aud:"DeFi · Trenches · NFTs", note:"linked posts are from May 2025 — rule breach"},
+ {h:"Angeldearahobed",f:"Under 5K",fm:2500, vb:"Under 5K", v:2500,  r:{post:10,video:15,thread:20,qt:3,rt:3,comment:2,tg:5,pin:5,bundle:50}, pick:true, aud:"NFTs · Airdrops · writer"},
+ {h:"doncurrent",   f:"5K–15K",  fm:10000, vb:"Under 5K", v:2500,  r:{post:80,video:350,thread:250,qt:50,rt:25,comment:25,pin:50,bundle:600}, aud:"DeFi · Airdrops · Consumer"},
+ {h:"vers_laLune",  f:"15K–50K", fm:32500, vb:"5K–20K",   v:12500, r:{post:100,video:300,thread:200,qt:100,rt:50,comment:50,pin:200,bundle:498}, pick:true, aud:"DeFi · Trenches · Gaming", note:"disclosed current sponsorships unprompted"},
+ {h:"jessyfries",   f:"5K–15K",  fm:10000, vb:"5K–20K",   v:12500, r:{post:200,video:500,thread:250,qt:150,rt:100,comment:50,tg:50,pin:150,bundle:950}, pick:true, aud:"DeFi · Consumer · Lifestyle", note:"OKX / Base / WalletConnect campaigns; video-first"},
+ {h:"Dashke",       f:"5K–15K",  fm:10000, vb:"Under 5K", v:2500,  r:{post:200,video:250,thread:250,qt:200,rt:75,comment:10,tg:25,pin:100,bundle:450}, aud:"Trenches · TA · NFTs"},
+ {h:"skyler_tea",   f:"15K–50K", fm:32500, vb:"5K–20K",   v:12500, r:{post:300,video:1500,thread:400,qt:250,rt:150,comment:100,tg:500,pin:600,bundle:2500}, aud:"DeFi · Trenches · Consumer", note:"wants a monthly retainer, not a one-off"},
+ {h:"mazionchain",  f:"Under 5K", fm:2500,  vb:"5K–20K",   v:12500, r:{post:100,video:50,thread:150,qt:100,rt:30,comment:20,tg:50,pin:200,bundle:350}, pick:true, aud:"DeFi · NFTs · Gaming"},
+ {h:"0xWilly_",     f:"Under 5K", fm:2500,  vb:"Under 5K", v:2500,  r:{post:10,video:25,thread:15,qt:10,rt:2,comment:1,pin:15,bundle:40}, pick:true, aud:"TA · prediction markets", note:"Playtaunt ambassador — the exact audience"},
+];
+// probaaron submitted no rates (excluded from charts, covered in flags)
+DATA.forEach(d => { d.cpm = d.r.post != null ? d.r.post / d.v * 1000 : null; });
+
+const css = v => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const fmtCpm = c => c < 1 ? "$" + c.toFixed(2) : "$" + (Math.round(c * 10) / 10);
+const fmtV = v => v >= 1000 ? (v/1000) + "K" : v;
+const tip = document.getElementById("tip");
+function showTip(ev, html) {
+  tip.innerHTML = html; tip.style.display = "block";
+  const pad = 14, w = tip.offsetWidth;
+  let x = ev.clientX + pad; if (x + w > innerWidth - 8) x = ev.clientX - w - pad;
+  tip.style.left = x + "px"; tip.style.top = Math.min(ev.clientY + pad, innerHeight - tip.offsetHeight - 8) + "px";
+}
+function hideTip() { tip.style.display = "none"; }
+const rateRows = d => ["post","video","thread","qt","rt","comment","tg","pin","bundle"]
+  .filter(k => d.r[k] != null)
+  .map(k => ({post:"post",video:"30s video",thread:"thread",qt:"QT",rt:"RT",comment:"comment",tg:"TG post",pin:"pin +",bundle:"bundle"}[k]) + " $" + d.r[k]).join(" · ");
+const tipHtml = d => "<b>@" + d.h + "</b><br><span class='m'>" + d.f + " followers · " + d.vb + " avg views · " + d.aud + "</span><br>" +
+  "post CPM <b>" + fmtCpm(d.cpm) + "</b><br><span class='m'>" + rateRows(d) + (d.note ? "<br>" + d.note : "") + "</span>";
+
+/* ---------- scatter: price vs claimed views, log-log ---------- */
+(function () {
+  const svg = document.getElementById("scatter");
+  const M = {l: 52, r: 24, t: 14, b: 40}, W = 920, H = 430;
+  const pw = W - M.l - M.r, ph = H - M.t - M.b;
+  const lx = v => M.l + (Math.log10(v) - Math.log10(1800)) / (Math.log10(300000) - Math.log10(1800)) * pw;
+  const ly = p => M.t + ph - (Math.log10(p) - Math.log10(7)) / (Math.log10(900) - Math.log10(7)) * ph;
+  let s = "";
+  // gridlines + ticks
+  [2500, 12500, 47500, 162500].forEach(v => {
+    s += `<line class="gline" x1="${lx(v)}" y1="${M.t}" x2="${lx(v)}" y2="${M.t+ph}"/>`;
+    s += `<text class="tick" x="${lx(v)}" y="${M.t+ph+16}" text-anchor="middle">${fmtV(v)}</text>`;
+  });
+  [10, 30, 100, 300, 600].forEach(p => {
+    s += `<line class="gline" x1="${M.l}" y1="${ly(p)}" x2="${M.l+pw}" y2="${ly(p)}"/>`;
+    s += `<text class="tick" x="${M.l-8}" y="${ly(p)+3}" text-anchor="end">$${p}</text>`;
+  });
+  s += `<text class="tick" x="${M.l+pw/2}" y="${H-6}" text-anchor="middle" font-weight="700">claimed avg views (band midpoint)</text>`;
+  s += `<text class="tick" transform="rotate(-90 14 ${M.t+ph/2})" x="14" y="${M.t+ph/2}" text-anchor="middle" font-weight="700">standing post price</text>`;
+  // constant-CPM diagonals: price = cpm * views / 1000
+  const diag = (cpm) => {
+    const pts = [];
+    [1800, 300000].forEach(v => { pts.push([lx(v), ly(Math.min(Math.max(cpm*v/1000, 7), 900))]); });
+    return pts;
+  };
+  // benchmark band as polygon between 22 and 28
+  const a = diag(BENCH_LO), b = diag(BENCH_HI);
+  s += `<polygon points="${a[0]} ${a[1]} ${b[1]} ${b[0]}" fill="${css('--muted')}" opacity="0.12"/>`;
+  [[5,"$5 CPM"],[BENCH_LO,"$22"],[BENCH_HI,"$28 agency"],[50,"$50"]].forEach(([c,label]) => {
+    const p = diag(c);
+    s += `<line class="guide" x1="${p[0][0]}" y1="${p[0][1]}" x2="${p[1][0]}" y2="${p[1][1]}"/>`;
+    // label where the line exits the top or right edge
+    const yAtRight = ly(c * 300000 / 1000);
+    if (yAtRight > M.t + 8) s += `<text class="glabel" x="${M.l+pw-4}" y="${yAtRight-5}" text-anchor="end">${label}</text>`;
+    else { const vAtTop = 900/c*1000; s += `<text class="glabel" x="${lx(vAtTop)+4}" y="${M.t+10}">${label}</text>`; }
+  });
+  // dots (deterministic jitter within a band so same-band dots don't stack)
+  const groups = {};
+  const rows = DATA.filter(d => d.cpm != null);
+  rows.forEach(d => { const k = d.v + "|" + d.r.post; (groups[k] = groups[k] || []).push(d); });
+  let dots = "";
+  rows.forEach(d => {
+    const g = groups[d.v + "|" + d.r.post], i = g.indexOf(d);
+    const jx = (i - (g.length-1)/2) * 14;
+    const x = lx(d.v) + jx, y = ly(d.r.post);
+    const fill = d.cpm < BENCH_LO ? css('--good') : css('--over');
+    d._x = x; d._y = y;
+    dots += `<circle data-h="${d.h}" cx="${x}" cy="${y}" r="${d.pick ? 6 : 5}" fill="${fill}" stroke="${d.pick ? css('--accent') : css('--surface')}" stroke-width="${d.pick ? 3 : 2}" style="cursor:pointer"/>`;
+  });
+  s += dots;
+  // selective direct labels: picks at scale + the two extremes
+  const lbl = new Set(["themiamiape","xpharmax","omaofweb3","ioachimvijiu","skyler_tea","jessyfries"]);
+  rows.filter(d => lbl.has(d.h)).forEach(d => {
+    const anchor = d._x > W - 130 ? "end" : "start", dx = anchor === "end" ? -9 : 9;
+    s += `<text class="dlabel" x="${d._x+dx}" y="${d._y+4}" text-anchor="${anchor}">@${d.h}</text>`;
+  });
+  svg.innerHTML = s;
+  svg.querySelectorAll("circle").forEach(c => {
+    const d = DATA.find(x => x.h === c.dataset.h);
+    c.addEventListener("mousemove", ev => showTip(ev, tipHtml(d)));
+    c.addEventListener("mouseleave", hideTip);
+  });
+})();
+
+/* ---------- ranked bars: implied post CPM ---------- */
+(function () {
+  const svg = document.getElementById("bars");
+  const rows = DATA.filter(d => d.cpm != null).sort((x, y) => x.cpm - y.cpm);
+  const M = {l: 150, r: 60, t: 24, b: 8}, W = 920, rowH = 25, ph = rows.length * rowH;
+  const H = M.t + ph + M.b; svg.setAttribute("height", H); svg.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  const maxC = 100, pw = W - M.l - M.r;
+  const bx = c => M.l + Math.min(c, maxC) / maxC * pw;
+  let s = "";
+  // benchmark band
+  s += `<rect x="${bx(BENCH_LO)}" y="${M.t-14}" width="${bx(BENCH_HI)-bx(BENCH_LO)}" height="${ph+14}" fill="${css('--muted')}" opacity="0.12"/>`;
+  s += `<text class="glabel" x="${(bx(BENCH_LO)+bx(BENCH_HI))/2}" y="${M.t-4}" text-anchor="middle">agency $22–28</text>`;
+  rows.forEach((d, i) => {
+    const y = M.t + i * rowH, h = rowH - 7;
+    const fill = d.cpm < BENCH_LO ? css('--good') : css('--over');
+    s += `<text class="blabel" x="${M.l-8}" y="${y+h/2+4}" text-anchor="end">@${d.h}${d.pick ? " ●" : ""}</text>`;
+    s += `<rect data-h="${d.h}" x="${M.l}" y="${y}" width="${Math.max(bx(d.cpm)-M.l, 2)}" height="${h}" rx="4" fill="${fill}" stroke="${css('--surface')}" stroke-width="2" style="cursor:pointer"/>`;
+    s += `<text class="bval" x="${bx(d.cpm)+7}" y="${y+h/2+4}">${fmtCpm(d.cpm)}</text>`;
+  });
+  svg.innerHTML = s;
+  svg.querySelectorAll("rect[data-h]").forEach(r => {
+    const d = DATA.find(x => x.h === r.dataset.h);
+    r.addEventListener("mousemove", ev => showTip(ev, tipHtml(d)));
+    r.addEventListener("mouseleave", hideTip);
+  });
+})();
+
+/* ---------- full table ---------- */
+(function () {
+  const tb = document.querySelector("#fulltable tbody");
+  const rows = DATA.slice().sort((a, b) => (a.cpm ?? 1e9) - (b.cpm ?? 1e9));
+  const cell = v => v != null ? "$" + v : "—";
+  tb.innerHTML = rows.map(d => `<tr>
+    <td class="handle">@${d.h}${d.pick ? '<span class="pick-tag">pick</span>' : ""}</td>
+    <td>${d.f}</td><td>${d.vb}</td>
+    <td class="num">${cell(d.r.post)}</td><td class="num">${cell(d.r.video)}</td><td class="num">${cell(d.r.thread)}</td>
+    <td class="num">${cell(d.r.qt)}</td><td class="num">${cell(d.r.rt)}</td><td class="num">${cell(d.r.comment)}</td>
+    <td class="num">${cell(d.r.tg)}</td><td class="num">${cell(d.r.pin)}</td><td class="num">${cell(d.r.bundle)}</td>
+    <td class="num"><span class="cpm-chip ${d.cpm < BENCH_LO ? "chip-good" : "chip-over"}">${fmtCpm(d.cpm)}</span></td>
+  </tr>`).join("");
+})();
+</script>

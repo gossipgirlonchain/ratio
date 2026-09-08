@@ -56,26 +56,36 @@ dataSources:
         - event: Claimed(indexed address,indexed address,uint256,uint256)
           handler: handleClaimed
 
-  # Where trades live. The initializer emits its own Swap from afterSwap, which
-  # carries the balance deltas the raw PoolManager event does not.
+  # Where trades live.
+  #
+  # The Uniswap v4 PoolManager, NOT the DopplerHookInitializer's own Swap.
+  # The initializer's event carries an INDEXED PoolKey struct, and graph-node
+  # cannot decode indexed tuples: it treats the tuple's first field as the
+  # indexed one and then expects the remaining four in the log data, so it
+  # looks for 11 data words, finds 7, and aborts the handler. That stalled the
+  # first sync at the very first swap.
+  #
+  # PoolManager's Swap is all value types, and its `id` IS the poolId we key
+  # on. It is a singleton, so every v4 swap on the chain arrives here and the
+  # handler drops the ones whose pool is not one of ours.
   - kind: ethereum
-    name: DopplerHookInitializer
+    name: PoolManager
     network: base-sepolia
     source:
-      address: "0xAA096F558f3d4c9226De77E7Cc05f18E180B2544"
-      abi: DopplerHookInitializer
+      address: "0x05E73354cFDd6745C338b50BcFDfA3Aa6fA03408"
+      abi: PoolManager
       startBlock: 46488000
     mapping:
       kind: ethereum/events
       apiVersion: 0.0.9
       language: wasm/assemblyscript
       file: ./src/swaps.ts
-      entities: [Market, Entry, Trade, Position, User, Protocol, FeeShare, Beneficiary]
+      entities: [Market, Entry, Trade, Position, User, Protocol]
       abis:
-        - name: DopplerHookInitializer
-          file: ./abis/DopplerHookInitializer.json
+        - name: PoolManager
+          file: ./abis/PoolManager.json
       eventHandlers:
-        - event: Swap(indexed address,(indexed address,address,uint24,int24,address),indexed bytes32,(bool,int256,uint160),int128,int128,bytes)
+        - event: Swap(indexed bytes32,indexed address,int128,int128,uint160,uint128,int24,uint24)
           handler: handleSwap
 
 templates:

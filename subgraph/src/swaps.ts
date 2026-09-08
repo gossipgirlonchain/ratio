@@ -1,20 +1,25 @@
 import { Address, BigInt, Bytes } from "@graphprotocol/graph-ts";
 
-import { Swap } from "../generated/DopplerHookInitializer/DopplerHookInitializer";
+import { Swap } from "../generated/PoolManager/PoolManager";
 import { Entry, Market, Trade, Position } from "../generated/schema";
 import { WAD, ZERO, entryByPool, positionId, protocol, user } from "./shared";
 
 /**
  * A bet.
  *
- * The initializer emits its own Swap from afterSwap, which carries the signed
- * balance deltas — richer than the raw PoolManager event, and the reason
- * tokensOut is recoverable here at all. On Solana the equivalent number lived
- * in an associated token account the swap never reported back, and every
+ * Read from the v4 PoolManager rather than the DopplerHookInitializer. The
+ * initializer's own Swap carries an INDEXED PoolKey struct, which graph-node
+ * cannot decode — it aborts the handler and stalls the whole subgraph. The
+ * PoolManager event is all value types and carries the same signed balance
+ * deltas, which is where tokensOut comes from. On Solana that number lived in
+ * an associated token account the swap never reported back, and every
  * token-weighted figure in the product quietly divided by a stored zero.
+ *
+ * PoolManager is a singleton, so this fires for every v4 swap on the chain.
+ * Anything whose pool is not one of ours is dropped on the first lookup.
  */
 export function handleSwap(event: Swap): void {
-  const entry = entryByPool(event.params.poolId);
+  const entry = entryByPool(event.params.id);
   if (entry == null) return; // some other Doppler pool, not a ratio market
 
   const market = Market.load(entry.market);

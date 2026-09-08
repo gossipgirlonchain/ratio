@@ -6,7 +6,7 @@ import {
   EntryRegistered,
 } from "../generated/PredictionMigrator/PredictionMigrator";
 import { Claim, Entry, Market, Pool, Position } from "../generated/schema";
-import { ZERO, entryId, poolIdFor, positionId, protocol, user } from "./shared";
+import { ZERO, bytes32ToI32, entryId, poolIdFor, positionId, protocol, user } from "./shared";
 
 /** The initializer the pools are created under; part of every PoolKey. */
 const HOOK_INITIALIZER = Address.fromString(
@@ -21,7 +21,9 @@ export function handleEntryRegistered(event: EntryRegistered): void {
   const market = Market.load(event.params.oracle);
   if (market == null) return; // not one of ours
 
-  const side = event.params.entryId.toI32();
+  // entryId is bytes32(uint256(side)), big-endian. NOT entryId.toI32().
+  const side = bytes32ToI32(event.params.entryId);
+  if (side != 0 && side != 1) return; // not one of our two-sided markets
   const id = entryId(event.params.oracle, side);
 
   const e = new Entry(id);
@@ -53,7 +55,7 @@ export function handleEntryRegistered(event: EntryRegistered): void {
  * revert until the WINNING entry has migrated, so this is the gate.
  */
 export function handleEntryMigrated(event: EntryMigrated): void {
-  const side = event.params.entryId.toI32();
+  const side = bytes32ToI32(event.params.entryId);
   const e = Entry.load(entryId(event.params.oracle, side));
   if (e == null) return;
 

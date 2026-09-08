@@ -42,6 +42,21 @@ export function beneficiary(addr: Address): Beneficiary {
   return b as Beneficiary;
 }
 
+/**
+ * Read a big-endian bytes32 as a small integer.
+ *
+ * Bytes.toI32() reads LITTLE-endian, so for an ABI bytes32 like
+ * 0x00..01 the meaningful byte sits at index 31 and the conversion overflows
+ * i32 rather than returning 1. That is not a silent wrong answer — it aborts
+ * the handler and fails the whole sync, which is how it was found.
+ *
+ * Reversing to little-endian first and going through BigInt is the conversion
+ * that actually matches how the value was encoded.
+ */
+export function bytes32ToI32(b: Bytes): i32 {
+  return BigInt.fromUnsignedBytes(Bytes.fromUint8Array(b.reverse())).toI32();
+}
+
 export function entryId(market: Bytes, side: i32): Bytes {
   return market.concat(Bytes.fromUTF8(":" + side.toString()));
 }

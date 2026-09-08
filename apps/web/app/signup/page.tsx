@@ -20,6 +20,27 @@ import { useEffect, useState } from "react";
 const TELEGRAM = "https://t.me/+g_F-r4Ck4yw4ZDY0";
 const X_PROFILE = "https://x.com/ratiowtf";
 
+/**
+ * Loading state, with motion.
+ *
+ * Privy takes a moment to resolve, and the page has nothing else on it — so a
+ * static "…" reads as broken rather than busy. Four blocks pulsing in sequence
+ * says the same thing while looking alive.
+ *
+ * CSS keyframes, no JS and no dependency: it renders before hydration, which
+ * is the exact window it exists to cover.
+ */
+function Loader() {
+  return (
+    <span className="su-loader" role="status" aria-label="loading">
+      <i />
+      <i />
+      <i />
+      <i />
+    </span>
+  );
+}
+
 /** Telegram mark. Inline rather than a dependency for one glyph. */
 function TelegramLogo({ size = 14 }: { size?: number }) {
   return (
@@ -64,7 +85,7 @@ export default function SignupPage() {
           <>
             <h1 className="su-title">long the reply guys</h1>
             <button className="su-btn" onClick={login} disabled={!settled}>
-              {settled ? "sign up with X" : "…"}
+              {settled ? "sign up with X" : <Loader />}
             </button>
           </>
         )}

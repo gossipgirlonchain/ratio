@@ -176,6 +176,9 @@ textarea { min-height: 96px; resize: vertical; }
 }
 .follow-btn:hover { background: var(--accent-strong); transform: translate(-1px, -1px); box-shadow: 4px 4px 0 var(--ink); }
 .follow-btn:active { transform: translate(3px, 3px); box-shadow: 0 0 0 var(--ink); }
+.done-links { display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
+.follow-alt { background: none; color: var(--ink); }
+.follow-alt:hover { background: color-mix(in srgb, var(--ink) 8%, transparent); }
 #done h1 em {
   font-style: normal; background: var(--accent); color: var(--on-accent);
   padding: 0 8px 2px; border-radius: 8px; display: inline-block; transform: rotate(-1.2deg);
@@ -330,7 +333,10 @@ textarea { min-height: 96px; resize: vertical; }
 
 <div id="done" role="alert">
   <h1>got it.<br>we'll be in <em>touch</em>.</h1>
-  <a class="follow-btn" href="https://x.com/ratiowtf" target="_blank" rel="noopener">follow us on X</a>
+  <div class="done-links">
+    <a class="follow-btn" href="https://x.com/ratiowtf" target="_blank" rel="noopener">follow us on X</a>
+    <a class="follow-btn follow-alt" href="https://t.me/+g_F-r4Ck4yw4ZDY0" target="_blank" rel="noopener">join the telegram</a>
+  </div>
 </div>
 
 <script>

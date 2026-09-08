@@ -5,7 +5,7 @@
   "scripts": {
     "codegen": "graph codegen",
     "build": "graph build",
-    "deploy": "graph deploy ratio-base-sepolia",
+    "deploy": "graph deploy ratio",
     "test": "graph test"
   },
   "devDependencies": {

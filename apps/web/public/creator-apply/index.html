@@ -42,17 +42,6 @@ body {
 }
 .wrap { max-width: 560px; margin: 0 auto; padding: 22px 16px 90px; }
 
-/* masthead: plain-text wordmark, no assets */
-.masthead { display: flex; align-items: baseline; gap: 10px; margin-bottom: 6px; }
-.wordmark {
-  font-size: 26px; font-weight: 900; letter-spacing: -0.03em; line-height: 1;
-  background: var(--accent); color: var(--on-accent);
-  padding: 1px 7px 3px; border-radius: 8px; display: inline-block;
-  transform: rotate(-1.2deg);
-}
-.tag { color: var(--accent-2); font-size: 12px; font-weight: 600; }
-.intro { color: var(--ink-muted); font-size: 13.5px; line-height: 1.5; margin: 10px 0 18px; }
-
 /* progress */
 .progress { display: flex; gap: 6px; margin-bottom: 16px; }
 .progress span {
@@ -189,12 +178,6 @@ textarea { min-height: 96px; resize: vertical; }
 </head>
 <body>
 <div class="wrap">
-  <header class="masthead">
-    <span class="wordmark">ratio</span>
-    <span class="tag">creator application · launch campaign</span>
-  </header>
-  <p class="intro">One-off launch campaign. You set your prices. We pay in USDC/SOL on delivery. Accepted creators get a brief, assets, and confirmation before launch day.</p>
-
   <div class="progress" aria-hidden="true"><span id="p1"></span><span id="p2"></span><span id="p3"></span></div>
   <div class="step-label" id="stepLabel">step 1 of 3 · you &amp; your audience</div>
 

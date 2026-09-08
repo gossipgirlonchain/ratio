@@ -6,6 +6,14 @@ export default {
     // index rewrite because the public dir does no directory resolution
     return [{ source: "/creator-apply", destination: "/creator-apply/index.html" }];
   },
+  async headers() {
+    // never cache the application form: a stale copy posts to a dead
+    // endpoint and every submit fails until the visitor reloads
+    return [
+      { source: "/creator-apply", headers: [{ key: "Cache-Control", value: "no-store" }] },
+      { source: "/creator-apply/index.html", headers: [{ key: "Cache-Control", value: "no-store" }] },
+    ];
+  },
   webpack: (config) => {
     // Privy's optional peer deps for features we will never use (Farcaster
     // mini-apps, Abstract, AA). Stub them so webpack stops resolving them;

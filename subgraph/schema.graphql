@@ -168,30 +168,6 @@ type User @entity(immutable: false) {
 }
 
 """
-Fees earned by a beneficiary, per market and in total.
-
-Accrual is DERIVED rather than emitted: the split is immutable from launch, so
-a per-beneficiary event on every bet would be five logs for a number the
-indexer can compute exactly from the fee and the shares.
-"""
-type Beneficiary @entity(immutable: false) {
-  id: Bytes!
-  totalFees: BigInt!
-  marketCount: Int!
-  shares: [FeeShare!]! @derivedFrom(field: "beneficiary")
-}
-
-type FeeShare @entity(immutable: false) {
-  "market id + beneficiary"
-  id: Bytes!
-  market: Market!
-  beneficiary: Beneficiary!
-  "Share of the swap fee, in WAD. Immutable from launch."
-  sharesWad: BigInt!
-  accrued: BigInt!
-}
-
-"""
 Protocol totals, for the trending view and the front page.
 """
 type Protocol @entity(immutable: false) {

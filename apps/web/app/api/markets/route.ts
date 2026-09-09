@@ -92,6 +92,7 @@ export async function GET() {
   const betRows = (bets.data ?? []) as BetRow[];
   const sampleRows = (samples.data ?? []) as SampleRow[];
   const markets: FixtureMarket[] = [];
+  const sourceByMarket: Record<string, "subgraph" | "store"> = {};
   const tradesByMarket: Record<string, TradeFixture[]> = {};
   const seriesByMarket: Record<string, ChartSeries> = {};
   const fees = new Map<string, LeaderRow>();
@@ -133,6 +134,11 @@ export async function GET() {
             isSeed: b.is_seed,
           }));
     const real = events.filter((e) => !e.isSeed);
+    // Per market, because the answer differs per market: a market opened on
+    // Solana, or before the indexed range, has no indexed money however
+    // healthy the index is. One global flag would call those markets indexed
+    // when they are not.
+    sourceByMarket[m.id] = money && indexed ? "subgraph" : "store";
 
     // Pots come from the indexed per-side totals when we have them: `staked`
     // is every swap that ever hit that side's pool, where our trade list is
@@ -205,8 +211,13 @@ export async function GET() {
     tradesByMarket,
     seriesByMarket,
     leaderboard,
-    // Where the money numbers came from. Not decoration: "store" means the
-    // index was unreachable and these totals can only see bets we brokered.
-    source: money ? "subgraph" : "store",
+    /**
+     * Where the money came from, per market and overall. Not decoration:
+     * "store" means those totals can only see bets we brokered, and a market
+     * is only "subgraph" when the index actually had it.
+     */
+    sourceByMarket,
+    source: Object.values(sourceByMarket).includes("subgraph") ? "subgraph" : "store",
+    indexReachable: money !== null,
   });
 }

@@ -1,6 +1,6 @@
 import { Address, BigInt, Bytes, crypto, ethereum } from "@graphprotocol/graph-ts";
 
-import { Beneficiary, Entry, Market, Pool, Protocol, User } from "../generated/schema";
+import { Entry, Market, Pool, Protocol, User } from "../generated/schema";
 
 export const ZERO = BigInt.fromI32(0);
 export const WAD = BigInt.fromString("1000000000000000000");
@@ -30,16 +30,6 @@ export function user(addr: Address): User {
     u.losses = 0;
   }
   return u as User;
-}
-
-export function beneficiary(addr: Address): Beneficiary {
-  let b = Beneficiary.load(addr);
-  if (b == null) {
-    b = new Beneficiary(addr);
-    b.totalFees = ZERO;
-    b.marketCount = 0;
-  }
-  return b as Beneficiary;
 }
 
 /**

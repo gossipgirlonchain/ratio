@@ -142,9 +142,9 @@ and payout is ETH-denominated underneath.
 | Pot | `EntryMigrated` | `sum(contribution)` per oracle, or `market.totalPot` read directly. |
 | Payout denominator | `EntryMigrated` | `claimableSupply` on the winning entry. |
 | Expected payout | both | `tokens / claimableSupply * totalPot`. |
-| Fee leaderboard | `Swap` + beneficiary config | fee is taken on entry at `SWAP_FEE_BPS`; the split is immutable from launch, so accrual derives per role without a per-beneficiary event. |
+| Fee leaderboard | `Swap` + beneficiary config | fee is taken on entry at `SWAP_FEE_BPS`; the split is immutable from launch, so accrual derives per role without a per-beneficiary event. The schema carries no `Beneficiary` entity for the same reason: no event on Base Sepolia carries the beneficiary addresses, so an indexed one could only ever be empty. Fees are derived at the read layer, from indexed trade amounts and the immutable shares. |
 | Resolution | `WinnerDeclared`, `EntryMigrated` | winner, then the migration that makes claims possible. |
-| Realised profit | `Claimed` + `Swap` | `numeraireReceived - sum(numeraire paid)`. |
+| Realised profit | `Claimed` + `Swap` | `numeraireReceived - sum(numeraire paid)`, on DECIDED markets only. A stake in an open market is not a loss; booking it as one ranks every active trader below someone who has never bet. |
 
 ## What stays in Supabase
 

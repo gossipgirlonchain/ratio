@@ -22,9 +22,14 @@ export interface LiveWorld {
   tradesByMarket: Record<string, TradeFixture[]>;
   seriesByMarket: Record<string, ChartSeries>;
   leaderboard: LeaderRow[];
-  /** Where the money came from: the index, or our own records as a fallback.
-   * Null until the first fetch lands. */
+  /** Where the money came from, per market id. A market the index has never
+   * seen reads "store" even when the index is healthy. */
+  sourceByMarket: Record<string, "subgraph" | "store">;
+  /** "subgraph" when at least one market's money is indexed. Null until the
+   * first fetch lands. */
   source: "subgraph" | "store" | null;
+  /** Whether the index answered at all, separate from whether it had data. */
+  indexReachable: boolean;
   loading: boolean;
 }
 
@@ -33,7 +38,9 @@ const EMPTY: LiveWorld = {
   tradesByMarket: {},
   seriesByMarket: {},
   leaderboard: [],
+  sourceByMarket: {},
   source: null,
+  indexReachable: false,
   loading: true,
 };
 

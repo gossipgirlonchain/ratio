@@ -31,11 +31,20 @@ const WEI_PER_ETH = 1e18;
 
 let client: RatioSubgraph | null | undefined;
 
-/** Configured or not. Unset is a valid deployment (Solana), not an error. */
+/**
+ * Configured or not. Two conditions, both required.
+ *
+ * The URL is the obvious one. The chain switch is the one worth stating: this
+ * index describes Base Sepolia, so on a Solana deployment it is not a
+ * degraded source, it is a different market's numbers. Our own store is
+ * correct there, and reading here anyway would put EVM pots on Solana
+ * markets.
+ */
 export function ratioSubgraph(): RatioSubgraph | null {
   if (client !== undefined) return client;
   const url = process.env.RATIO_SUBGRAPH_URL;
-  client = url ? new RatioSubgraph({ url }) : null;
+  const isEvm = process.env.RATIO_CHAIN?.toLowerCase() === "evm";
+  client = url && isEvm ? new RatioSubgraph({ url }) : null;
   return client;
 }
 

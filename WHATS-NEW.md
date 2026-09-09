@@ -72,11 +72,88 @@ address before deploying it. Resolution is agent-only, terminal, cannot land
 before `settlesAt`, and cannot land before entry tokens are attached. 21 Foundry
 tests including the tie-holds-for-side-A convention and a fuzz over the verdict.
 
+### Sunday 6 September, evening
+
+**The port, behind the seam.** `EvmMarketChain` implements `MarketChain`
+against Doppler on Base Sepolia: Airlock creates one curve per side, stakes are
+swaps through the v4 router, settlement is `declareWinner` then `migrate` then
+`claim`. The Solana implementation sits beside it, untouched. `RATIO_CHAIN=evm`
+selects it in both the agent and the web app.
+
+- Doppler's beneficiary array is built from our five-way split, merging shares
+  per wallet — the initializer rejects a duplicate beneficiary, and the tagger
+  legitimately IS side B's author sometimes, which is why the number is "up to
+  five" rather than five.
+- Stakes carry their unit: `$25` is a dollar amount and `0.01` is ETH, priced
+  straight through with no rate consulted, so a broken price feed cannot move a
+  native-denominated stake.
+- Privy wallets namespaced rather than migrated (`ratio-evm-wallet-${xUserId}`),
+  one wallet per person per chain, on `@privy-io/node`.
+- **The subgraph**: markets, entries, pools, trades, positions, claims, users
+  and protocol totals, keyed off the frozen event schema. Entry price is
+  captured at the moment of the swap because it exists nowhere else.
+- The agent reads its odds from the subgraph rather than from its own records:
+  a bet placed straight at the contract counts the same as one we brokered.
+- First market opened by the engine itself on Base Sepolia, and an EVM sim that
+  drives the whole loop against the real chain with a fake X.
+
+### Monday 7 September
+
+Minimum stake $1 to $2. The $1-per-side creation seed removed: the treasury
+rescues at settlement only, and only if the winning side is genuinely empty.
+
+### Tuesday 8 September
+
+**The subgraph deployed and syncing**, after two bugs that each aborted it:
+`bytes32` side ids decode big-endian (`Bytes.toI32()` reads little-endian and
+overflows), and swaps are indexed from the PoolManager rather than the
+initializer.
+
+**The app reads its money from the index.** `/api/markets` is now a join: X
+data (handles, texts, like counts) from our store, money (pots, entry prices,
+trades, chart bars, fee accrual) from the subgraph, keyed on the side-B tweet
+id. Every money number folds over one event list, so the chart cannot disagree
+with the pot. The payload says which source answered, per market, because a
+market opened on Solana has no indexed money however healthy the index is.
+
+**Four bugs found by verifying rather than assuming**, all of them silent:
+
+1. **A mined transaction is not a successful one.** `waitForTransactionReceipt`
+   was never checked for `status`, so a reverted transaction read as success
+   all the way up. That is how a settlement whose migration reverted still
+   marked the market settled — money stranded in a pool, with the store saying
+   it had been paid out.
+2. **The index lost side 0 of a market.** A dynamic data source does not see
+   events from the block it was created in, and the oracle emits `MarketOpened`
+   in exactly that block — so the market entity did not exist yet when the
+   migrator registered side 0, and the entry was dropped. One side of the money
+   vanished while the other indexed normally, which reads as a market nobody
+   bet against. The market entity is now created from the factory, which is a
+   static source and always runs.
+3. **An empty environment variable is not a value.** `vercel env pull` writes
+   sensitive vars as `VAR=""`, `??` accepts the empty string, and the bot took
+   the handle `""`. It answered to `@`, every mention parsed as noise, and
+   nothing was logged because skipping noise is the correct silent path.
+4. **Realised profit counted open stakes as losses**, and `wins`/`losses` were
+   declared in the schema and never incremented. Every active trader ranked
+   below someone who had never bet. Losses now book at resolution, wins at
+   claim, net of what the position cost.
+
+**Schema honesty**: `Beneficiary` and `FeeShare` deleted. No event on Base
+Sepolia carries the beneficiary addresses, so an indexed accrual could only
+ever be empty; fees derive at the read layer from indexed trade amounts and the
+immutable shares, and `EVENTS.md` now says so.
+
+**One market real on both sides of the join**: the engine sim can write to
+Supabase (`RATIO_SIM_STORE=supabase`), so a run produces a market that exists
+in the store and on Base Sepolia at once. The app then shows it with money read
+from The Graph.
+
 ### Still to come
 
-EVM `MarketChain` implementation, agent wiring against Airlock, the subgraph,
-quote correctness from `previewSwapExactIn`, and Privy EVM wallets. Listed here
-only when they land.
+Claim through the engine (the audit scripts are in `apps/agent/scripts`), the
+subgraph redeploy that recovers the dropped side, quote correctness in the
+trade panel, and the fee leaderboard rendered from indexed fees.
 
 ---
 

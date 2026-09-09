@@ -96,7 +96,9 @@ export function handleSwap(event: Swap): void {
 
   const u = user(Address.fromBytes(bettor));
   u.totalStaked = u.totalStaked.plus(amountIn);
-  u.realisedProfit = u.realisedProfit.minus(amountIn);
+  // realisedProfit is deliberately NOT touched here. Money in an open market
+  // is neither won nor lost, and counting it as a loss on the way in would
+  // rank every active trader below someone who has never bet.
   u.tradeCount = u.tradeCount + 1;
   u.save();
 

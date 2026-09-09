@@ -1,4 +1,4 @@
-import { BigInt } from "@graphprotocol/graph-ts";
+import { Address, BigInt } from "@graphprotocol/graph-ts";
 
 import {
   EntryTokensSet,
@@ -6,7 +6,7 @@ import {
   RatioResolved,
 } from "../generated/templates/RatioOracle/RatioOracle";
 import { Market } from "../generated/schema";
-import { ZERO, protocol } from "./shared";
+import { ZERO, protocol, user } from "./shared";
 
 /**
  * The only place the chain records which tweet a market is about. Doppler's
@@ -54,4 +54,28 @@ export function handleRatioResolved(event: RatioResolved): void {
   m.forfeit = event.params.forfeit;
   m.resolvedAtTime = event.block.timestamp;
   m.save();
+
+  /**
+   * Everyone's record, booked at the one moment it becomes true.
+   *
+   * A loss realises here rather than at claim, because a loser has nothing to
+   * claim and would otherwise never realise anything at all — which is how
+   * "profit" quietly turns into "money not yet given back". Winners realise
+   * when they claim, net of what the position cost.
+   *
+   * A holder of both sides takes one win and one loss, which is correct: they
+   * made two bets.
+   */
+  const positions = m.positions.load();
+  for (let i = 0; i < positions.length; i++) {
+    const pos = positions[i];
+    const u = user(Address.fromBytes(pos.bettor));
+    if (pos.side == event.params.winnerSide) {
+      u.wins = u.wins + 1;
+    } else {
+      u.losses = u.losses + 1;
+      u.realisedProfit = u.realisedProfit.minus(pos.netStaked);
+    }
+    u.save();
+  }
 }

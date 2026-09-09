@@ -97,7 +97,6 @@ export function handleClaimed(event: Claimed): void {
 
   const u = user(event.params.claimer);
   u.totalPaidOut = u.totalPaidOut.plus(event.params.numeraireReceived);
-  u.realisedProfit = u.realisedProfit.plus(event.params.numeraireReceived);
   u.save();
 
   const p = protocol();
@@ -115,6 +114,20 @@ export function handleClaimed(event: Claimed): void {
       pos.claimed = true;
       pos.payout = pos.payout.plus(event.params.numeraireReceived);
       pos.save();
+
+      /**
+       * The winning half of realised profit. The losing half was booked at
+       * resolution, because a loser has nothing to claim and would otherwise
+       * never realise anything.
+       *
+       * Net of the stake that bought the position, so the number is profit
+       * and not turnover.
+       */
+      const w = user(event.params.claimer);
+      w.realisedProfit = w.realisedProfit
+        .plus(event.params.numeraireReceived)
+        .minus(pos.netStaked);
+      w.save();
     }
   }
 }

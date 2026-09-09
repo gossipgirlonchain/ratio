@@ -28,6 +28,7 @@ import { RatioMarketClient } from "@ratio/doppler/pair-market";
 import { createClients, type Clients } from "@ratio/doppler/tx";
 import { address, type Address, type TransactionSigner } from "@solana/kit";
 
+import { ratioSubgraph } from "./subgraph";
 import { supabaseAdmin } from "./supabaseServer";
 import { privyEvmAccount, privySignerByAddress } from "./walletServer";
 
@@ -68,7 +69,13 @@ async function build(): Promise<MarketChain> {
  */
 async function buildEvm(): Promise<MarketChain> {
   const db = supabaseAdmin();
-  return new EvmMarketChain({
+  const sg = ratioSubgraph();
+
+  // Declared before the chain so raisedWeiFor can reach back for the oracle
+  // address, which is a pure CREATE2 derivation off the market id.
+  let oracleOf: (marketId: string) => Promise<string>;
+
+  const chain = new EvmMarketChain({
     rpcUrl: process.env.BASE_SEPOLIA_RPC_URL ?? BASE_SEPOLIA_RPC,
     addresses: BASE_SEPOLIA,
     // A stub: the web must never open or settle a market, so this throws
@@ -90,7 +97,21 @@ async function buildEvm(): Promise<MarketChain> {
     signerFor: (addr) => privyEvmAccount(addr),
     ethUsd: coinbaseEthUsd(),
     marketDurationMs: MARKET_DURATION_MS,
+    /**
+     * Per-side stake, from the index — the same number the agent quotes from.
+     *
+     * It cannot be a chain read: v4 is a singleton, so a side's raise is a sum
+     * over that side's swaps and lives nowhere else. Reading our own bets
+     * instead would have priced the trade panel off the half of the money we
+     * happened to broker, while the feed beside it showed the indexed total.
+     * The fallback stays for a deployment with no index configured, and it is
+     * honestly worse rather than equivalent.
+     */
     raisedWeiFor: async (marketId) => {
+      if (sg) {
+        const totals = await sg.sideTotals(await oracleOf(marketId));
+        return totals.raisedWei;
+      }
       const { data } = await db
         .from("bets")
         .select("side, direction, amount_usd")
@@ -104,6 +125,9 @@ async function buildEvm(): Promise<MarketChain> {
       return [toWei(usd[0]), toWei(usd[1])];
     },
   });
+
+  oracleOf = (marketId) => chain.oracleFor(marketId);
+  return chain;
 }
 
 async function buildSolana(): Promise<MarketChain> {

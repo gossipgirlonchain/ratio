@@ -155,7 +155,19 @@ export class EvmMarketChain implements MarketChain {
   ) {
     return this.queue.run(account.address, async () => {
       const hash = await write(this.wallet(account));
-      return this.pub.waitForTransactionReceipt({ hash });
+      const receipt = await this.pub.waitForTransactionReceipt({ hash });
+      /**
+       * A mined transaction is not a successful one. Without this check a
+       * revert reads as success all the way up: the approve before a claim
+       * reverted, the claim then failed with TRANSFER_FROM_FAILED against a
+       * zero allowance, and a settlement whose migration reverted still
+       * marked the market settled — money stranded in a pool with the store
+       * saying it had been paid out.
+       */
+      if (receipt.status !== "success") {
+        throw new Error(`transaction reverted: ${hash}`);
+      }
+      return receipt;
     });
   }
 

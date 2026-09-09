@@ -36,6 +36,9 @@ import type { XClient, XMention, XTweet } from "./x.js";
 
 export interface EngineConfig {
   botHandle: string;
+  /** The bot's own numeric X id. Identity is the id; the handle is a display
+   * cache and a rename would walk straight through a handle comparison. */
+  botXUserId?: string;
   freshnessWindowMs: number; // side B under this old at mention time
   marketDurationMs: number; // 24h
   seedPerSideUsd: number; // treasury seed per side at creation
@@ -197,6 +200,23 @@ export class RatioEngine {
     const { sideA, sideB, pairType } = pair;
 
     // Eligibility gate — all required.
+
+    /**
+     * The bot is never a side.
+     *
+     * Nothing stopped this before, because the own-post rule only checks the
+     * TAGGER against side A. So a reply to one of our own announcements, from
+     * anyone, opened a market between ratio and that person: side A is our
+     * post, the reply is side B, and the bot posted a card about a market on
+     * itself. It ran on 9 September before this gate existed.
+     *
+     * We are not a participant in our own markets in any role, and we take
+     * fees from every one of them, so this is not a taste question.
+     */
+    const bot = this.config.botXUserId;
+    if (bot && (sideA.authorId === bot || sideB.authorId === bot)) {
+      return reject("bot_is_a_side");
+    }
     if (sideA.authorId === sideB.authorId) return reject("same_author");
     // No markets on your own post: the tagger cannot be side A's author.
     // Tagger = side B's author IS allowed ("my reply beats your tweet") and

@@ -101,8 +101,11 @@ async function main() {
 
   // Identity from env when provided — a boot must not spend API reads
   // on things we already know. /users/me runs only as a fallback.
+  // BOT_HANDLE rather than the raw env var: `vercel env pull` writes sensitive
+  // vars as VAR="", `??` accepts the empty string, and a bot with the handle
+  // "" answers to `@` and parses every mention as noise.
   const me = process.env.RATIO_BOT_USER_ID
-    ? { id: process.env.RATIO_BOT_USER_ID, username: process.env.RATIO_BOT_HANDLE ?? "ratiowtf" }
+    ? { id: process.env.RATIO_BOT_USER_ID, username: BOT_HANDLE }
     : await whoAmI();
   console.log(`ratio agent up as @${me.username} (x id ${me.id})`);
   if (process.env.RATIO_BOT_HANDLE && me.username.toLowerCase() !== process.env.RATIO_BOT_HANDLE.toLowerCase()) {
@@ -166,6 +169,8 @@ async function main() {
 
   const engine = new RatioEngine(streamed, store, wallets, chain, {
     botHandle: BOT_HANDLE,
+    // We are never a side in our own markets. See the gate in engine.ts.
+    botXUserId: me.id,
     freshnessWindowMs: FRESHNESS_WINDOW_MS,
     marketDurationMs: MARKET_DURATION_MS,
     seedPerSideUsd: SEED_PER_SIDE_USD,

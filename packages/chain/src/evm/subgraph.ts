@@ -256,4 +256,144 @@ export class RatioSubgraph {
       totalStakedWei: BigInt(p?.totalStaked ?? "0"),
     };
   }
+
+  /**
+   * The whole money world in ONE round trip: every market with its per-side
+   * entries, plus the most recent trades across all of them.
+   *
+   * The app's read path is a join, not a merge — X data (handles, texts, like
+   * counts) comes from our store, money comes from here, and the key is the
+   * side-B tweet id, which is `Market.marketId` on this side and the market's
+   * primary key on that one. Nothing about money is computed from our own bet
+   * records when this is configured: a bet placed directly on chain, never
+   * through our UI, still shows up in the pots and the chart.
+   */
+  async world(opts: { markets?: number; trades?: number } = {}): Promise<IndexedWorld> {
+    const data = await this.query<{
+      markets: {
+        id: string;
+        marketId: string;
+        settlesAt: string;
+        totalStaked: string;
+        netStaked: string;
+        tradeCount: number;
+        resolved: boolean;
+        winnerSide: number | null;
+        forfeit: boolean;
+        totalPot: string;
+        totalClaimed: string;
+        entries: {
+          side: number;
+          staked: string;
+          tradeCount: number;
+          migrated: boolean;
+          contribution: string;
+          claimableSupply: string;
+        }[];
+      }[];
+      trades: {
+        market: { marketId: string };
+        side: number;
+        bettor: string;
+        amountIn: string;
+        tokensOut: string;
+        price: string;
+        timestamp: string;
+        txHash: string;
+      }[];
+    }>(
+      `query World($markets: Int!, $trades: Int!) {
+         markets(first: $markets, orderBy: totalStaked, orderDirection: desc) {
+           id marketId settlesAt totalStaked netStaked tradeCount
+           resolved winnerSide forfeit totalPot totalClaimed
+           entries { side staked tradeCount migrated contribution claimableSupply }
+         }
+         trades(first: $trades, orderBy: timestamp, orderDirection: desc) {
+           market { marketId }
+           side bettor amountIn tokensOut price timestamp txHash
+         }
+       }`,
+      { markets: opts.markets ?? 200, trades: opts.trades ?? 1000 },
+    );
+
+    const markets: IndexedMarket[] = data.markets.map((m) => {
+      const staked: [bigint, bigint] = [0n, 0n];
+      const claimable: [bigint, bigint] = [0n, 0n];
+      for (const e of m.entries) {
+        const side = e.side === 0 ? 0 : 1;
+        staked[side] = BigInt(e.staked);
+        claimable[side] = BigInt(e.claimableSupply);
+      }
+      return {
+        oracle: m.id,
+        marketId: m.marketId,
+        settlesAt: Number(m.settlesAt) * 1000,
+        stakedWei: staked,
+        claimableSupply: claimable,
+        totalStakedWei: BigInt(m.totalStaked),
+        netStakedWei: BigInt(m.netStaked),
+        tradeCount: m.tradeCount,
+        resolved: m.resolved,
+        winnerSide: m.winnerSide === null ? null : m.winnerSide === 0 ? 0 : 1,
+        forfeit: m.forfeit,
+        potWei: BigInt(m.totalPot),
+        claimedWei: BigInt(m.totalClaimed),
+      };
+    });
+
+    // Oldest first: the chart and the trade list both read forward in time.
+    const trades: IndexedTrade[] = data.trades
+      .map((t) => ({
+        marketId: t.market.marketId,
+        side: (t.side === 0 ? 0 : 1) as 0 | 1,
+        bettor: t.bettor,
+        amountInWei: BigInt(t.amountIn),
+        tokensOut: BigInt(t.tokensOut),
+        priceWad: BigInt(t.price),
+        atMs: Number(t.timestamp) * 1000,
+        txHash: t.txHash,
+      }))
+      .reverse();
+
+    return { markets, trades };
+  }
+}
+
+/** One market's money, as indexed. Keyed to our store by `marketId`. */
+export interface IndexedMarket {
+  /** Oracle address — the subgraph's own key. */
+  oracle: string;
+  /** Side B's tweet id. Our store's primary key for the market. */
+  marketId: string;
+  settlesAt: number;
+  /** Gross quote in, per side. */
+  stakedWei: [bigint, bigint];
+  /** totalSupply − unsold, per side. The payout denominator. */
+  claimableSupply: [bigint, bigint];
+  totalStakedWei: bigint;
+  netStakedWei: bigint;
+  tradeCount: number;
+  resolved: boolean;
+  winnerSide: 0 | 1 | null;
+  forfeit: boolean;
+  potWei: bigint;
+  claimedWei: bigint;
+}
+
+/** One indexed entry. `priceWad` exists nowhere else — see the header. */
+export interface IndexedTrade {
+  marketId: string;
+  side: 0 | 1;
+  bettor: string;
+  amountInWei: bigint;
+  tokensOut: bigint;
+  priceWad: bigint;
+  atMs: number;
+  txHash: string;
+}
+
+export interface IndexedWorld {
+  markets: IndexedMarket[];
+  /** Oldest first, across every market. */
+  trades: IndexedTrade[];
 }

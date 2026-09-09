@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "start": "tsx --env-file-if-exists=../../.env --env-file-if-exists=.env src/main.ts",
     "test": "tsx src/parse.test.ts",
-    "sim:evm": "tsx --env-file-if-exists=../../contracts/.env src/sim-evm.ts"
+    "sim:evm": "tsx --env-file-if-exists=../../contracts/.env src/sim-evm.ts",
+    "sim:evm:live": "RATIO_SIM_STORE=supabase tsx --env-file-if-exists=.env --env-file-if-exists=../../contracts/.env src/sim-evm.ts"
   },
   "dependencies": {
     "@ratio/chain": "*",

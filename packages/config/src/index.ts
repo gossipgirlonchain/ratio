@@ -16,7 +16,18 @@
  */
 
 /** X handle for the bot. NOT registered yet; override via env when it is. */
-export const BOT_HANDLE = process.env.RATIO_BOT_HANDLE ?? "ratiowtf";
+/**
+ * An env var set to the empty string is NOT a value. `??` disagrees, and that
+ * costs a whole run: `vercel env pull` writes sensitive vars as `VAR=""`, so
+ * loading that file gave the bot the handle "" and it answered to `@` — every
+ * mention parsed as noise and was skipped in silence, with no error anywhere.
+ */
+function env(name: string, fallback: string): string {
+  const v = process.env[name];
+  return v === undefined || v.trim() === "" ? fallback : v;
+}
+
+export const BOT_HANDLE = env("RATIO_BOT_HANDLE", "ratiowtf");
 
 /** Side B must be under 12h old at mention time (PLAN: dominant pricing input). */
 export const FRESHNESS_WINDOW_MS = 12 * 60 * 60 * 1000;

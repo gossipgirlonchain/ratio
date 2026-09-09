@@ -39,6 +39,7 @@ import type { Hex } from "viem";
 
 import { RatioEngine } from "./engine.js";
 import { InMemoryStore } from "./store.js";
+import { SupabaseStore } from "./storeSupabase.js";
 import { LocalEvmWalletProvider } from "./walletsEvmLocal.js";
 import { MockXClient, seedMockIds, type XTweet } from "./x.js";
 
@@ -51,6 +52,12 @@ import { MockXClient, seedMockIds, type XTweet } from "./x.js";
  * long enough to bet into.
  */
 const MARKET_DURATION_MS = 90_000;
+
+function requireEnv(name: string): string {
+  const v = process.env[name];
+  if (!v) throw new Error(`RATIO_SIM_STORE=supabase needs ${name}`);
+  return v;
+}
 
 async function main() {
   const pk = process.env.BASE_SEPOLIA_PRIVATE_KEY;
@@ -71,7 +78,28 @@ async function main() {
     process.exit(1);
   }
 
-  const store = new InMemoryStore();
+  /**
+   * The store is a choice, and it is the difference between a chain proof and
+   * a product demo.
+   *
+   * InMemoryStore proves the engine drives the chain. But the app joins money
+   * to tweets through the store, so a market that exists only in memory is
+   * invisible in the product however real it is on Base Sepolia — the index
+   * has it, our store does not, and nothing renders. RATIO_SIM_STORE=supabase
+   * writes the market where the app can see it, so one run produces a market
+   * that is real on both sides of the join.
+   *
+   * Mock tweets, real chain, real store row. Nothing is posted to X either
+   * way.
+   */
+  const useSupabase = process.env.RATIO_SIM_STORE === "supabase";
+  const store = useSupabase
+    ? new SupabaseStore(
+        requireEnv("SUPABASE_URL"),
+        requireEnv("SUPABASE_SERVICE_KEY"),
+      )
+    : new InMemoryStore();
+  console.log(useSupabase ? "store: supabase (visible in the app)" : "store: in-memory");
   const ethUsd = coinbaseEthUsd();
   console.log(`ETH/USD ${await ethUsd()}`);
 

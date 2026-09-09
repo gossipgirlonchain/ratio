@@ -44,7 +44,19 @@ export function ratioSubgraph(): RatioSubgraph | null {
   if (client !== undefined) return client;
   const url = process.env.RATIO_SUBGRAPH_URL;
   const isEvm = process.env.RATIO_CHAIN?.toLowerCase() === "evm";
-  client = url && isEvm ? new RatioSubgraph({ url }) : null;
+  client =
+    url && isEvm
+      ? new RatioSubgraph({
+          url,
+          /**
+           * Next patches global fetch with its Data Cache, and a cached
+           * index is worse than no index: the app served an hour-old world
+           * and reported it as live, with a market that had just settled
+           * still showing as never having existed. Live data, every request.
+           */
+          fetchImpl: (input, init) => fetch(input, { ...init, cache: "no-store" }),
+        })
+      : null;
   return client;
 }
 

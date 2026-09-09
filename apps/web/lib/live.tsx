@@ -22,10 +22,20 @@ export interface LiveWorld {
   tradesByMarket: Record<string, TradeFixture[]>;
   seriesByMarket: Record<string, ChartSeries>;
   leaderboard: LeaderRow[];
+  /** Where the money came from: the index, or our own records as a fallback.
+   * Null until the first fetch lands. */
+  source: "subgraph" | "store" | null;
   loading: boolean;
 }
 
-const EMPTY: LiveWorld = { markets: [], tradesByMarket: {}, seriesByMarket: {}, leaderboard: [], loading: true };
+const EMPTY: LiveWorld = {
+  markets: [],
+  tradesByMarket: {},
+  seriesByMarket: {},
+  leaderboard: [],
+  source: null,
+  loading: true,
+};
 
 const LiveContext = createContext<LiveWorld>(EMPTY);
 

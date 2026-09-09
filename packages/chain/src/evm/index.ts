@@ -70,6 +70,9 @@ export {
   type TradePoint,
   type TrendingMarket,
   type LeaderRow,
+  type IndexedMarket,
+  type IndexedTrade,
+  type IndexedWorld,
 } from "./subgraph.js";
 
 /** The initializer always creates the pool with the dynamic-fee flag, whatever

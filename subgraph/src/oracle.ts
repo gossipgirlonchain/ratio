@@ -9,12 +9,25 @@ import { Market } from "../generated/schema";
 import { ZERO, protocol, user } from "./shared";
 
 /**
- * The only place the chain records which tweet a market is about. Doppler's
- * migrator has no concept of a tweet, so without this the money could never be
- * joined to the thing it is about.
+ * The oracle's own account of which tweet it is about.
+ *
+ * The factory already created this entity from `OracleCreated` — it has to,
+ * because this handler lives on a dynamic data source and does not run for the
+ * block the source was created in, which is the block this event is emitted
+ * in. So this is a reconciliation, not a creation: it fills the entity in if
+ * the factory somehow did not, and otherwise confirms what is already there.
+ * Both events carry the same marketId and settlesAt, from the same call.
  */
 export function handleMarketOpened(event: MarketOpened): void {
-  const m = new Market(event.params.oracle);
+  let m = Market.load(event.params.oracle);
+  if (m != null) {
+    m.marketId = event.params.marketId;
+    m.settlesAt = event.params.settlesAt;
+    m.save();
+    return;
+  }
+
+  m = new Market(event.params.oracle);
   m.marketId = event.params.marketId;
   m.settlesAt = event.params.settlesAt;
   m.createdAtBlock = event.block.number;

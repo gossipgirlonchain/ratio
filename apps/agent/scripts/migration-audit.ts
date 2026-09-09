@@ -57,6 +57,19 @@ async function main() {
   const reg = await logsOf(registered, head);
   const mig = await logsOf(migrated, head);
 
+  if (process.env.ORACLE) {
+    const want = process.env.ORACLE.toLowerCase();
+    for (const l of reg) {
+      if ((l.args.oracle as string).toLowerCase() !== want) continue;
+      console.log(`registered entryId=${l.args.entryId} token=${l.args.token} block=${l.blockNumber} tx=${l.transactionHash}`);
+    }
+    for (const l of mig) {
+      if ((l.args.oracle as string).toLowerCase() !== want) continue;
+      console.log(`migrated   entryId=${l.args.entryId} block=${l.blockNumber}`);
+    }
+    return;
+  }
+
   const tokens = new Map<string, `0x${string}`[]>();
   for (const l of reg) {
     const o = (l.args.oracle as string).toLowerCase();

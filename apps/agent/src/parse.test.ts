@@ -86,4 +86,26 @@ const bet = (text: string) => {
   assert.equal(parseMention("@ratiowtf $0 @cora", "ratiowtf").action, "ignore", "zero is not a bet");
 }
 
+// --- no tag, no market -------------------------------------------------------
+{
+  // 9 September: @Tibug replied "RATIO" to one of our own posts, tagging
+  // nobody, and a market opened between our post and that reply. The mentions
+  // timeline hands us every reply to our posts; the word "ratio" in one of
+  // them is not a request for anything.
+  assert.equal(parseMention("RATIO", "ratiowtf").action, "ignore", "an untagged reply is not a create");
+  assert.equal(parseMention("ratio this guy", "ratiowtf").action, "ignore");
+  assert.equal(parseMention("market", "ratiowtf").action, "ignore");
+  assert.equal(parseMention("", "ratiowtf").action, "ignore", "an empty reply is not a create");
+  assert.equal(parseMention("open", "ratiowtf").action, "ignore");
+
+  // Still a create when the tag is actually there.
+  assert.equal(parseMention("@ratiowtf RATIO", "ratiowtf").action, "create");
+  assert.equal(parseMention("@RatioWTF", "ratiowtf").action, "create", "tag matching is case-insensitive");
+
+  // A stake stays valid untagged: it names an amount, and it does nothing
+  // unless it is a reply to a live market card.
+  const untagged = parseMention("$25 @cora", "ratiowtf");
+  assert.equal(untagged.action, "bet", "an untagged stake on a card is still a stake");
+}
+
 console.log("parse ✅");

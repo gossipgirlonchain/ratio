@@ -14,7 +14,6 @@ export type RejectionReason =
   | "too_old"
   | "same_author"
   | "own_post"
-  | "bot_is_a_side"
   | "unreadable";
 
 export const rejection = (reason: RejectionReason, botHandle: string): string => {
@@ -27,8 +26,6 @@ export const rejection = (reason: RejectionReason, botHandle: string): string =>
       return `both sides are the same account. no self ratios.`;
     case "own_post":
       return `no markets on your own post. if a reply is coming for you, someone else has to call it.`;
-    case "bot_is_a_side":
-      return `i do not run markets on my own posts. tag me on someone else's.`;
     case "unreadable":
       return `i cannot read both tweets, so no market. both sides have to be public.`;
   }

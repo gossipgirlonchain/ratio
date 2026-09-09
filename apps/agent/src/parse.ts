@@ -65,6 +65,28 @@ export function parseMention(text: string, botHandle?: string): ParsedIntent {
     if (amount > 0) return { action: "bet", side, amount, unit };
   }
 
+  /**
+   * A market opens when someone TAGS the bot. Not when someone says our name.
+   *
+   * The mentions timeline hands us every reply to our own posts, tag or no
+   * tag, and CREATE_RE matches the bare word "ratio" — so on 9 September a
+   * reply to one of our announcements reading only "RATIO", with no tag
+   * anywhere in it, parsed as a create and opened a market between our post
+   * and that reply. The bot then posted a card for it. Nobody asked for any
+   * of it.
+   *
+   * `cleaned.length === 0` was the other half: an empty reply also created.
+   * Both faults are the same assumption, that anything reaching this function
+   * was addressed to us.
+   *
+   * A STAKE is different and is deliberately still accepted untagged: it
+   * carries an explicit amount, and it only does anything if it is a reply to
+   * a live market card, which X does not hand us by accident.
+   */
+  if (botHandle && !new RegExp(`@${botHandle}\\b`, "i").test(text)) {
+    return { action: "ignore" };
+  }
+
   // Bare "@handle" on a tweet = "ratio this".
   if (CREATE_RE.test(cleaned) || cleaned.length === 0) return { action: "create" };
 

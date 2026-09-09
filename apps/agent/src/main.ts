@@ -169,8 +169,6 @@ async function main() {
 
   const engine = new RatioEngine(streamed, store, wallets, chain, {
     botHandle: BOT_HANDLE,
-    // We are never a side in our own markets. See the gate in engine.ts.
-    botXUserId: me.id,
     freshnessWindowMs: FRESHNESS_WINDOW_MS,
     marketDurationMs: MARKET_DURATION_MS,
     seedPerSideUsd: SEED_PER_SIDE_USD,

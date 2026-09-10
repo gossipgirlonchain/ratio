@@ -626,6 +626,35 @@ export class EvmMarketChain implements MarketChain {
         account,
       }),
     );
+    /**
+     * Do not claim until the allowance can be READ back.
+     *
+     * `claim` pulls the tokens with `transferFrom`, and every failure inside
+     * the token surfaces as the same Solmate string, `TRANSFER_FROM_FAILED`,
+     * which names neither the allowance nor the reason. We spent a settlement
+     * on that message: the approve had confirmed, and the claim still could
+     * not see it, because a load-balanced RPC answers from whichever node it
+     * likes and the next one had not caught up.
+     *
+     * So the allowance is the precondition and it is checked as one, rather
+     * than assumed from a receipt.
+     */
+    for (let i = 0; ; i++) {
+      const allowed = await this.pub.readContract({
+        address: winningToken,
+        abi: erc20Abi,
+        functionName: "allowance",
+        args: [account.address, addresses.predictionMigrator],
+      });
+      if (allowed >= held) break;
+      if (i >= 30) {
+        throw new Error(
+          `claim for ${account.address} blocked: allowance ${allowed} < ${held} after approve`,
+        );
+      }
+      await new Promise((r) => setTimeout(r, 1_000));
+    }
+
     await this.send(account, (w) =>
       w.writeContract({
         address: addresses.predictionMigrator,

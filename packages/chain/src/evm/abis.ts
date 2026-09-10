@@ -183,6 +183,16 @@ export const erc20Abi = [
     outputs: [{ type: "uint256" }],
   },
   {
+    // The claim's real precondition. Read back rather than assumed: an approve
+    // that has confirmed is not the same as an approve the next RPC node can
+    // see.
+    type: "function",
+    name: "allowance",
+    stateMutability: "view",
+    inputs: [{ type: "address" }, { type: "address" }],
+    outputs: [{ type: "uint256" }],
+  },
+  {
     type: "function",
     name: "approve",
     stateMutability: "nonpayable",

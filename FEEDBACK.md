@@ -239,6 +239,51 @@ economics.
   prominent guidance that quotes must come from the preview instruction, rather
   than being derived from pool totals, would help anyone building on curve entry.
 
+## 7. `migrate` reverts with a selector that is in no ABI and no directory
+
+Migration failed for seven of our markets, and every one of them reverted with
+the same custom error:
+
+```
+0x22e4e796
+```
+
+That selector does not appear in the `PredictionMigrator` ABI we are indexing
+against, is not in the Airlock ABI, and 4byte.directory has never seen it. So a
+revert that is almost certainly a normal precondition — most of those markets
+had no winner declared yet — is indistinguishable from a bug in our own code,
+and the only way to tell them apart was to simulate `migrate` on a market we
+knew was resolved and compare.
+
+Two things would have saved that hour:
+
+1. **Ship the error selectors.** A `errors` array in the published ABI, or a
+   short table of the custom errors `migrate` and `claim` can revert with,
+   turns a hex string into an answer.
+2. **Name the precondition.** `migrate` on an unresolved prediction market is
+   the single most likely mistake an integrator makes, because the whole point
+   of the module is that resolution gates migration. That deserves a named
+   error rather than a shared one.
+
+Related: nothing in the flow tells you that migration is a separate step at
+all. On Solana the lifecycle reads as one arc. On EVM, `declareWinner` succeeds
+and the market looks resolved, but the proceeds sit in the pools until someone
+calls `migrate` per entry, and `claim` reverts until the WINNING entry has
+migrated specifically. We only found the gap by auditing `EntryMigrated` logs
+against `EntryRegistered` logs and finding two thirds of our markets missing.
+
+## 8. The claim is approve-then-claim, and nothing says so
+
+`claim` pulls the winning tokens with `transferFrom`, so a holder has to
+approve the migrator first. That is reasonable, but it is not in any example we
+found, and the failure mode is a Solmate `TRANSFER_FROM_FAILED` that names
+neither the allowance nor the token. A holder claiming through a UI hits two
+transactions where they expected one, and an integrator hits a revert string
+that reads like a token bug.
+
+A `claimWithPermit`, or even a documented note that the approve is required,
+would remove a step from every claim flow built on this.
+
 ---
 
 *Updated as the week goes. Sections are appended, not rewritten.*

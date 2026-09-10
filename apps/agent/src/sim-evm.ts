@@ -51,7 +51,18 @@ import { MockXClient, seedMockIds, type XTweet } from "./x.js";
  * and the engine correctly refuses every stake as late. Short enough to watch,
  * long enough to bet into.
  */
-const MARKET_DURATION_MS = 90_000;
+const MARKET_DURATION_MS = Number(process.env.RATIO_SIM_MARKET_MS ?? 90_000);
+
+/**
+ * Stop after the stakes and leave the market OPEN.
+ *
+ * A 90-second market proves the loop but cannot be looked at: by the time the
+ * app renders it, it has settled and the hook refuses further entries, so
+ * every quote comes back refused and the trade panel has nothing to show. With
+ * RATIO_SIM_OPEN_ONLY=1 and a longer RATIO_SIM_MARKET_MS, a run leaves behind
+ * a live market that the product can actually be used against.
+ */
+const OPEN_ONLY = process.env.RATIO_SIM_OPEN_ONLY === "1";
 
 function requireEnv(name: string): string {
   const v = process.env[name];
@@ -196,6 +207,14 @@ async function main() {
   console.log(
     `\n[3/4] odds: ${Math.round(odds.impliedA * 100)}% @opa  ($${odds.raisedUsd[0].toFixed(2)} / $${odds.raisedUsd[1].toFixed(2)})`,
   );
+
+  if (OPEN_ONLY) {
+    console.log(
+      `\nleaving ${rec.id} OPEN until ${new Date(rec.settlesAtMs).toISOString()} (RATIO_SIM_OPEN_ONLY)`,
+    );
+    console.log("engine + real Base Sepolia: market live, settlement skipped ✅");
+    return;
+  }
 
   // ---- 4. settlement: likes verdict -> resolve -> migrate -> claim ---------
   const waitMs = rec.settlesAtMs - clock() + 2_000;

@@ -37,6 +37,7 @@ import {
   encodePacked,
   http,
   keccak256,
+  toHex,
   parseAbiParameters,
   parseEther,
   type Account,
@@ -655,7 +656,7 @@ export class EvmMarketChain implements MarketChain {
       await new Promise((r) => setTimeout(r, 1_000));
     }
 
-    await this.send(account, (w) =>
+    const receipt = await this.send(account, (w) =>
       w.writeContract({
         address: addresses.predictionMigrator,
         abi: predictionMigratorAbi,
@@ -666,7 +667,10 @@ export class EvmMarketChain implements MarketChain {
       }),
     );
 
-    return { paidUsd: await this.weiToUsd(payout) };
+    // What was paid, from the payment itself. The preview above is only a
+    // quote, and a stale node answers it with zero.
+    const paidWei = claimedFromLogs(receipt.logs, addresses.predictionMigrator) ?? payout;
+    return { paidUsd: await this.weiToUsd(paidWei) };
   }
 
   // -------------------------------------------------------------------------
@@ -739,6 +743,23 @@ function keccakSalt(marketId: string, side: number): Hex {
 /** ERC20 Transfer(address,address,uint256). */
 const TRANSFER_TOPIC =
   "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef" as const;
+
+/** The numeraire paid out by a `Claimed` event in this receipt, if there is one. */
+function claimedFromLogs(
+  logs: readonly { address: string; topics: readonly Hex[]; data: Hex }[],
+  migrator: string,
+): bigint | null {
+  const topic0 = keccak256(toHex("Claimed(address,address,uint256,uint256)"));
+  for (const log of logs) {
+    if (log.address.toLowerCase() !== migrator.toLowerCase()) continue;
+    if (log.topics[0]?.toLowerCase() !== topic0.toLowerCase()) continue;
+    // data = tokensBurned (32 bytes) then numeraireReceived (32 bytes).
+    const data = log.data.slice(2);
+    if (data.length < 128) continue;
+    return BigInt(`0x${data.slice(64, 128)}`);
+  }
+  return null;
+}
 
 /**
  * Tokens of `token` credited to `to` in this receipt, summed across transfers.

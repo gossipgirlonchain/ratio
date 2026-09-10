@@ -82,6 +82,20 @@ export const predictionMigratorAbi = [
     outputs: [],
   },
   {
+    // What was actually paid. Read from the claim's own receipt rather than
+    // from a preview taken beforehand: a preview answered by a node that has
+    // not seen the migration yet returns zero, and the payout gets reported to
+    // a winner as "$0.00" on a claim that in fact paid them.
+    type: "event",
+    name: "Claimed",
+    inputs: [
+      { name: "oracle", type: "address", indexed: true },
+      { name: "claimer", type: "address", indexed: true },
+      { name: "tokensBurned", type: "uint256", indexed: false },
+      { name: "numeraireReceived", type: "uint256", indexed: false },
+    ],
+  },
+  {
     type: "event",
     name: "EntryMigrated",
     inputs: [

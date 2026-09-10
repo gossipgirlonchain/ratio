@@ -149,11 +149,53 @@ Supabase (`RATIO_SIM_STORE=supabase`), so a run produces a market that exists
 in the store and on Base Sepolia at once. The app then shows it with money read
 from The Graph.
 
+### Tuesday 9 September
+
+**A live incident, and the rule that was missing.** @Tibug replied `RATIO` to
+one of our own posts, tagging nobody, and the armed agent opened a market
+between our post and that reply and posted a card for it. Betting was stopped
+inside a few minutes; the market carried $1 + $1 of treasury seed and no user
+money.
+
+The parser had never required the tag. `CREATE_RE` matched the bare word
+"ratio", the mentions timeline hands us every reply to our own posts tagged or
+not, and an empty reply created a market too. Fixed, with the exact tweet
+pinned as a regression test. Recorded in
+[`prompts/02`](prompts/02-live-incident-and-corrections.md), including the
+wrong fix that was built first and reverted.
+
+**Solana was still the live chain.** `RATIO_CHAIN` had never been set on
+Railway, so the running agent had been on Solana the whole time and the EVM
+port existed only in `main`. Set to `evm` on Railway and Vercel with the
+subgraph endpoint, and production verified reading its money from the index.
+
+**Quotes come from the curve.** This was the brief's own open bug: the linear
+pot-split formula overstates large stakes, and it was the live quote path.
+`/api/quote` now simulates the swap on chain for `tokensOut` and takes the token
+share of the projected pot, with the token denominator summed from indexed
+trades. Measured on a live Base Sepolia market: **$1 quotes 1.56x, $25 quotes
+1.06x, $500 quotes 0.99x** — the dilution that is the whole brigading defence,
+visible in the number before you sign.
+
+The simulation carries a state override on the caller's balance, because
+otherwise a $500 quote fails for insufficient funds and the number a bettor
+sees moves with our treasury balance. The approximation survives as the
+fallback for markets with no pool to simulate against — fixtures, and markets
+opened on Solana — and its test now says so instead of asserting it as correct.
+
+**The web app's odds come from the index too.** The trade panel had been
+pricing off our own `bets` table while the feed beside it showed indexed
+totals.
+
+**A market that can be looked at.** `RATIO_SIM_OPEN_ONLY=1` with a longer
+duration leaves a real Base Sepolia market open instead of settling it 90
+seconds later, so the product can be used against live indexed money.
+
 ### Still to come
 
 Claim through the engine (the audit scripts are in `apps/agent/scripts`), the
-subgraph redeploy that recovers the dropped side, quote correctness in the
-trade panel, and the fee leaderboard rendered from indexed fees.
+subgraph redeploy that recovers the dropped side, and the fee leaderboard
+rendered from indexed fees.
 
 ---
 

@@ -13,6 +13,7 @@ import { MarketStrip } from "@ratio/ui";
 
 import { Welcome } from "../components/Welcome";
 
+import { curveQuoteIf } from "../lib/quote";
 import { useAuth } from "../lib/auth";
 import { feedMarkets, useLive } from "../lib/live";
 import { placeBet, usePendingBets } from "../lib/trade";
@@ -52,6 +53,7 @@ export default function Page() {
                 }
                 placeBet({ marketId: data.marketId, side, amountUsd: amount, auth: authenticated ? getAccessToken : undefined });
               }}
+              quoteFor={curveQuoteIf(live.sourceByMarket[data.marketId] === "subgraph", data.marketId)}
               onPresetUsed={(p) => console.log(`preset used: ${p}`)}
               marketHref={`/m/${data.marketId}`}
               onOpen={() => router.push(`/m/${data.marketId}`)}

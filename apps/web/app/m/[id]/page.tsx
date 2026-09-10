@@ -10,9 +10,9 @@
 import { usePrivy } from "@privy-io/react-auth";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { quotePayout, XLogo } from "@ratio/ui";
+import { quotePayout, XLogo, type PayoutQuote } from "@ratio/ui";
 
 import { MarketChart, SIDE_A_COLOR, SIDE_B_COLOR } from "../../../components/MarketChart";
 import { useAuth } from "../../../lib/auth";
@@ -22,6 +22,7 @@ import {
   positionFor,
   useLive,
 } from "../../../lib/live";
+import { curveQuoteIf } from "../../../lib/quote";
 import { placeBet, usePendingBets } from "../../../lib/trade";
 import { useMounted } from "../../../lib/useMounted";
 
@@ -83,15 +84,44 @@ export default function MarketPage() {
         ...live.map((b) => ({ atMs: b.atMs, side: b.side })),
       ]
     : [];
-  const quote =
-    backing && amount
-      ? quotePayout({
-          stakeUsd: amount,
-          potAUsd: potA,
-          potBUsd: potB,
-          yourSideUsd: (backing === "a" ? { potUsd: potA } : { potUsd: potB }).potUsd,
-        })
-      : null;
+  /**
+   * The confirm button carries the outcome ("sign · $X if @handle wins"), so
+   * this number IS the button's label. It comes from the curve rather than
+   * from dividing pot totals: a linear pot share overstates large stakes, and
+   * the button is the last thing read before money moves.
+   *
+   * Empty until the chain answers. The button's slot is fixed, so nothing
+   * moves; showing an approximation first and correcting it afterwards would
+   * change the price under someone about to sign.
+   */
+  const [quote, setQuote] = useState<PayoutQuote | null>(null);
+  useEffect(() => {
+    if (!backing || !amount) {
+      setQuote(null);
+      return;
+    }
+    const ask = curveQuoteIf(world.sourceByMarket[data.marketId] === "subgraph", data.marketId);
+    let current = true;
+    setQuote(
+      ask
+        ? null
+        : quotePayout({
+            stakeUsd: amount,
+            potAUsd: potA,
+            potBUsd: potB,
+            yourSideUsd: backing === "a" ? potA : potB,
+          }),
+    );
+    if (!ask) return;
+    void ask(backing, amount)
+      .then((q) => {
+        if (current) setQuote(q);
+      })
+      .catch(() => {});
+    return () => {
+      current = false;
+    };
+  }, [backing, amount, data.marketId, potA, potB, world.sourceByMarket]);
   const sign = () => {
     if (!backing || !amount) return;
     if (!viewer) {

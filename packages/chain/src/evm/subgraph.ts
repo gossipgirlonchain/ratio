@@ -89,11 +89,15 @@ export class RatioSubgraph {
    */
   async sideTotals(oracle: string): Promise<SideTotals> {
     const data = await this.query<{
-      market: { entries: { side: number; staked: string; tradeCount: number }[] } | null;
+      market: {
+        entries: { side: number; staked: string; tradeCount: number; claimableSupply: string }[];
+        trades: { side: number; tokensOut: string }[];
+      } | null;
     }>(
       `query SideTotals($id: ID!) {
          market(id: $id) {
-           entries { side staked tradeCount }
+           entries { side staked tradeCount claimableSupply }
+           trades(first: 1000) { side tokensOut }
          }
        }`,
       { id: oracle.toLowerCase() },
@@ -105,6 +109,22 @@ export class RatioSubgraph {
       const side = e.side === 0 ? 0 : 1;
       raised[side] = BigInt(e.staked);
       tradeCount += e.tradeCount;
+      // After migration the supply is fixed and authoritative.
+      if (e.claimableSupply !== "0") tokens[side] = BigInt(e.claimableSupply);
+    }
+    /**
+     * Before migration there is no claimable supply yet, so the payout
+     * denominator is the tokens sold so far — which is a sum over this side's
+     * swaps and exists nowhere but here. Summed rather than stored, because an
+     * `Entry.tokensSold` field would be a schema change and this is the same
+     * number.
+     */
+    const sold: [bigint, bigint] = [0n, 0n];
+    for (const t of data.market?.trades ?? []) {
+      sold[t.side === 0 ? 0 : 1] += BigInt(t.tokensOut);
+    }
+    for (const side of [0, 1] as const) {
+      if (tokens[side] === 0n) tokens[side] = sold[side];
     }
     return { raisedWei: raised, tokens, tradeCount };
   }

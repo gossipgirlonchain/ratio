@@ -21,9 +21,9 @@
  *  - Money: never the word "pot". A one-sided market must LOOK lopsided —
  *    the empty side renders as a sliver, never as a full/solid bar.
  */
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
-import { formatQuote, quotePayout } from "./payout";
+import { formatQuote, quotePayout, type PayoutQuote } from "./payout";
 import type { MarketStripData, StripSide } from "./types";
 
 const PRESETS = [1, 5, 25, 100, 250, 500] as const;
@@ -58,6 +58,20 @@ export interface MarketStripProps {
   onSign?: (side: "a" | "b", amountUsd: number) => boolean | void;
   /** Instrumentation for the preset ladder (tune from real data). */
   onPresetUsed?: (amountUsd: number | "custom") => void;
+  /**
+   * The real quote, from the curve.
+   *
+   * Entry is curve-priced, so the honest payout is a TOKEN share of the
+   * projected pot, and tokens come from simulating the swap on chain. The
+   * built-in `quotePayout` is the small-stake limit of that and overstates
+   * large stakes, which is the exact case a quote most needs to be right.
+   *
+   * Absent — fixtures, the extension, any surface with no server — falls back
+   * to the approximation. When it IS present the slot stays empty until the
+   * chain answers, rather than showing a number we know is wrong and then
+   * correcting it under the reader.
+   */
+  quoteFor?: (side: "a" | "b", stakeUsd: number) => Promise<PayoutQuote | null>;
   /**
    * The whole strip clicks through to the market page — tweet text, bar,
    * clock line, empty space — EXCEPT the two username rows (bet targets)
@@ -175,7 +189,7 @@ function Row({
   );
 }
 
-export function MarketStrip({ data, nowMs, onSign, onPresetUsed, marketHref, onOpen, fullText, betStatus }: MarketStripProps) {
+export function MarketStrip({ data, nowMs, onSign, onPresetUsed, marketHref, onOpen, fullText, betStatus, quoteFor }: MarketStripProps) {
   const now = nowMs ?? Date.now();
   const [backing, setBacking] = useState<"a" | "b" | null>(null);
   const [amount, setAmount] = useState<number | null>(null);
@@ -193,7 +207,7 @@ export function MarketStrip({ data, nowMs, onSign, onPresetUsed, marketHref, onO
         ? "a"
         : "b";
 
-  const quote = useMemo(() => {
+  const approximate = useMemo(() => {
     if (!backing || !amount) return null;
     return quotePayout({
       stakeUsd: amount,
@@ -202,6 +216,31 @@ export function MarketStrip({ data, nowMs, onSign, onPresetUsed, marketHref, onO
       yourSideUsd: (backing === "a" ? data.a : data.b).potUsd,
     });
   }, [backing, amount, data]);
+
+  const [chainQuote, setChainQuote] = useState<PayoutQuote | null>(null);
+  useEffect(() => {
+    if (!quoteFor || !backing || !amount) {
+      setChainQuote(null);
+      return;
+    }
+    // The picked amount changes as fast as a user can tap a preset ladder, so
+    // a slow answer for $25 must never land after a fast one for $500.
+    let current = true;
+    setChainQuote(null);
+    void quoteFor(backing, amount)
+      .then((q) => {
+        if (current) setChainQuote(q);
+      })
+      .catch(() => {
+        // A refused quote (settled market, index down) leaves the slot empty.
+        // Better silent than confidently wrong about money.
+      });
+    return () => {
+      current = false;
+    };
+  }, [quoteFor, backing, amount]);
+
+  const quote = quoteFor ? chainQuote : approximate;
 
   // Rows ARE the navigation: same row toggles, other row switches.
   // Starting a new pick clears the previous success line.

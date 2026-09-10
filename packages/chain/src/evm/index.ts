@@ -505,6 +505,15 @@ export class EvmMarketChain implements MarketChain {
       ],
       value: wei,
       account: this.opts.operator,
+      /**
+       * A quote must not depend on who is asking. The simulation sends real
+       * value, so without this a $500 quote fails for insufficient funds
+       * against whatever the operator happens to hold — the number a bettor
+       * sees would move with our treasury balance, and the largest stakes,
+       * where curve pricing matters most, would be the ones that could not be
+       * quoted at all.
+       */
+      stateOverride: [{ address: this.opts.operator.address, balance: parseEther("100000") }],
     });
     // BalanceDelta packs two int128s; the low half is currency1 (the token).
     const tokensOut = BigInt.asIntN(128, BigInt(result as bigint));

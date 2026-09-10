@@ -551,6 +551,32 @@ export class EvmMarketChain implements MarketChain {
       }),
     );
 
+    /**
+     * Wait until a READ sees the verdict before migrating.
+     *
+     * The write is confirmed by then — we hold its receipt — but Base's public
+     * RPC is load balanced, and the node that answers the next call can be a
+     * block or two behind the one that mined it. Migration asks the oracle who
+     * won, gets "nobody yet" from a stale node, and reverts.
+     *
+     * That is how markets ended up resolved on chain with their proceeds
+     * stranded in the pools: the revert was invisible (see `send`), so
+     * settlement carried on and recorded a payout that never happened. Reading
+     * our own write back is the cheap half of the fix.
+     */
+    for (let i = 0; ; i++) {
+      const finalized = await this.pub.readContract({
+        address: oracle,
+        abi: ratioOracleAbi,
+        functionName: "isFinalized",
+      });
+      if (finalized) break;
+      if (i >= 30) {
+        throw new Error(`oracle ${oracle} still reads unfinalized after declareWinner`);
+      }
+      await new Promise((r) => setTimeout(r, 1_000));
+    }
+
     // Migration is a separate step on EVM: Airlock moves each entry's proceeds
     // into the pot, and claims revert until the WINNING entry has migrated.
     for (const token of await this.entryTokens(params.refs.marketId)) {

@@ -284,6 +284,25 @@ that reads like a token bug.
 A `claimWithPermit`, or even a documented note that the approve is required,
 would remove a step from every claim flow built on this.
 
+**Update, after we found the real cause.** The revert was not the approve
+missing, it was the approve not being *visible*: the transaction had confirmed
+and we held its receipt, but the RPC answering the claim was a node that had
+not caught up. The same thing broke `migrate` — the oracle read back as
+unresolved seconds after `declareWinner` confirmed.
+
+That is not Doppler's bug, but it is a sharp edge in a flow Doppler defines,
+and it is invisible until it strands a pot. Two things would blunt it for
+everyone building on this:
+
+- **Name the preconditions in the revert.** `migrate` reverting with an
+  undecodable selector, and `claim` reverting with Solmate's generic
+  `TRANSFER_FROM_FAILED`, both send an integrator looking at their own code.
+  A `NotResolved()` and an `InsufficientAllowance()` would have pointed
+  straight at read consistency instead.
+- **Say in the docs that each step must be confirmed by a READ, not a
+  receipt.** Any multi-step lifecycle across a load-balanced RPC has this
+  problem; the ones that involve money deserve the warning.
+
 ---
 
 *Updated as the week goes. Sections are appended, not rewritten.*

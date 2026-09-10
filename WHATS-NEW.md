@@ -191,10 +191,32 @@ totals.
 duration leaves a real Base Sepolia market open instead of settling it 90
 seconds later, so the product can be used against live indexed money.
 
+**The spine closes: a winner was paid.** The engine drove a market on Base
+Sepolia from a tag to a claim — created, both sides staked, resolved on likes,
+both entries migrated, and the winning holder paid **$4.47** out of a $4.51 pot
+(market `7676262`, verified in the index: `totalClaimed` equals `totalPot` to
+within dust).
+
+Getting there took three fixes, and all three are the same bug wearing
+different clothes — a confirmed write is not a readable one, because a
+load-balanced RPC answers the next call from whichever node it likes:
+
+1. `migrate` reverted because the oracle it asked still said nobody had won,
+   moments after `declareWinner` had confirmed. Settlement now reads the
+   verdict back before migrating.
+2. `claim` reverted with `TRANSFER_FROM_FAILED` because the approve it depended
+   on was not visible yet. The claim now waits for the allowance it needs
+   rather than for a receipt.
+3. The payout was reported to the winner as **$0.00** on a claim that paid
+   them, because the preview was taken from a node that had not seen the
+   migration. What was paid is now read from the claim's own receipt.
+
+Together with the earlier receipt-status fix, that is the whole class: never
+trust a receipt as proof that the next call will see the state it created.
+
 ### Still to come
 
-Claim through the engine (the audit scripts are in `apps/agent/scripts`), the
-subgraph redeploy that recovers the dropped side, and the fee leaderboard
+The subgraph redeploy that recovers the dropped side, and the fee leaderboard
 rendered from indexed fees.
 
 ---

@@ -536,7 +536,7 @@ export class EvmMarketChain implements MarketChain {
     };
   }
 
-  async settle(params: { refs: ChainRefs; winner: 0 | 1 }): Promise<void> {
+  async settle(params: { refs: ChainRefs; winner: 0 | 1 }): Promise<{ winner: 0 | 1 }> {
     const { operator, addresses } = this.opts;
     const oracle = await this.oracleAddress(params.refs.marketId);
     const tokens = await this.entryTokens(params.refs.marketId);
@@ -557,12 +557,16 @@ export class EvmMarketChain implements MarketChain {
       functionName: "getWinner",
       args: [oracle],
     });
+    let winner = params.winner;
     if (alreadyFinal) {
       const declared = tokens.findIndex((t) => t.toLowerCase() === declaredToken.toLowerCase());
-      if (declared !== -1 && declared !== params.winner) {
-        console.error(
-          `  market ${params.refs.marketId}: chain already holds side ${declared} as winner, engine computed ${params.winner} — the chain's verdict stands`,
-        );
+      if (declared === 0 || declared === 1) {
+        if (declared !== params.winner) {
+          console.error(
+            `  market ${params.refs.marketId}: chain already holds side ${declared} as winner, engine computed ${params.winner} — the chain's verdict stands`,
+          );
+        }
+        winner = declared;
       }
       console.log(`  market ${params.refs.marketId}: verdict already on chain, resuming at migration`);
     } else {
@@ -607,18 +611,34 @@ export class EvmMarketChain implements MarketChain {
 
     // Migration is a separate step on EVM: Airlock moves each entry's proceeds
     // into the pot, and claims revert until the WINNING entry has migrated.
-    for (const token of await this.entryTokens(params.refs.marketId)) {
-      await this.send(operator, (w) =>
-        w.writeContract({
-          address: addresses.airlock,
-          abi: airlockAbi,
-          functionName: "migrate",
-          args: [token],
-          chain: baseSepolia,
-          account: operator,
-        }),
-      );
+    for (const token of tokens) {
+      // An entry that migrated in an earlier attempt reverts here, and the
+      // migrator exposes no getter to ask first. So a revert is tolerated per
+      // entry, and what is checked instead is the thing that matters: that
+      // the WINNING entry is claimable when the loop is done.
+      try {
+        await this.send(operator, (w) =>
+          w.writeContract({
+            address: addresses.airlock,
+            abi: airlockAbi,
+            functionName: "migrate",
+            args: [token],
+            chain: baseSepolia,
+            account: operator,
+          }),
+        );
+      } catch (err) {
+        console.log(`  migrate ${token} did not land (${(err as Error).message.slice(0, 80)}); checking claimability`);
+      }
     }
+    // Reverts until the winning entry has migrated. This is the assertion.
+    await this.pub.readContract({
+      address: addresses.predictionMigrator,
+      abi: predictionMigratorAbi,
+      functionName: "previewClaim",
+      args: [oracle, 1n],
+    });
+    return { winner };
   }
 
   async claimFor(params: {

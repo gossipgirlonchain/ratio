@@ -210,11 +210,12 @@ export class DopplerMarketChain implements MarketChain {
     return /^[1-9A-HJ-NP-Za-km-z]{32,44}$/.test(candidate);
   }
 
-  async settle(params: { refs: ChainRefs; winner: 0 | 1 }): Promise<void> {
+  async settle(params: { refs: ChainRefs; winner: 0 | 1 }): Promise<{ winner: 0 | 1 }> {
     await this.client.resolveAndMigrate({
       refs: await this.refs(params.refs),
       winner: params.winner,
     });
+    return { winner: params.winner };
   }
 
   async claimFor(params: {

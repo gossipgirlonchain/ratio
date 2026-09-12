@@ -528,7 +528,7 @@ export class RatioEngine {
     // suspensions can reverse mid-window. Both unreadable: the original
     // holds by the same convention as an exact tie.
     const forfeit = !a || !b;
-    const winner: "a" | "b" = forfeit
+    let winner: "a" | "b" = forfeit
       ? a
         ? "a"
         : b
@@ -537,7 +537,7 @@ export class RatioEngine {
       : b!.likeCount > a!.likeCount
         ? "b"
         : "a";
-    const winnerSide: 0 | 1 = winner === "a" ? 0 : 1;
+    let winnerSide: 0 | 1 = winner === "a" ? 0 : 1;
 
     // Last-known counts for the record when a side is gone (creation
     // snapshot is the floor; the sampler usually has something fresher).
@@ -607,7 +607,12 @@ export class RatioEngine {
       finalPotUsd: odds.raisedUsd[0] + odds.raisedUsd[1],
     };
 
-    await this.chain.settle({ refs: record.chainRefs, winner: winnerSide });
+    // The chain has the last word on who won: a verdict declared by an
+    // earlier, partially failed settlement cannot be changed, so what gets
+    // recorded and paid out is what the chain holds, not what we recomputed.
+    const settled = await this.chain.settle({ refs: record.chainRefs, winner: winnerSide });
+    winnerSide = settled.winner;
+    winner = winnerSide === 0 ? "a" : "b";
     await this.store.updateMarket(record.id, {
       status: forfeit ? "forfeited" : "settled",
       winner,

@@ -102,7 +102,13 @@ export interface MarketChain {
   }): Promise<{ signature: string }>;
   /** Address shape check for the withdraw form, in the chain's own format. */
   isValidAddress(candidate: string): boolean;
-  settle(opts: { refs: ChainRefs; winner: 0 | 1 }): Promise<void>;
+  /**
+   * Resolve and migrate. Returns the winner the chain ENDED UP holding: on a
+   * rerun after a partial failure the verdict may already be on chain, and a
+   * verdict already on chain cannot be changed, so the caller must record
+   * that one rather than its own.
+   */
+  settle(opts: { refs: ChainRefs; winner: 0 | 1 }): Promise<{ winner: 0 | 1 }>;
   /** Post-settlement payout: claim a bettor's full winning balance into
    * their wallet. null = they hold nothing on the winning side. */
   claimFor(opts: {
@@ -248,7 +254,7 @@ export class MockMarketChain implements MarketChain {
     return candidate.startsWith("wallet:") && candidate.length > "wallet:".length;
   }
 
-  async settle(opts: { refs: ChainRefs; winner: 0 | 1 }): Promise<void> {
+  async settle(opts: { refs: ChainRefs; winner: 0 | 1 }): Promise<{ winner: 0 | 1 }> {
     const m = this.market(opts.refs);
     if (m.state !== "open") throw new Error("market not open");
     // Mirrors on-chain ZeroClaimableSupply: migration throws when nobody
@@ -257,6 +263,7 @@ export class MockMarketChain implements MarketChain {
     if (m.sides[opts.winner].tokensOut === 0) throw new Error("ZeroClaimableSupply");
     m.state = "settled";
     m.winner = opts.winner;
+    return { winner: opts.winner };
   }
 
   /**

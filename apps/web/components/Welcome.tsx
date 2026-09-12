@@ -38,9 +38,8 @@ export function Welcome() {
           <li>bet from x too: reply to either tweet with something like &quot;@ratiowtf $10 @handle&quot;.</li>
         </ol>
         <p className="welcome-note">
-          this is the devnet beta, so the money is play money. grab free SOL
-          from the faucet, send it to your wallet address in the top bar, and
-          you are in.
+          this is the beta, so the money is test money. fund the wallet on your
+          profile and you are in.
         </p>
         <div className="welcome-row">
           <button className="gate-btn" onClick={dismiss}>got it</button>

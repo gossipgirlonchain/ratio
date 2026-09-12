@@ -11,6 +11,7 @@ import { useRouter } from "next/navigation";
 
 import { MarketStrip } from "@ratio/ui";
 
+import { LaunchMarket } from "../components/LaunchMarket";
 import { Welcome } from "../components/Welcome";
 
 import { curveQuoteIf } from "../lib/quote";
@@ -31,16 +32,32 @@ export default function Page() {
   const pendingBets = usePendingBets();
   if (!mounted) return null;
   const markets = feedMarkets(live);
+  /**
+   * Live means the index has its money. Anything else on this deployment is
+   * an example: a fixture, or a market opened on a chain this build does not
+   * trade on. Examples read like markets but do not take stakes, because a
+   * stake on one would go nowhere and roll back in front of the reader.
+   *
+   * When the index cannot be reached at all the split is meaningless, so it
+   * is not made.
+   */
+  const split = live.indexReachable;
+  const isLive = (id: string) => !split || live.sourceByMarket[id] === "subgraph";
+  const liveMarkets = markets.filter((m) => isLive(m.data.marketId));
+  const examples = markets.filter((m) => !isLive(m.data.marketId));
   const leaders = live.leaderboard.slice(0, 5);
   return (
     <>
       <Welcome />
       <div className="home-grid">
         <main className="timeline timeline-flush">
-          {!live.loading && markets.length === 0 && (
-            <p className="page-empty">no markets yet. tag @ratiowtf under a reply or QT to open the first one.</p>
+          <div className="feed-launch">
+            <LaunchMarket />
+          </div>
+          {!live.loading && liveMarkets.length === 0 && (
+            <p className="page-empty">no live markets yet. tag @ratiowtf under a reply or QT to open the first one.</p>
           )}
-          {markets.map(({ data }) => (
+          {liveMarkets.map(({ data }) => (
             <MarketStrip
               key={data.marketId}
               data={data}
@@ -59,6 +76,19 @@ export default function Page() {
               onOpen={() => router.push(`/m/${data.marketId}`)}
             />
           ))}
+          {examples.length > 0 && (
+            <>
+              <div className="feed-label">examples</div>
+              {examples.map(({ data }) => (
+                <MarketStrip
+                  key={data.marketId}
+                  data={data}
+                  marketHref={`/m/${data.marketId}`}
+                  onOpen={() => router.push(`/m/${data.marketId}`)}
+                />
+              ))}
+            </>
+          )}
         </main>
         <aside className="home-side">
           <div className="card side-board">

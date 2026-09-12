@@ -214,10 +214,33 @@ load-balanced RPC answers the next call from whichever node it likes:
 Together with the earlier receipt-status fix, that is the whole class: never
 trust a receipt as proof that the next call will see the state it created.
 
+### Saturday 12 September
+
+**The subgraph redeploy landed** (deployment `QmSccKAN…`): the dropped side
+is recovered and the trader board now carries real wins and losses.
+
+**Settlement is resumable from wherever it stopped.** A stranded market —
+verdict declared on chain, migration failed, store still open — used to be
+unrecoverable: the oracle refuses a second verdict, and the engine would have
+recorded its own recomputed winner against the chain's. Now `settle` reads the
+verdict first, adopts the chain's if one exists (the chain has the last word),
+tolerates a re-migration, and asserts claimability at the end. Market
+`7151637`, stranded since Wednesday with the wrong winner in the store, was
+recovered this way and its winner paid $4.59. `RATIO_SIM_SETTLE_DUE=1` runs
+that pass by hand.
+
+**The feed says what is an example.** Live markets (money on the index) come
+first; everything else sits under an "examples" label and takes no stakes. A
+"launch a market" button opens the three steps and sends you to X, because a
+market is opened by a reply there and nowhere else.
+
+**Submission package**: `SUBMISSION.md`, a judge access code, and a README
+that leads with how to judge it in five minutes.
+
 ### Still to come
 
-The subgraph redeploy that recovers the dropped side, and the fee leaderboard
-rendered from indexed fees.
+The fee leaderboard rendered from indexed fees rather than derived at the read
+layer, and the demo video.
 
 ---
 

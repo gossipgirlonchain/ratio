@@ -161,22 +161,50 @@ async function main() {
   const user = (n: string) => ({ authorId: `u:${n}`, authorHandle: n });
   const HOUR = 3_600_000;
 
+  /**
+   * Settle whatever is due and stop. The agent's own settlement path, run by
+   * hand: for markets a sim left open, or ones a failed settlement stranded.
+   * The mock X is seeded from the store rows so the likes verdict is the
+   * counts at creation — a tie holds for side A, which is the convention.
+   */
+  if (process.env.RATIO_SIM_SETTLE_DUE === "1") {
+    const due = await store.listOpenMarketsDue(clock());
+    console.log(`\n${due.length} market(s) due`);
+    for (const m of due) {
+      x.seedTweet({ tweetId: m.tweetAId, authorId: m.authorAXId, authorHandle: m.authorAHandle, text: m.textA ?? "", likeCount: m.likesAFinal ?? m.likesAAtCreate });
+      x.seedTweet({ tweetId: m.tweetBId, authorId: m.authorBXId, authorHandle: m.authorBHandle, text: m.textB ?? "", likeCount: m.likesBFinal ?? m.likesBAtCreate, referencedTweet: { type: m.pairType === "quote" ? "quoted" : "replied_to", tweetId: m.tweetAId } });
+    }
+    await engine.resolveDueMarkets();
+    console.log("settlement pass complete ✅");
+    return;
+  }
+
+  // The cast. Overridable so a market made for a recording reads like a real
+  // one instead of "original take" vs "the answer".
+  const cast = {
+    a: process.env.RATIO_SIM_A_HANDLE ?? "opa",
+    aText: process.env.RATIO_SIM_A_TEXT ?? "original take",
+    b: process.env.RATIO_SIM_B_HANDLE ?? "rep",
+    bText: process.env.RATIO_SIM_B_TEXT ?? "the answer",
+    scout: process.env.RATIO_SIM_SCOUT ?? "scout",
+  };
+
   // ---- 1. a scout tags a reply -------------------------------------------
   console.log("\n[1/4] mention -> eligibility -> market on Base Sepolia…");
   const sideA = x.seedTweet({
-    ...user("opa"),
-    text: "original take",
+    ...user(cast.a),
+    text: cast.aText,
     createdAtMs: clock() - 2 * HOUR,
-    likeCount: 30,
+    likeCount: Number(process.env.RATIO_SIM_A_LIKES ?? 30),
   });
   const sideB = x.seedTweet({
-    ...user("rep"),
-    text: "the answer",
+    ...user(cast.b),
+    text: cast.bText,
     createdAtMs: clock() - HOUR,
-    likeCount: 10,
+    likeCount: Number(process.env.RATIO_SIM_B_LIKES ?? 10),
     referencedTweet: { type: "replied_to", tweetId: sideA.tweetId },
   });
-  x.queueMention({ ...user("scout"), text: `@${BOT_HANDLE}`, target: { tweetId: sideB.tweetId, type: "replied_to" } });
+  x.queueMention({ ...user(cast.scout), text: `@${BOT_HANDLE}`, target: { tweetId: sideB.tweetId, type: "replied_to" } });
 
   await engine.tick();
   const rec = await store.getMarketByPair(sideA.tweetId, sideB.tweetId);
@@ -185,13 +213,13 @@ async function main() {
 
   // ---- 2. two stakes, one in dollars and one in ETH -----------------------
   console.log("\n[2/4] reply-stakes in both units…");
-  x.queueMention({ ...user("dave"), text: `@${BOT_HANDLE} $2 @rep`, target: { tweetId: rec.id, type: "replied_to" } });
+  x.queueMention({ ...user("dave"), text: `@${BOT_HANDLE} $2 @${cast.b}`, target: { tweetId: rec.id, type: "replied_to" } });
   await engine.tick();
   // 0.001 ETH, not 0.0004. The min stake is a DOLLAR policy ($1), so a
   // native-denominated stake sitting near it flips in and out of validity as
   // the price moves — 0.0004 ETH was $1.001 at one run's price and $0.99 at
   // the next, and the engine correctly declined the second in silence.
-  x.queueMention({ ...user("erin"), text: `@${BOT_HANDLE} 0.001 @opa`, target: { tweetId: rec.id, type: "replied_to" } });
+  x.queueMention({ ...user("erin"), text: `@${BOT_HANDLE} 0.001 @${cast.a}`, target: { tweetId: rec.id, type: "replied_to" } });
   await engine.tick();
 
   const bets = await store.listBets(rec.id);
@@ -205,7 +233,7 @@ async function main() {
   // ---- 3. odds -------------------------------------------------------------
   const odds = await chain.getOdds(rec.chainRefs);
   console.log(
-    `\n[3/4] odds: ${Math.round(odds.impliedA * 100)}% @opa  ($${odds.raisedUsd[0].toFixed(2)} / $${odds.raisedUsd[1].toFixed(2)})`,
+    `\n[3/4] odds: ${Math.round(odds.impliedA * 100)}% @${cast.a}  ($${odds.raisedUsd[0].toFixed(2)} / $${odds.raisedUsd[1].toFixed(2)})`,
   );
 
   if (OPEN_ONLY) {
@@ -230,7 +258,7 @@ async function main() {
   const settled = await store.getMarketByTweet(rec.id);
   assert.equal(settled!.status, "settled", "market settled");
   assert.equal(settled!.winner, "b", "side B won on likes");
-  console.log(`  settled: @rep wins, ${settled!.likesBFinal} vs ${settled!.likesAFinal} likes`);
+  console.log(`  settled: @${cast.b} wins, ${settled!.likesBFinal} vs ${settled!.likesAFinal} likes`);
 
   console.log("\nengine + real Base Sepolia: full loop green ✅");
 }

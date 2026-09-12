@@ -539,18 +539,45 @@ export class EvmMarketChain implements MarketChain {
   async settle(params: { refs: ChainRefs; winner: 0 | 1 }): Promise<void> {
     const { operator, addresses } = this.opts;
     const oracle = await this.oracleAddress(params.refs.marketId);
+    const tokens = await this.entryTokens(params.refs.marketId);
 
-    // The verdict. Terminal, and the migrator reads it exactly once.
-    await this.send(operator, (w) =>
-      w.writeContract({
-        address: oracle,
-        abi: ratioOracleAbi,
-        functionName: "declareWinner",
-        args: [params.winner, 0n, 0n, false],
-        chain: baseSepolia,
-        account: operator,
-      }),
-    );
+    /**
+     * Settlement is idempotent from any point it previously stopped at.
+     *
+     * A settlement that declared the winner and then failed at migration
+     * leaves the oracle finalized and the pot in the pools. Rerunning it must
+     * not try to declare again — the oracle refuses a second verdict, which
+     * is correct — and must not contradict the first one: the chain's verdict
+     * is the verdict. So it reads first, declares only if nothing has been
+     * declared, and carries on to migration from there.
+     */
+    const [declaredToken, alreadyFinal] = await this.pub.readContract({
+      address: oracle,
+      abi: ratioOracleAbi,
+      functionName: "getWinner",
+      args: [oracle],
+    });
+    if (alreadyFinal) {
+      const declared = tokens.findIndex((t) => t.toLowerCase() === declaredToken.toLowerCase());
+      if (declared !== -1 && declared !== params.winner) {
+        console.error(
+          `  market ${params.refs.marketId}: chain already holds side ${declared} as winner, engine computed ${params.winner} — the chain's verdict stands`,
+        );
+      }
+      console.log(`  market ${params.refs.marketId}: verdict already on chain, resuming at migration`);
+    } else {
+      // The verdict. Terminal, and the migrator reads it exactly once.
+      await this.send(operator, (w) =>
+        w.writeContract({
+          address: oracle,
+          abi: ratioOracleAbi,
+          functionName: "declareWinner",
+          args: [params.winner, 0n, 0n, false],
+          chain: baseSepolia,
+          account: operator,
+        }),
+      );
+    }
 
     /**
      * Wait until a READ sees the verdict before migrating.

@@ -173,6 +173,16 @@ export const ratioOracleAbi = [
     outputs: [{ type: "bool" }],
   },
   {
+    // The verdict as the chain holds it. Read before declaring, because a
+    // declare that landed in an earlier attempt cannot be repeated and must
+    // not be contradicted.
+    type: "function",
+    name: "getWinner",
+    stateMutability: "view",
+    inputs: [{ name: "", type: "address" }],
+    outputs: [{ type: "address" }, { type: "bool" }],
+  },
+  {
     type: "function",
     name: "isFinalized",
     stateMutability: "view",

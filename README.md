@@ -1,14 +1,171 @@
 # ratio
 
-A Solana prediction market that lives on X. Someone tweets, someone answers,
-anyone tags the bot on the answer: a 24-hour market opens between the two
+A prediction market that lives on X. Someone tweets, someone answers, anyone
+tags **@ratiowtf** on the answer: a 24-hour market opens between the two
 tweets. Most likes when the clock runs out wins. The likes are the referee.
 
-Rebuild of `cue-wire` (different mechanic, same seams). `ratio.wtf`; the
-bot is **@ratiowtf** (registered 2026-08-20; `BOT_HANDLE` in
-`@ratio/config` drives it everywhere, env-overridable).
+Built on Doppler, which is Uniswap v4 hooks: each side of a market is a v4
+pool, entry is curve-priced, settlement is token-weighted parimutuel. Runs on
+**Base Sepolia**. The Solana build it was ported from stays beside it, behind
+the same seam.
 
-## Status
+`ratio.wtf` · repo `github.com/gossipgirlonchain/ratio` · bot **@ratiowtf**
+
+## Judge this in five minutes
+
+ETHOnline 2026, continuity track. What existed before the event and what was
+built during it is split honestly in [`WHATS-NEW.md`](WHATS-NEW.md). Every
+prompt and decision that shaped the week is in [`prompts/`](prompts/), in order.
+
+1. **The site**: [ratio.wtf](https://ratio.wtf). It is behind a beta wall; the
+   access code for judges is **`RATIO-ETHG-2026`**. The feed, market pages,
+   leaderboards and profiles read their money from The Graph, and each market
+   says which source answered.
+2. **A market that was paid out, end to end, by the engine** on Base Sepolia:
+   market `7676262`, oracle-resolved, both entries migrated, winner claimed
+   $4.47 of a $4.51 pot. Read it straight from the index:
+
+   ```bash
+   curl -s -X POST https://api.studio.thegraph.com/query/1758972/ratio/version/latest \
+     -H 'content-type: application/json' \
+     -d '{"query":"{ markets(where:{marketId:\"7676262\"}) { resolved winnerSide totalPot totalClaimed claims { claimer payout } } }"}'
+   ```
+3. **The one contract we wrote**, with 29 Foundry tests including a fork
+   against the live Doppler deployment: `cd contracts && forge test`.
+4. **A curve quote**, live: `POST https://ratio.wtf/api/quote` with
+   `{"marketId":"<id>","side":0,"stakeUsd":25}` simulates the v4 swap and
+   returns the token share of the projected pot. `$1`, `$25` and `$500` on the
+   same side come back at different multiples, which is the point.
+5. **The friction**, written as it was hit: [`FEEDBACK.md`](FEEDBACK.md).
+
+The three partner integrations, and where each one actually lives, are below.
+
+## EVM (ETHOnline 2026)
+
+Ratio runs on Base Sepolia against Doppler's `PredictionMigrator`, which prices
+entry through Uniswap v4 pools and pays token-weighted parimutuel claims.
+Addresses and how to re-verify them: `contracts/BASE-SEPOLIA.md`. The event
+schema the subgraph is built against: `contracts/EVENTS.md`.
+
+We own exactly one contract, `RatioOracle` — it reports the 24h likes verdict
+and refuses to report it wrongly. Everything else is Doppler's.
+
+```bash
+cd contracts && forge test          # 29 tests: unit + forked against live state
+```
+
+### For judges: what to look at, and where
+
+Uniswap Foundation asks that the README identify the relevant contracts and
+code lines. The Uniswap surface here is Doppler, which is Uniswap v4 hooks —
+each market is two v4 pools, and entry pricing is entirely theirs.
+
+| What | Where |
+|---|---|
+| The one contract we wrote | [`contracts/src/RatioOracle.sol`](contracts/src/RatioOracle.sol) — implements `IPredictionOracle`, reports the 24h likes verdict, refuses to report it twice or early |
+| One oracle per market | [`contracts/src/RatioOracleFactory.sol`](contracts/src/RatioOracleFactory.sol) — EIP-1167 clones, CREATE2-salted on the tweet id |
+| v4 pool construction | [`packages/chain/src/evm/index.ts`](packages/chain/src/evm/index.ts) `createEntry` — `airlock.create` per side, `farTick == startTick` so migration is oracle-gated rather than price-gated |
+| The bet, as a v4 swap | [`packages/chain/src/evm/index.ts`](packages/chain/src/evm/index.ts) `placeBet` / `poolKey` |
+| Quotes from simulation, not pot totals | [`packages/chain/src/evm/index.ts`](packages/chain/src/evm/index.ts) `previewStake` |
+| Doppler's fee-split rules | [`packages/chain/src/evm/beneficiaries.ts`](packages/chain/src/evm/beneficiaries.ts) + tests |
+| Proof it works, against live deployed code | [`contracts/test/BaseSepoliaLifecycle.t.sol`](contracts/test/BaseSepoliaLifecycle.t.sol) — forks Base Sepolia |
+| One real market, end to end, from a forge script | [`contracts/BASE-SEPOLIA.md`](contracts/BASE-SEPOLIA.md) — 13 transactions with hashes |
+| The same lifecycle driven by the ENGINE, against the live chain | [`apps/agent/src/sim-evm.ts`](apps/agent/src/sim-evm.ts) — `npm run sim:evm:live -w @ratio/agent`; market `7676262` was created, staked, resolved, migrated and claimed this way |
+| Settlement and claim: `declareWinner` → `migrate` per entry → `claim` | [`packages/chain/src/evm/index.ts`](packages/chain/src/evm/index.ts) `settle` / `claimFor` — each step is confirmed by a READ, not a receipt, because a load-balanced RPC stranded a pot when it was not |
+| Did the money actually move? | [`apps/agent/scripts/migration-audit.ts`](apps/agent/scripts/migration-audit.ts) and [`claim-audit.ts`](apps/agent/scripts/claim-audit.ts) — the scripts that found the stranded markets |
+| Friction we hit | [`FEEDBACK.md`](FEEDBACK.md) |
+
+The thing most worth a judge's attention: Doppler's EVM prediction market
+(`PredictionMigrator`, `NoSellDopplerHook`) is deployed and whitelisted on Base
+Sepolia but exists only on an unmerged PR, and appears in no documentation, SDK
+or indexer. **Ratio is its first transaction ever** — it had processed none
+between February and us. Two wiring bugs that block any integrator are written
+up with call traces in `FEEDBACK.md` section 2.
+
+### The Graph
+
+The subgraph is not decoration: on chain there are no entry prices and no trade
+history, because the pools drain at migration and Uniswap v4 is a singleton.
+Per-side stake is a sum over swaps or it does not exist.
+
+| What | Where |
+|---|---|
+| Schema and mappings | [`subgraph/`](subgraph/) |
+| Attribution: how a swap finds its market | [`subgraph/src/migrator.ts`](subgraph/src/migrator.ts) — an indexed `PoolKey` arrives hashed, so we index *forward* and record the `poolId` at registration |
+| The bettor is `transaction.from`, not `Swap.sender` | [`subgraph/src/swaps.ts`](subgraph/src/swaps.ts) — `sender` is the router; using it attributes every bet to one address |
+| The agent consuming it | [`packages/chain/src/evm/subgraph.ts`](packages/chain/src/evm/subgraph.ts), wired at [`apps/agent/src/assembleChain.ts`](apps/agent/src/assembleChain.ts) `raisedWeiFor` |
+| The app consuming it | [`apps/web/lib/subgraph.ts`](apps/web/lib/subgraph.ts) and [`apps/web/app/api/markets/route.ts`](apps/web/app/api/markets/route.ts) — the join: X data from our store, money from the index, keyed on the side-B tweet id |
+| Live endpoint | `https://api.studio.thegraph.com/query/1758972/ratio/version/latest` |
+
+Query it directly:
+
+```bash
+curl -s -X POST https://api.studio.thegraph.com/query/1758972/ratio/version/latest \
+  -H 'content-type: application/json' \
+  -d '{"query":"{ protocol(id: \"0x726174696f\") { marketCount tradeCount totalStaked } }"}'
+```
+
+Every money number in the product is a read from this. The app says which
+source answered, per market: a market opened on Solana, or one the index has
+never seen, reports `"store"` and is served from our own bet records, which can
+only see bets we brokered.
+
+### Privy
+
+Auth is X login only, and the Privy embedded wallet is the only wallet. There
+is no connect-wallet button and there never will be; users fund by transferring
+in. The financial flow is placing a bet: a transfer out of a Privy server
+wallet into a Uniswap v4 pool, signed server-side for a user who has never
+seen a seed phrase.
+
+| What | Where |
+|---|---|
+| Server wallets keyed to the numeric X id, one per person per chain | [`apps/agent/src/privyWalletsEvm.ts`](apps/agent/src/privyWalletsEvm.ts) — `@privy-io/node`, idempotency key `ratio-evm-wallet-${xUserId}`, namespaced rather than migrated from the Solana wallets |
+| The bet, signed by that wallet | [`packages/chain/src/evm/index.ts`](packages/chain/src/evm/index.ts) `placeBet` — the account comes from `signerFor(bettor)`, which resolves to the Privy signer |
+| Fee recipients get a wallet before they ever log in | [`apps/agent/src/engine.ts`](apps/agent/src/engine.ts) `createMarket` — both authors and the tagger are provisioned at market creation so fees accrue to them from the first trade |
+| X login on the client | [`apps/web/lib/auth.ts`](apps/web/lib/auth.ts) — `@privy-io/react-auth`, X as the only login method |
+
+
+### The operator key is testnet-only
+
+`BASE_SEPOLIA_PRIVATE_KEY` is the agent's operator key: it deploys the oracle
+factory, opens markets, and relays verdicts. On testnet the smoke-test signer and
+the operator are deliberately the same key.
+
+**It must never be reused on mainnet.** Mainnet needs a fresh key held somewhere
+that is not a developer's `.env` — the operator can open markets and declare
+winners, so a leak there is a leak of settlement authority, not just funds.
+`.env` is gitignored and has never been committed; `contracts/.env.example`
+records the shape without the value.
+
+Generate the key with the helper rather than by hand — it writes straight to
+`contracts/.env` (mode 600) and prints only the address, so the private key
+never reaches a terminal, a shell history, or a chat window:
+
+```bash
+cd contracts && ./new-operator-key.sh
+```
+
+To run one real market end to end and get block-explorer links:
+
+```bash
+cd contracts
+forge script script/LifecycleBaseSepolia.s.sol:LifecycleBaseSepolia \
+  --rpc-url https://sepolia.base.org --skip-simulation --broadcast -vvv
+```
+
+The key goes in `contracts/.env`, not the repo root — foundry loads `.env` from
+the directory you run in. It is gitignored at any depth.
+
+`--skip-simulation` is required: foundry's post-run replay fails on Base Sepolia
+with `invalid fee token: 0x20C0…`, an OP-stack custom-gas-token path this build
+mishandles. It is the replay that breaks, not the script, and the forked test
+covers what the replay would have checked.
+
+## Before the event: the Solana build (pre-4 September, not judged)
+
+The R1–R5 log of the Solana product this was ported from. Kept because the
+rules, the seams and the sim all carry over; none of it is event work.
 
 - **R1 — done.** Eligibility gate, pair resolution (QT + reply, one code
   path), market creation, 24h settlement on absolute like counts, tie to
@@ -115,109 +272,6 @@ bot is **@ratiowtf** (registered 2026-08-20; `BOT_HANDLE` in
   pending: server-side evaluation, extension push, Telegram. NO
   auto-execution without its own workstream.
 - **Backlog (ordered): extension -> OG images.**
-
-## EVM (ETHOnline 2026)
-
-Ratio runs on Base Sepolia against Doppler's `PredictionMigrator`, which prices
-entry through Uniswap v4 pools and pays token-weighted parimutuel claims.
-Addresses and how to re-verify them: `contracts/BASE-SEPOLIA.md`. The event
-schema the subgraph is built against: `contracts/EVENTS.md`.
-
-We own exactly one contract, `RatioOracle` — it reports the 24h likes verdict
-and refuses to report it wrongly. Everything else is Doppler's.
-
-```bash
-cd contracts && forge test          # 29 tests: unit + forked against live state
-```
-
-### For judges: what to look at, and where
-
-Uniswap Foundation asks that the README identify the relevant contracts and
-code lines. The Uniswap surface here is Doppler, which is Uniswap v4 hooks —
-each market is two v4 pools, and entry pricing is entirely theirs.
-
-| What | Where |
-|---|---|
-| The one contract we wrote | [`contracts/src/RatioOracle.sol`](contracts/src/RatioOracle.sol) — implements `IPredictionOracle`, reports the 24h likes verdict, refuses to report it twice or early |
-| One oracle per market | [`contracts/src/RatioOracleFactory.sol`](contracts/src/RatioOracleFactory.sol) — EIP-1167 clones, CREATE2-salted on the tweet id |
-| v4 pool construction | [`packages/chain/src/evm/index.ts`](packages/chain/src/evm/index.ts) `createEntry` — `airlock.create` per side, `farTick == startTick` so migration is oracle-gated rather than price-gated |
-| The bet, as a v4 swap | [`packages/chain/src/evm/index.ts`](packages/chain/src/evm/index.ts) `placeBet` / `poolKey` |
-| Quotes from simulation, not pot totals | [`packages/chain/src/evm/index.ts`](packages/chain/src/evm/index.ts) `previewStake` |
-| Doppler's fee-split rules | [`packages/chain/src/evm/beneficiaries.ts`](packages/chain/src/evm/beneficiaries.ts) + tests |
-| Proof it works, against live deployed code | [`contracts/test/BaseSepoliaLifecycle.t.sol`](contracts/test/BaseSepoliaLifecycle.t.sol) — forks Base Sepolia |
-| One real market, end to end | [`contracts/BASE-SEPOLIA.md`](contracts/BASE-SEPOLIA.md) — 13 transactions with hashes |
-| Friction we hit | [`FEEDBACK.md`](FEEDBACK.md) |
-
-The thing most worth a judge's attention: Doppler's EVM prediction market
-(`PredictionMigrator`, `NoSellDopplerHook`) is deployed and whitelisted on Base
-Sepolia but exists only on an unmerged PR, and appears in no documentation, SDK
-or indexer. **Ratio is its first transaction ever** — it had processed none
-between February and us. Two wiring bugs that block any integrator are written
-up with call traces in `FEEDBACK.md` section 2.
-
-### The Graph
-
-The subgraph is not decoration: on chain there are no entry prices and no trade
-history, because the pools drain at migration and Uniswap v4 is a singleton.
-Per-side stake is a sum over swaps or it does not exist.
-
-| What | Where |
-|---|---|
-| Schema and mappings | [`subgraph/`](subgraph/) |
-| Attribution: how a swap finds its market | [`subgraph/src/migrator.ts`](subgraph/src/migrator.ts) — an indexed `PoolKey` arrives hashed, so we index *forward* and record the `poolId` at registration |
-| The bettor is `transaction.from`, not `Swap.sender` | [`subgraph/src/swaps.ts`](subgraph/src/swaps.ts) — `sender` is the router; using it attributes every bet to one address |
-| The agent consuming it | [`packages/chain/src/evm/subgraph.ts`](packages/chain/src/evm/subgraph.ts), wired at [`apps/agent/src/assembleChain.ts`](apps/agent/src/assembleChain.ts) `raisedWeiFor` |
-| The app consuming it | [`apps/web/lib/subgraph.ts`](apps/web/lib/subgraph.ts) and [`apps/web/app/api/markets/route.ts`](apps/web/app/api/markets/route.ts) — the join: X data from our store, money from the index, keyed on the side-B tweet id |
-| Live endpoint | `https://api.studio.thegraph.com/query/1758972/ratio/version/latest` |
-
-Query it directly:
-
-```bash
-curl -s -X POST https://api.studio.thegraph.com/query/1758972/ratio/version/latest \
-  -H 'content-type: application/json' \
-  -d '{"query":"{ protocol(id: \"0x726174696f\") { marketCount tradeCount totalStaked } }"}'
-```
-
-Every money number in the product is a read from this. The app says which
-source answered, per market: a market opened on Solana, or one the index has
-never seen, reports `"store"` and is served from our own bet records, which can
-only see bets we brokered.
-
-### The operator key is testnet-only
-
-`BASE_SEPOLIA_PRIVATE_KEY` is the agent's operator key: it deploys the oracle
-factory, opens markets, and relays verdicts. On testnet the smoke-test signer and
-the operator are deliberately the same key.
-
-**It must never be reused on mainnet.** Mainnet needs a fresh key held somewhere
-that is not a developer's `.env` — the operator can open markets and declare
-winners, so a leak there is a leak of settlement authority, not just funds.
-`.env` is gitignored and has never been committed; `contracts/.env.example`
-records the shape without the value.
-
-Generate the key with the helper rather than by hand — it writes straight to
-`contracts/.env` (mode 600) and prints only the address, so the private key
-never reaches a terminal, a shell history, or a chat window:
-
-```bash
-cd contracts && ./new-operator-key.sh
-```
-
-To run one real market end to end and get block-explorer links:
-
-```bash
-cd contracts
-forge script script/LifecycleBaseSepolia.s.sol:LifecycleBaseSepolia \
-  --rpc-url https://sepolia.base.org --skip-simulation --broadcast -vvv
-```
-
-The key goes in `contracts/.env`, not the repo root — foundry loads `.env` from
-the directory you run in. It is gitignored at any depth.
-
-`--skip-simulation` is required: foundry's post-run replay fails on Base Sepolia
-with `invalid fee token: 0x20C0…`, an OP-stack custom-gas-token path this build
-mishandles. It is the replay that breaks, not the script, and the forked test
-covers what the replay would have checked.
 
 ## Layout
 
